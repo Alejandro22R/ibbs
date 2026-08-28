@@ -1,15 +1,16 @@
 <?php
 /**
  * IBBS — Perfil Profesional PDF
- * php/export_perfil.php        → perfil propio
- * php/export_perfil.php?uid=X  → perfil ajeno (solo admin/superadmin)
+ * api/export_perfil.php        → perfil propio
+ * api/export_perfil.php?uid=X  → perfil ajeno (solo admin/superadmin)
  */
 session_start();
 if (empty($_SESSION['loggedin'])) { header('Location: ../login.php'); exit; }
 
-function db(){ $c=mysqli_connect("localhost","root","","ibbs"); mysqli_set_charset($c,"utf8mb4"); return $c; }
+require_once __DIR__.'/../config/database.php';
 
 $con    = db();
+if (!$con) die('Error de conexión a la base de datos.');
 $my_uid = (int)($_SESSION['user_id'] ?? 0);
 $my_rol = $_SESSION['rol'] ?? 'alumno';
 

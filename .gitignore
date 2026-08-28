@@ -1,0 +1,14 @@
+# Fotos subidas por los usuarios (perfil, alumnos, docentes)
+uploads/fotos/*
+!uploads/fotos/.gitkeep
+
+# Configuración local / credenciales de entorno
+.env
+.env.local
+
+# Archivos de SO / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/

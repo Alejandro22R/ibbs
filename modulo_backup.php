@@ -34,7 +34,7 @@ if(!in_array($_rol,['superadmin','admin'])){
         Genera un archivo <code style="background:var(--cream);padding:.1rem .35rem;border-radius:4px;font-size:.8rem;">.sql</code> con toda la base de datos. Guárdalo en un lugar seguro.
       </p>
       <div style="display:flex;flex-direction:column;gap:.6rem;">
-        <a href="php/backup.php?action=export" class="btn btn-primary" style="text-align:center;">
+        <a href="api/backup.php?action=export" class="btn btn-primary" style="text-align:center;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Descargar SQL completo
         </a>
@@ -182,7 +182,7 @@ async function importarBD() {
   fd.append('action', 'import');
   toast('Restaurando… por favor espera.');
   try {
-    const r = await fetch('php/backup.php',{method:'POST',body:fd});
+    const r = await fetch('api/backup.php',{method:'POST',body:fd});
     const d = await r.json();
     if (d.ok) toast(d.msg);
     else toast(d.msg||'Error al importar.','err');

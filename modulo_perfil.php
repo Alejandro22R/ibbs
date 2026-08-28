@@ -44,7 +44,7 @@ mysqli_close($con);
       <div style="font-size:.78rem;color:var(--muted);margin-top:.4rem;">CI: <?=htmlspecialchars($u['cedula'])?></div>
       <p style="font-size:.72rem;color:var(--muted);margin-top:.8rem;">Clic en la foto para cambiarla<br>JPG, PNG o WebP · máx. 3MB</p>
       <div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--border);">
-        <a href="php/export_perfil.php" target="_blank"
+        <a href="api/export_perfil.php" target="_blank"
            style="display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.65rem 0;background:var(--ink);color:var(--lime);border-radius:10px;font-size:.8rem;font-weight:700;text-decoration:none;letter-spacing:.3px;">
           🖨️ Exportar Perfil PDF
         </a>
@@ -135,7 +135,7 @@ async function subirFoto(input) {
   fd.append('foto', input.files[0]);
   fd.append('tipo', 'usuario');
   fd.append('id', '<?=$_uid?>');
-  const r = await fetch('php/upload_foto.php',{method:'POST',body:fd});
+  const r = await fetch('api/upload_foto.php',{method:'POST',body:fd});
   const d = await r.json();
   if (d.ok) {
     toast('Foto actualizada.');

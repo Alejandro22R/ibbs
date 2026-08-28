@@ -9,6 +9,8 @@ $_uid = (int)($_SESSION['user_id']??0);
 $_ini = strtoupper(mb_substr($_u,0,1));
 $_foto= $_SESSION['foto']??null;
 
+require_once __DIR__.'/../config/database.php';
+
 // ── Permisos por rol ─────────────────────────────────────────
 function can($perm){
     $r = $_SESSION['rol']??'profesor';
@@ -21,8 +23,6 @@ function can($perm){
     if(in_array('all',$rp)) return true;
     return in_array($perm,$rp);
 }
-
-function db(){$c=mysqli_connect("localhost","root","","ibbs");if(!$c)die("Error BD: ".mysqli_connect_error());mysqli_set_charset($c,"utf8mb4");return $c;}
 ?><!DOCTYPE html>
 <html lang="es-VE">
 <head>

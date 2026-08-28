@@ -220,7 +220,7 @@ async function loadNotifs() {
   let d = null;
   try {
     const fd = new FormData(); fd.append('action','notif_list');
-    const r = await fetch('php/ajax.php', {method:'POST', body:fd});
+    const r = await fetch('api/ajax.php', {method:'POST', body:fd});
     const txt = await r.text();
     d = JSON.parse(txt);
   } catch(e) {

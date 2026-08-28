@@ -6,11 +6,12 @@
  */
 session_start();
 if(empty($_SESSION['loggedin'])){ header('Location: ../login.php'); exit; }
-function db(){$c=mysqli_connect("localhost","root","","ibbs");mysqli_set_charset($c,"utf8mb4");return $c;}
+require_once __DIR__.'/../config/database.php';
 
 $aid = (int)($_GET['alumno_id']??0);
 if(!$aid) die('ID inválido');
 $con = db();
+if (!$con) die('Error de conexión a la base de datos.');
 
 $a = mysqli_fetch_assoc(mysqli_query($con,"SELECT a.*, u.correo uc FROM alumnos a LEFT JOIN usuarios u ON u.id=a.usuario_id WHERE a.id=$aid LIMIT 1"));
 if(!$a) die('Alumno no encontrado');

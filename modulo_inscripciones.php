@@ -164,7 +164,7 @@ let _aid = null;
     d.data.map(m => `<option value="${m.id}">${h(m.codigo)} · ${h(m.nombre)}</option>`).join('');
   sel.onchange = () => {
     const btn = document.getElementById('btnExportPlanilla');
-    btn.href = sel.value ? 'php/export_pdf.php?materia_id=' + sel.value : '#';
+    btn.href = sel.value ? 'api/export_pdf.php?materia_id=' + sel.value : '#';
   };
 })();
 

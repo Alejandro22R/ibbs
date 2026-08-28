@@ -12,13 +12,13 @@ if (!in_array($rol, ['superadmin','admin'])) {
 }
 
 $action = trim($_GET['action'] ?? $_POST['action'] ?? '');
-$con = mysqli_connect("localhost","root","","ibbs");
+require_once __DIR__.'/../config/database.php';
+$con = db();
 if (!$con) {
     if ($action === 'export') die("Error de conexión a BD");
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok'=>false,'msg'=>'Error BD: '.mysqli_connect_error()]); exit;
+    echo json_encode(['ok'=>false,'msg'=>'Error de conexión a la base de datos.']); exit;
 }
-mysqli_set_charset($con,"utf8mb4");
 
 // ── EXPORTAR SQL ──────────────────────────────────────────────
 if ($action === 'export') {

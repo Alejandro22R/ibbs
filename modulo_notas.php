@@ -273,7 +273,7 @@ async function borrarNota() {
 
 function abrirPDF(e) {
   e.preventDefault();
-  window.open('php/export_pdf.php?materia_id=' + _mid, '_blank');
+  window.open('api/export_pdf.php?materia_id=' + _mid, '_blank');
 }
 
 function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }

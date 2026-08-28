@@ -10,7 +10,7 @@ if(!in_array($_rol,['superadmin','admin'])){
 
 ?>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
-  <a href="php/export_plantilla.php?tipo=materias" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
+  <a href="api/export_plantilla.php?tipo=materias" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
   <button class="btn btn-primary" onclick="openModal('mCreateMateria')">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Nueva Materia
@@ -146,7 +146,7 @@ async function submitCreate(e){
   e.preventDefault();
   const fd=new FormData(e.target); fd.append('action','materia_create');
   fd.set('dias',[...document.querySelectorAll('.cDia:checked')].map(c=>c.value).join(','));
-  const r=await fetch('php/ajax.php',{method:'POST',body:fd}); const d=await r.json();
+  const r=await fetch('api/ajax.php',{method:'POST',body:fd}); const d=await r.json();
   if(d.ok){toast(d.msg);closeModal('mCreateMateria');e.target.reset();document.querySelectorAll('.cDia').forEach(c=>c.checked=false);loadMaterias();}
   else toast(d.msg,'err');
 }

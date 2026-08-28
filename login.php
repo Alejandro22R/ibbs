@@ -2,12 +2,7 @@
 session_start();
 if (!empty($_SESSION['loggedin'])) { header('Location: index.php'); exit; }
 
-function db() {
-    $c = mysqli_connect("localhost","root","","ibbs");
-    if (!$c) return null;
-    mysqli_set_charset($c,"utf8mb4");
-    return $c;
-}
+require_once __DIR__.'/config/database.php';
 
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     ob_start(); error_reporting(0);

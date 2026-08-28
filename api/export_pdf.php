@@ -1,5 +1,5 @@
 <?php
-// php/export_pdf.php — PDF tabla de notas con upload de logo
+// api/export_pdf.php — PDF tabla de notas con upload de logo
 // Escala 0-20 · Aprueba con 15
 session_start();
 if (empty($_SESSION['loggedin'])) { header('Location: ../login.php'); exit; }
@@ -7,8 +7,9 @@ if (empty($_SESSION['loggedin'])) { header('Location: ../login.php'); exit; }
 $mid = (int)($_GET['materia_id'] ?? 0);
 if (!$mid) die('Materia no especificada.');
 
-$con = mysqli_connect("localhost","root","","ibbs");
-mysqli_set_charset($con,"utf8mb4");
+require_once __DIR__.'/../config/database.php';
+$con = db();
+if (!$con) die('Error de conexión a la base de datos.');
 
 $mat      = mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM materias WHERE id=$mid"));
 if (!$mat) die('Materia no encontrada.');
