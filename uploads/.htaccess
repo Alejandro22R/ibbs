@@ -1,0 +1,12 @@
+# Esta carpeta solo debe servir imágenes subidas por usuarios.
+# Bloquea la ejecución de cualquier script, por si alguna vez se
+# lograra subir un archivo con doble extensión u otro truco.
+Options -Indexes -ExecCGI
+
+<FilesMatch "\.(php|phtml|php\d|pl|py|jsp|asp|aspx|sh|cgi|exe)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>

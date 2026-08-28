@@ -1,8 +1,9 @@
 <?php
 ob_start(); error_reporting(0);
-session_start();
+require_once __DIR__.'/../config/bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 if (empty($_SESSION['loggedin'])) { echo json_encode(['ok'=>false,'msg'=>'Sesión expirada.']); exit; }
+if (!csrf_verify($_POST['csrf_token'] ?? '')) { echo json_encode(['ok'=>false,'msg'=>'Token de seguridad inválido. Recarga la página e intenta de nuevo.']); exit; }
 
 $uid  = (int)($_SESSION['user_id']??0);
 $tipo = trim($_POST['tipo']??'usuario'); // usuario | docente | alumno
@@ -24,12 +25,19 @@ $allowed = ['jpg','jpeg','png','gif','webp'];
 if (!in_array($ext, $allowed)) { echo json_encode(['ok'=>false,'msg'=>'Solo imágenes (jpg, png, gif, webp).']); exit; }
 if ($file['size'] > 3*1024*1024) { echo json_encode(['ok'=>false,'msg'=>'Imagen muy grande (máx. 3MB).']); exit; }
 
+// Verifica que el contenido sea realmente una imagen (no solo la extensión) —
+// evita que se suba un .php disfrazado con extensión .jpg, por ejemplo.
+$imgInfo = @getimagesize($file['tmp_name']);
+$allowedMime = ['image/jpeg','image/png','image/gif','image/webp'];
+if ($imgInfo === false || !in_array($imgInfo['mime'] ?? '', $allowedMime)) {
+    echo json_encode(['ok'=>false,'msg'=>'El archivo no es una imagen válida.']); exit;
+}
+
 // Ensure directory exists
 $dir = __DIR__.'/../uploads/fotos/';
 if (!is_dir($dir)) mkdir($dir, 0755, true);
 
 // Delete old photo
-require_once __DIR__.'/../config/database.php';
 $con = db();
 if (!$con) { echo json_encode(['ok'=>false,'msg'=>'Error de conexión a la base de datos.']); exit; }
 

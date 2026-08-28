@@ -1,16 +1,30 @@
 <?php
-session_start();
+require_once __DIR__.'/config/bootstrap.php';
 if (!empty($_SESSION['loggedin'])) { header('Location: index.php'); exit; }
 
-require_once __DIR__.'/config/database.php';
+/** Misma política que se exige al recuperar contraseña (rec_newpwd). */
+function ibbs_validar_password($pwd) {
+    if (strlen($pwd) < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+    if (!preg_match('/[A-Z]/', $pwd)) return 'Debe contener al menos una mayúscula.';
+    if (!preg_match('/[a-z]/', $pwd)) return 'Debe contener al menos una minúscula.';
+    if (!preg_match('/[0-9!@#$%^&*()\_+\-=\[\]{};\':",.<>?\/|`~]/', $pwd)) return 'Debe contener al menos un número o carácter especial.';
+    return null;
+}
 
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     ob_start(); error_reporting(0);
     header('Content-Type: application/json; charset=utf-8');
     $action = $_POST['action'];
 
+    if (!csrf_verify($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['ok'=>false,'msg'=>'Token de seguridad inválido. Recarga la página e intenta de nuevo.']); exit;
+    }
+
     // ── LOGIN ────────────────────────────────────────────────
     if ($action==='login') {
+        if (login_throttle_blocked()) {
+            echo json_encode(['ok'=>false,'msg'=>'Demasiados intentos fallidos. Espera unos minutos e intenta de nuevo.']); exit;
+        }
         $con = db();
         if (!$con) { echo json_encode(['ok'=>false,'msg'=>'Error de BD.']); exit; }
         $u = trim($_POST['usuario']??'');
@@ -20,9 +34,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         mysqli_stmt_execute($st);
         $r = mysqli_stmt_get_result($st);
         $row = mysqli_fetch_assoc($r);
-        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'Usuario no encontrado.']); exit; }
+        if (!$row) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Usuario no encontrado.']); exit; }
         if (!$row['activo']) { echo json_encode(['ok'=>false,'msg'=>'Cuenta desactivada.']); exit; }
-        if (!password_verify($p,$row['password_hash'])) { echo json_encode(['ok'=>false,'msg'=>'Contraseña incorrecta.']); exit; }
+        if (!password_verify($p,$row['password_hash'])) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Contraseña incorrecta.']); exit; }
+        login_throttle_reset();
+        session_regenerate_id(true); // evita fijación de sesión al autenticarse
         $_SESSION['loggedin']  = true;
         $_SESSION['user_id']   = $row['id'];
         $_SESSION['usuario']   = $row['usuario'];
@@ -41,7 +57,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $pwd  = trim($_POST['password']??'');
         $rep  = trim($_POST['repetir']??'');
         if (!$u||!$mail||!$ced||!$pwd) { echo json_encode(['ok'=>false,'msg'=>'Completa todos los campos.']); exit; }
-        if (strlen($pwd)<6)            { echo json_encode(['ok'=>false,'msg'=>'La contraseña debe tener mínimo 6 caracteres.']); exit; }
+        $pwdErr = ibbs_validar_password($pwd);
+        if ($pwdErr)                   { echo json_encode(['ok'=>false,'msg'=>$pwdErr]); exit; }
         if ($pwd!==$rep)               { echo json_encode(['ok'=>false,'msg'=>'Las contraseñas no coinciden.']); exit; }
         $st = mysqli_prepare($con,"SELECT id FROM usuarios WHERE usuario=? OR correo=? OR cedula=?");
         mysqli_stmt_bind_param($st,'sss',$u,$mail,$ced);
@@ -129,10 +146,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $pwd = trim($_POST['password']??'');
         $rep = trim($_POST['repetir']??'');
         if (!$uid)          { echo json_encode(['ok'=>false,'msg'=>'Sesión expirada.']); exit; }
-        if(strlen($pwd)<8){echo json_encode(['ok'=>false,'msg'=>'La contraseña debe tener al menos 8 caracteres.']);exit;}
-     if(!preg_match('/[A-Z]/',$pwd)){echo json_encode(['ok'=>false,'msg'=>'Debe contener al menos una mayúscula.']);exit;}
-     if(!preg_match('/[a-z]/',$pwd)){echo json_encode(['ok'=>false,'msg'=>'Debe contener al menos una minúscula.']);exit;}
-     if(!preg_match('/[0-9!@#$%^&*()\_+\-=\[\]{};\':",.<>?\/|`~]/',$pwd)){echo json_encode(['ok'=>false,'msg'=>'Debe contener al menos un número o carácter especial.']);exit;}
+        $pwdErr = ibbs_validar_password($pwd);
+        if ($pwdErr)        { echo json_encode(['ok'=>false,'msg'=>$pwdErr]); exit; }
         if ($pwd!==$rep)    { echo json_encode(['ok'=>false,'msg'=>'Las contraseñas no coinciden.']); exit; }
         $hash = password_hash($pwd, PASSWORD_BCRYPT);
         $st = mysqli_prepare($con,"UPDATE usuarios SET password_hash=? WHERE id=?");
@@ -148,6 +163,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
 <html lang="es">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
 <title>IBBS — Acceso</title>
 <style>
 /* Fuentes locales */
@@ -408,7 +424,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 
 <script>
 function show(id){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
-async function post(action,data){const fd=new FormData();fd.append('action',action);Object.keys(data).forEach(k=>fd.append(k,data[k]));const r=await fetch('login.php',{method:'POST',body:fd});return r.json();}
+async function post(action,data){const fd=new FormData();fd.append('action',action);const _csrf=document.querySelector('meta[name="csrf-token"]');if(_csrf)fd.append('csrf_token',_csrf.content);Object.keys(data).forEach(k=>fd.append(k,data[k]));const r=await fetch('login.php',{method:'POST',body:fd});return r.json();}
 function setErr(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display=msg?'block':'none';}
 function setOk(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display=msg?'block':'none';}
 function applyLoginValidation(el) {

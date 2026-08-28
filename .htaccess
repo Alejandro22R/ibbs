@@ -1,0 +1,26 @@
+# IBBS — Cabeceras de seguridad y bloqueo de rutas sensibles.
+# Requiere mod_headers y mod_rewrite (ya vienen activos en XAMPP por defecto).
+
+# No listar el contenido de carpetas sin index
+Options -Indexes
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-XSS-Protection "0"
+</IfModule>
+
+# Nunca servir archivos de datos/backup ni dotfiles (.git, .env, etc.)
+<FilesMatch "\.(sql|log|env)$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# database/ solo la usa PHP internamente (require/include) — nunca por HTTP
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^database/ - [F,L]
+</IfModule>

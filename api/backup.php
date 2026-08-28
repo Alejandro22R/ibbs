@@ -1,7 +1,7 @@
 <?php
 ob_start();
 error_reporting(0);
-session_start();
+require_once __DIR__.'/../config/bootstrap.php';
 if (empty($_SESSION['loggedin'])) { header('Location: ../login.php'); exit; }
 
 // Solo superadmin o admin
@@ -12,7 +12,11 @@ if (!in_array($rol, ['superadmin','admin'])) {
 }
 
 $action = trim($_GET['action'] ?? $_POST['action'] ?? '');
-require_once __DIR__.'/../config/database.php';
+
+// El token CSRF se exige en POST (import, que modifica datos);
+// 'export' es un GET de solo lectura y no lo necesita.
+csrf_require_post();
+
 $con = db();
 if (!$con) {
     if ($action === 'export') die("Error de conexión a BD");

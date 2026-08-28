@@ -3,9 +3,8 @@
  * IBBS — Reporte institucional con diseño UBV-style
  * Descarga directa via window.print() — sin nueva pestaña
  */
-session_start();
+require_once __DIR__.'/../config/bootstrap.php';
 if(empty($_SESSION['loggedin'])){ header('Location: ../login.php'); exit; }
-require_once __DIR__.'/../config/database.php';
 function esc($c,$v){return mysqli_real_escape_string($c,$v);}
 
 $con     = db();

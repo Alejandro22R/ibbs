@@ -2,7 +2,7 @@
 // IBBS v5 — ajax.php
 ob_start(); // captura cualquier output/warning de PHP antes del JSON
 error_reporting(0); // silencia notices/warnings que corromperian el JSON
-session_start();
+require_once __DIR__.'/../config/bootstrap.php';
 if (empty($_SESSION['loggedin'])) {
     ob_clean();
     header('Content-Type: application/json; charset=utf-8');
@@ -11,7 +11,10 @@ if (empty($_SESSION['loggedin'])) {
 ob_clean(); // limpia cualquier output previo
 header('Content-Type: application/json; charset=utf-8');
 
-require_once __DIR__.'/../config/database.php';
+if (!csrf_verify($_POST['csrf_token'] ?? '')) {
+    echo json_encode(['ok'=>false,'msg'=>'Token de seguridad inválido. Recarga la página e intenta de nuevo.']); exit;
+}
+
 $con = db();
 if (!$con) { echo json_encode(['ok'=>false,'msg'=>'Error de conexión a la base de datos.']); exit; }
 
