@@ -4,10 +4,8 @@
  * api/export_perfil.php        → perfil propio
  * api/export_perfil.php?uid=X  → perfil ajeno (solo admin/superadmin)
  */
-session_start();
+require_once __DIR__.'/../config/bootstrap.php';
 if (empty($_SESSION['loggedin'])) { header('Location: ../login.php'); exit; }
-
-require_once __DIR__.'/../config/database.php';
 
 $con    = db();
 if (!$con) die('Error de conexión a la base de datos.');

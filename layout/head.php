@@ -1,15 +1,13 @@
 <?php
 if(!isset($page_title)) $page_title='IBBS';
 if(!isset($active_link)) $active_link='';
-session_start();
+require_once __DIR__.'/../config/bootstrap.php';
 if(empty($_SESSION['loggedin'])){header('Location: login.php');exit;}
 $_u   = $_SESSION['usuario']??'Usuario';
 $_rol = $_SESSION['rol']??'profesor';
 $_uid = (int)($_SESSION['user_id']??0);
 $_ini = strtoupper(mb_substr($_u,0,1));
 $_foto= $_SESSION['foto']??null;
-
-require_once __DIR__.'/../config/database.php';
 
 // ── Permisos por rol ─────────────────────────────────────────
 function can($perm){
@@ -27,6 +25,7 @@ function can($perm){
 <html lang="es-VE">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
 <title><?=htmlspecialchars($page_title)?> — IBBS</title>
 <link rel="stylesheet" href="assets/ibbs.css">
 <link rel="stylesheet" href="assets/libs/boxicons/boxicons.min.css">

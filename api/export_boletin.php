@@ -4,9 +4,8 @@
  * Diseño institucional: encabezado con logo, datos del alumno,
  * tabla de notas, asistencias. Se descarga directo con print dialog.
  */
-session_start();
+require_once __DIR__.'/../config/bootstrap.php';
 if(empty($_SESSION['loggedin'])){ header('Location: ../login.php'); exit; }
-require_once __DIR__.'/../config/database.php';
 
 $aid = (int)($_GET['alumno_id']??0);
 if(!$aid) die('ID inválido');

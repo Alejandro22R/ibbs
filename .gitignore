@@ -2,6 +2,10 @@
 uploads/fotos/*
 !uploads/fotos/.gitkeep
 
+# Datos locales de runtime (freno de fuerza bruta del login, etc.)
+storage/*
+!storage/.gitkeep
+
 # Configuración local / credenciales de entorno
 .env
 .env.local

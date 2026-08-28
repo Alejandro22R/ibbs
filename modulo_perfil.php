@@ -135,6 +135,8 @@ async function subirFoto(input) {
   fd.append('foto', input.files[0]);
   fd.append('tipo', 'usuario');
   fd.append('id', '<?=$_uid?>');
+  const _csrf = document.querySelector('meta[name="csrf-token"]');
+  if (_csrf) fd.append('csrf_token', _csrf.content);
   const r = await fetch('api/upload_foto.php',{method:'POST',body:fd});
   const d = await r.json();
   if (d.ok) {

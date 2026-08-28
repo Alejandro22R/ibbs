@@ -12,6 +12,12 @@
  *   IBBS_DB_HOST, IBBS_DB_USER, IBBS_DB_PASS, IBBS_DB_NAME
  */
 
+// Restaura el comportamiento clásico de mysqli (devolver false en vez de
+// lanzar una excepción) para que los `if (!$con)` de todo el proyecto
+// sigan funcionando y no se filtren rutas/detalles internos en un error
+// no controlado.
+mysqli_report(MYSQLI_REPORT_OFF);
+
 if (!function_exists('db')) {
     function db() {
         $host = getenv('IBBS_DB_HOST') ?: 'localhost';

@@ -180,6 +180,8 @@ async function importarBD() {
   const fd = new FormData();
   fd.append('sqlfile', file);
   fd.append('action', 'import');
+  const _csrf = document.querySelector('meta[name="csrf-token"]');
+  if (_csrf) fd.append('csrf_token', _csrf.content);
   toast('Restaurando… por favor espera.');
   try {
     const r = await fetch('api/backup.php',{method:'POST',body:fd});

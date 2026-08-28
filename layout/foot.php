@@ -175,6 +175,8 @@ document.querySelectorAll('.modal-backdrop').forEach(el => {
 async function ajax(action, data={}) {
   const fd = new FormData();
   fd.append('action', action);
+  const _csrf = document.querySelector('meta[name="csrf-token"]');
+  if (_csrf) fd.append('csrf_token', _csrf.content);
   // Sanitize all values before sending
   Object.keys(data).forEach(k => fd.append(k, data[k] ?? ''));
   try {
