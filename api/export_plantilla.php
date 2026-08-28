@@ -5,10 +5,11 @@
  */
 session_start();
 if(empty($_SESSION['loggedin'])){ header('Location: ../login.php'); exit; }
-function db(){$c=mysqli_connect("localhost","root","","ibbs");mysqli_set_charset($c,"utf8mb4");return $c;}
+require_once __DIR__.'/../config/database.php';
 function esc($c,$v){return mysqli_real_escape_string($c,$v);}
 
 $con     = db();
+if (!$con) die('Error de conexión a la base de datos.');
 $tipo    = trim($_GET['tipo']??'alumnos');
 $reporte = trim($_GET['reporte']??'');
 $fecha   = date('d/m/Y');

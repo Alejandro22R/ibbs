@@ -11,9 +11,9 @@ if (empty($_SESSION['loggedin'])) {
 ob_clean(); // limpia cualquier output previo
 header('Content-Type: application/json; charset=utf-8');
 
-$con = mysqli_connect("localhost","root","","ibbs");
-if (!$con) { echo json_encode(['ok'=>false,'msg'=>'BD: '.mysqli_connect_error()]); exit; }
-mysqli_set_charset($con,"utf8mb4");
+require_once __DIR__.'/../config/database.php';
+$con = db();
+if (!$con) { echo json_encode(['ok'=>false,'msg'=>'Error de conexión a la base de datos.']); exit; }
 
 $action = trim($_POST['action'] ?? '');
 $uid    = (int)($_SESSION['user_id'] ?? 0);

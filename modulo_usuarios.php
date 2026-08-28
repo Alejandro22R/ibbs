@@ -180,7 +180,7 @@ async function crearUsuario(e) {
     {name:'password', label:'Contraseña', tipo:'password',min:6},
   ])) return;
   const fd = new FormData(e.target); fd.append('action','usuario_create');
-  const r = await fetch('php/ajax.php', {method:'POST', body:fd});
+  const r = await fetch('api/ajax.php', {method:'POST', body:fd});
   const d = await r.json();
   if (d.ok) { toast(d.msg); closeModal('mCU'); e.target.reset(); loadUsuarios(); }
   else toast(d.msg, 'err');

@@ -29,8 +29,9 @@ $dir = __DIR__.'/../uploads/fotos/';
 if (!is_dir($dir)) mkdir($dir, 0755, true);
 
 // Delete old photo
-$con = mysqli_connect("localhost","root","","ibbs");
-mysqli_set_charset($con,"utf8mb4");
+require_once __DIR__.'/../config/database.php';
+$con = db();
+if (!$con) { echo json_encode(['ok'=>false,'msg'=>'Error de conexión a la base de datos.']); exit; }
 
 $tabla = $tipo==='docente' ? 'docentes' : ($tipo==='alumno' ? 'alumnos' : 'usuarios');
 $old = mysqli_fetch_assoc(mysqli_query($con,"SELECT foto FROM $tabla WHERE id=$rid"))['foto']??'';
