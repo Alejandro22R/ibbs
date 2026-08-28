@@ -361,7 +361,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       </div>
       <div class="info-box">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-        Ingresa tu contraseña una última vez para confirmar la creación de tu cuenta. ahora
+        Ingresa tu contraseña una última vez para confirmar la creación de tu cuenta.
       </div>
       <div id="errReg3" class="err"></div>
       <div id="okReg3" class="ok"></div>
