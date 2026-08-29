@@ -172,7 +172,7 @@ document.querySelectorAll('.modal-backdrop').forEach(el => {
 });
 
 // ── AJAX helper ─────────────────────────────────────────────
-async function ajax(action, data={}) {
+async function ajax(action, data={}, endpoint='api/ajax.php') {
   const fd = new FormData();
   fd.append('action', action);
   const _csrf = document.querySelector('meta[name="csrf-token"]');
@@ -182,7 +182,7 @@ async function ajax(action, data={}) {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 12000);
-    const r   = await fetch('api/ajax.php', {method:'POST', body:fd, signal:ctrl.signal});
+    const r   = await fetch(endpoint, {method:'POST', body:fd, signal:ctrl.signal});
     clearTimeout(timer);
     const raw = await r.text();
     try { return JSON.parse(raw); }
