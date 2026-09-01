@@ -46,16 +46,13 @@ if (!function_exists('json_fail')) {
  * otro dominio se guarda igual (por si el docente quiere compartir
  * otra plataforma) pero nunca se mete en un <iframe> — el frontend lo
  * ofrece como enlace externo. ─────────────────────────────────── */
-function clases_url_valida($url) {
-    if (!filter_var($url, FILTER_VALIDATE_URL)) return false;
-    $scheme = strtolower(parse_url($url, PHP_URL_SCHEME) ?: '');
-    return in_array($scheme, ['http', 'https'], true);
-}
+// url_es_valida() / url_host_es() viven en config/url_validacion.php —
+// comparan el host EXACTO, nunca por substring (evita que un dominio
+// como "fakeyoutube.com" se clasifique como YouTube real).
 function clases_detectar_plataforma($url) {
-    $host = strtolower(parse_url($url, PHP_URL_HOST) ?: '');
-    if (str_contains($host, 'youtube.com') || str_contains($host, 'youtu.be')) return 'youtube';
-    if (str_contains($host, 'drive.google.com')) return 'drive';
-    if (str_contains($host, 'vimeo.com')) return 'vimeo';
+    if (url_host_es($url, ['youtube.com','www.youtube.com','m.youtube.com','youtu.be'])) return 'youtube';
+    if (url_host_es($url, ['drive.google.com'])) return 'drive';
+    if (url_host_es($url, ['vimeo.com','player.vimeo.com'])) return 'vimeo';
     return 'otro';
 }
 // Devuelve una URL de embed propia y segura, o null si no se pudo
@@ -132,7 +129,7 @@ if ($action === 'clase_create' || $action === 'clase_update') {
 
     if ($titulo === '') json_fail('Ponle un título a la clase.');
     if (mb_strlen($titulo) > 150) json_fail('El título es muy largo.');
-    if (!clases_url_valida($url)) json_fail('El link no es una URL válida (debe empezar con http:// o https://).');
+    if (!url_es_valida($url)) json_fail('El link no es una URL válida (debe empezar con http:// o https://).');
     if (mb_strlen($url) > 500) json_fail('El link es demasiado largo.');
 
     $plataforma = clases_detectar_plataforma($url);

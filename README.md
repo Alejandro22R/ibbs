@@ -25,6 +25,7 @@ document root.
 │   ├── ajax.php                               #   alumnos, docentes, materias, notas, asistencias, usuarios, ...
 │   ├── aula.php                               #   Aula Virtual: anuncios, materiales, actividades/calificaciones
 │   ├── clases_grabadas.php                    #   Repositorio de videos (YouTube/Drive/Vimeo) por materia
+│   ├── clases_vivo.php                        #   Videollamadas (Jitsi Meet / Google Meet / otro) por materia
 │   ├── backup.php, upload_foto.php, export_*.php
 ├── assets/                                   # CSS, imágenes, librerías de terceros (Chart.js, SweetAlert2, boxicons, fuentes)
 ├── uploads/
@@ -34,7 +35,8 @@ document root.
     ├── ibbs.sql                              # Dump del esquema de base de datos
     └── migrations/                           # Cambios incrementales de esquema, uno por módulo nuevo
         ├── 001_aula_virtual.sql
-        └── 002_clases_grabadas.sql
+        ├── 002_clases_grabadas.sql
+        └── 003_clases_vivo.sql
 ```
 
 `.htaccess` (raíz y `uploads/`) bloquea el acceso directo a `database/`,
@@ -94,6 +96,34 @@ reconstruye una URL de embed propia y conocida
 reconocido no se embebe — el frontend lo muestra como botón "abrir en
 otra pestaña" (`target=_blank rel=noopener`), nunca en un iframe.
 
+## Clases en Vivo (por materia)
+
+`modulo_vivo.php?materia_id=X` — accesible desde el botón "🔴 En Vivo" en
+Materias, o desde "Clases en Vivo" en el menú. Backend en
+`api/clases_vivo.php`.
+
+Dos formas de sala:
+- **Jitsi Meet** (recomendado): el propio sistema genera un nombre de
+  sala aleatorio de 64 bits (`vivo_generar_sala()`) y arma el link
+  `https://meet.jit.si/…` — no requiere cuenta ni servidor de video
+  propio. El "candado" de una sala anónima de Jitsi es el nombre de la
+  sala en sí (no hay contraseña por defecto), por eso tiene que ser
+  imposible de adivinar; quien reciba el link por fuera del sistema
+  también podrá entrar — es una limitación de Jitsi anónimo, no de la
+  app.
+- **Google Meet / otro**: el docente pega un link creado por fuera
+  (Google no deja crear reuniones por API sin OAuth, ni tampoco permite
+  que Meet se embeba en un iframe de terceros). El backend valida que
+  sea `http`/`https` y, si se eligió "Google Meet", que el host sea
+  **exactamente** `meet.google.com` — nunca por coincidencia de texto
+  (`url_host_es()` en `config/url_validacion.php`), para no aceptar un
+  dominio como `meet.google.com.evil.com` como si fuera real.
+
+El "Unirse" siempre abre en pestaña nueva (`target=_blank
+rel=noopener`) — no hay embed de videollamada en vivo dentro del
+sistema. El docente puede marcar el estado (Programada / En curso /
+Finalizada / Cancelada) manualmente desde la lista.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,
@@ -134,4 +164,13 @@ notificaciones...) sigue el mismo patrón para no chocar entre sí:
    `uploads/<modulo>/` (ya protegida contra ejecución de scripts por
    `uploads/.htaccess`) y servir la descarga siempre a través de un
    endpoint PHP que revise permisos — nunca como link directo al archivo.
-6. **Menú**: agregá el link en `layout/head.php` (`<ul class="sb-nav">`).
+6. **Links externos pegados por el usuario** (video, videollamada, lo
+   que sea): nunca decidir "es de tal dominio" por `str_contains()` — un
+   texto como `meet.google.com.evil.com` o `fakeyoutube.com` contiene el
+   nombre real como substring sin serlo. Usá `url_es_valida($url)` /
+   `url_host_es($url, ['dominio.com'])` de `config/url_validacion.php`
+   (ya cargado por el bootstrap), que comparan el host exacto. Y si el
+   link se va a embeber en un `<iframe>`, nunca uses el `src` tal cual —
+   reconstruí vos la URL de embed a partir de un id extraído (ver
+   `clases_embed_url()` en `api/clases_grabadas.php`).
+7. **Menú**: agregá el link en `layout/head.php` (`<ul class="sb-nav">`).
