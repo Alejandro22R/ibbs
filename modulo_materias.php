@@ -137,6 +137,7 @@ async function loadMaterias(){
     <td><span class="badge b-alumno">${m.na}</span></td>
     <td class="td-actions">
       <a class="btn btn-sm btn-secondary" href="modulo_aula.php?materia_id=${m.id}" title="Aula Virtual">🎓 Aula</a>
+      <a class="btn btn-sm btn-secondary" href="modulo_grabaciones.php?materia_id=${m.id}" title="Clases Grabadas">🎬 Grabadas</a>
       <button class="btn btn-sm btn-success" onclick="toggleEstado(${m.id},'${m.estado||'en_curso'}')" style="font-size:.72rem;">${m.estado==='culminada'?'↺ Reabrir':'✓ Culminar'}</button>
       <button class="btn btn-sm btn-primary" onclick="editM(${m.id})">Editar</button>
       <button class="btn btn-sm btn-danger" onclick="delM(${m.id},'${m.nombre.replace(/'/g,"\\'")}')">Eliminar</button>

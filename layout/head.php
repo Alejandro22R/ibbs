@@ -75,6 +75,7 @@ function can($perm){
     <?php endif; ?>
     <?php if(in_array($_rol,['superadmin','admin','profesor'])): ?>
     <li><a href="modulo_aula.php" class="sb-link <?=$active_link==='aula'?'act':''?>"><i class="bx bx-chalkboard"></i><span class="sb-lbl">Aula Virtual</span></a></li>
+    <li><a href="modulo_grabaciones.php" class="sb-link <?=$active_link==='grabaciones'?'act':''?>"><i class="bx bx-video"></i><span class="sb-lbl">Clases Grabadas</span></a></li>
     <?php endif; ?>
     <li><a href="modulo_record.php" class="sb-link <?=$active_link==='record'?'act':''?>"><i class="bx bx-bar-chart-alt-2"></i><span class="sb-lbl">Record Académico</span></a></li>
 
