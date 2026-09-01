@@ -1,6 +1,8 @@
-# Fotos subidas por los usuarios (perfil, alumnos, docentes)
+# Fotos y materiales subidos por los usuarios
 uploads/fotos/*
 !uploads/fotos/.gitkeep
+uploads/materiales/*
+!uploads/materiales/.gitkeep
 
 # Datos locales de runtime (freno de fuerza bruta del login, etc.)
 storage/*

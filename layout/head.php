@@ -73,6 +73,9 @@ function can($perm){
     <?php elseif($_rol==='profesor'): ?>
     <li><a href="modulo_notas.php" class="sb-link <?=$active_link==='notas'?'act':''?>"><i class="bx bx-edit-alt"></i><span class="sb-lbl">Cargar Notas</span></a></li>
     <?php endif; ?>
+    <?php if(in_array($_rol,['superadmin','admin','profesor'])): ?>
+    <li><a href="modulo_aula.php" class="sb-link <?=$active_link==='aula'?'act':''?>"><i class="bx bx-chalkboard"></i><span class="sb-lbl">Aula Virtual</span></a></li>
+    <?php endif; ?>
     <li><a href="modulo_record.php" class="sb-link <?=$active_link==='record'?'act':''?>"><i class="bx bx-bar-chart-alt-2"></i><span class="sb-lbl">Record Académico</span></a></li>
 
     <?php if(in_array($_rol,['superadmin','admin'])): ?>
