@@ -6,9 +6,9 @@
 -- Es seguro volver a correrlo: usa CREATE TABLE IF NOT EXISTS.
 --
 -- Convención de nombres para módulos nuevos del campus: prefijo por
--- módulo (aula_*, y luego foro_*, tareas_*, clases_* para los que
--- construya el resto del equipo) — evita choques de nombres entre
--- tablas de distintos módulos.
+-- módulo (aula_*, clases_grabadas, clases_vivo, notif_*... y luego
+-- foro_*, tareas_* para lo que construya el resto del equipo) — evita
+-- choques de nombres entre tablas de distintos módulos.
 --
 -- Tablas:
 --   aula_anuncios      — muro de anuncios del docente por materia
