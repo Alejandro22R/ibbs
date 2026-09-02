@@ -1,11 +1,11 @@
 <?php
 $page_title = 'Aula Virtual';
-$page_sub   = 'Anuncios, materiales y actividades de la materia';
+$page_sub   = 'Anuncios, materiales, actividades y foro de la materia';
 $active_link = 'materias';
 include __DIR__.'/layout/head.php';
 // Acceso: admin, superadmin y profesor. El permiso fino (¿es EL docente
 // de esta materia?) lo resuelve api/aula.php en cada llamada.
-if(!in_array($_rol,['superadmin','admin','profesor'])){
+if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
 $materia_id = (int)($_GET['materia_id'] ?? 0);
@@ -50,6 +50,7 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
     <button class="tab-btn active" data-tab-group="aula" data-tab="anuncios" onclick="switchTab('aula','anuncios')">📢 Anuncios</button>
     <button class="tab-btn" data-tab-group="aula" data-tab="materiales" onclick="switchTab('aula','materiales')">📁 Materiales</button>
     <button class="tab-btn" data-tab-group="aula" data-tab="actividades" onclick="switchTab('aula','actividades')">📝 Actividades</button>
+    <button class="tab-btn" data-tab-group="aula" data-tab="foro" onclick="switchTab('aula','foro')">💬 Foro / Dudas</button>
   </div>
 
   <!-- ═══ TAB: ANUNCIOS ═══ -->
@@ -95,6 +96,37 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
           <thead><tr><th>Título</th><th>Tipo</th><th>Nota máx.</th><th>Fecha</th><th>Acciones</th></tr></thead>
           <tbody id="tbodyActividades"><tr class="empty-row"><td colspan="5"><span class="spin"></span></td></tr></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB: FORO / DUDAS ═══ -->
+  <div class="tab-pane" data-pane-group="aula" data-pane="foro">
+    <div class="card" style="display:flex;flex-direction:column;height:550px;overflow:hidden;border:1px solid var(--border);padding:0;">
+      
+      <!-- Caja de Mensajes -->
+      <div id="chat-box" style="flex:1;overflow-y:auto;padding:1.5rem;background:var(--paper);display:flex;flex-direction:column;gap:1rem;">
+        <div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span> Cargando foro...</div>
+      </div>
+
+      <!-- Indicador de Respuesta -->
+      <div id="reply-indicator" style="display:none;background:var(--bg);padding:.6rem 1.5rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:.85rem;justify-content:space-between;align-items:center;">
+        <span>Respondiendo a: <strong id="reply-to-name" style="color:var(--ink);"></strong></span>
+        <button onclick="cancelReply()" style="background:none;border:none;color:#dc2626;cursor:pointer;font-weight:bold;font-size:1.1rem;padding:0;">&times;</button>
+      </div>
+
+      <!-- Formulario -->
+      <div style="padding:1rem 1.5rem;background:#fff;border-top:1px solid var(--border);">
+        <form id="chat-form" style="display:flex;gap:.8rem;align-items:flex-end;margin:0;">
+          <input type="hidden" id="respuesta_a" value="">
+          <div style="flex:1;">
+            <textarea id="mensaje-input" rows="2" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:.6rem;font-family:inherit;resize:none;font-size:.9rem;outline:none;" placeholder="Escribe tu duda o respuesta aquí... (Enter para enviar)"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" style="display:flex;align-items:center;gap:.4rem;height:42px;margin-bottom:2px;">
+            Enviar
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </form>
       </div>
     </div>
   </div>
@@ -209,6 +241,11 @@ const MATERIA_ID = <?=$materia_id?>;
 let CAN_MANAGE = false;
 let ACT_NOTA_MAX = 20;
 
+// VARIABLES PARA EL FORO
+const CURRENT_USER = "<?php echo addslashes($_SESSION['usuario'] ?? ''); ?>";
+let lastMessageCount = -1;
+let foroInterval = null;
+
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
 function fmtBytes(n){
   n = parseInt(n)||0;
@@ -254,6 +291,11 @@ async function iniciarAula() {
   loadAnuncios();
   loadMateriales();
   loadActividades();
+  
+  // Iniciar el foro y el auto-refresco
+  loadForo();
+  if(foroInterval) clearInterval(foroInterval);
+  foroInterval = setInterval(loadForo, 5000); // Actualiza cada 5 segundos
 }
 
 /* ══ ANUNCIOS ══ */
@@ -440,8 +482,6 @@ async function guardarCalificaciones() {
   const actividadId = document.getElementById('calActividadId').value;
   const inputs = [...document.querySelectorAll('#tbodyCalificar .calNota')];
 
-  // Valida todas las notas antes de armar el payload — si alguna está
-  // fuera de rango se marca y se corta, sin enviar nada al servidor.
   for (const inp of inputs) {
     inp.style.borderColor = '';
     const v = inp.value.trim().replace(',', '.');
@@ -464,6 +504,137 @@ async function guardarCalificaciones() {
   if (d?.ok) { toast(d.msg); closeModal('mCalificar'); }
   else toast(d?.msg || 'Error', 'err');
 }
+
+/* ══ FORO / DUDAS ══ */
+async function loadForo() {
+  if (!MATERIA_ID) return;
+  try {
+    const r = await fetch(`api/foro.php?action=get_mensajes&materia_id=${MATERIA_ID}`);
+    const text = await r.text(); // Leer como texto primero
+    
+    try {
+        const mensajes = JSON.parse(text); // Intentar convertir a JSON
+        if (mensajes.error) {
+            console.error("Error del servidor:", mensajes.error, mensajes.detalle);
+            return;
+        }
+        if (mensajes.length !== lastMessageCount) {
+          lastMessageCount = mensajes.length;
+          renderMessages(mensajes);
+        }
+    } catch(err) {
+        // SI LLEGA A FALLAR, te imprimirá el código HTML que causó el error aquí:
+        console.error("El servidor devolvió un error HTML en lugar de JSON:", text);
+    }
+  } catch (e) { console.error("Error cargando foro", e); }
+}
+
+function renderMessages(mensajes) {
+  const chatBox = document.getElementById('chat-box');
+  chatBox.innerHTML = ''; 
+
+  if(mensajes.length === 0) {
+    chatBox.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.9rem;">No hay mensajes aún en esta materia. ¡Rompe el hielo!</div>';
+    return;
+  }
+
+  const hilos = {};
+  mensajes.forEach(m => {
+    if (m.respuesta_a === null) hilos[m.id] = { ...m, respuestas: [] };
+  });
+  mensajes.forEach(m => {
+    if (m.respuesta_a !== null && hilos[m.respuesta_a]) hilos[m.respuesta_a].respuestas.push(m);
+  });
+
+  for (const id in hilos) {
+    const thread = hilos[id];
+    chatBox.insertAdjacentHTML('beforeend', createMessageHTML(thread, false));
+
+    if (thread.respuestas.length > 0) {
+      const repliesContainer = document.createElement('div');
+      repliesContainer.style.cssText = "margin-left:2.5rem; margin-top:.5rem; padding-left:1rem; border-left:2px solid var(--border); display:flex; flex-direction:column; gap:.5rem;";
+      thread.respuestas.forEach(r => {
+        repliesContainer.insertAdjacentHTML('beforeend', createMessageHTML(r, true));
+      });
+      chatBox.appendChild(repliesContainer);
+    }
+  }
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function createMessageHTML(msg, isReply) {
+  const isMe = msg.usuario_nombre === CURRENT_USER;
+  const bg = isMe ? 'background:#f0fdf4; border:1px solid #bbf7d0;' : 'background:#ffffff; border:1px solid var(--border);';
+  
+  let badge = '';
+  if(msg.rol === 'profesor') {
+      badge = '<span class="badge b-tardanza" style="font-size:.65rem;margin-left:.4rem;">Profesor</span>';
+  } else if (msg.rol === 'admin' || msg.rol === 'superadmin') {
+      badge = '<span class="badge b-profesor" style="font-size:.65rem;margin-left:.4rem;">Admin</span>';
+  }
+
+  const dateStr = new Date(msg.fecha).toLocaleString([], {month:'short', day:'numeric', hour: '2-digit', minute:'2-digit'});
+  const replyBtn = !isReply ? `<button type="button" onclick="setReply(${msg.id}, '${h(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;">Responder</button>` : '';
+
+  return `
+    <div style="padding:.8rem 1rem; border-radius:8px; ${bg}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
+            <strong style="font-size:.9rem;color:var(--ink);">${h(msg.usuario_nombre)} ${badge}</strong>
+            <span style="font-size:.75rem;color:var(--muted);">${dateStr}</span>
+        </div>
+        <p style="margin:0;font-size:.9rem;color:#333;white-space:pre-wrap;line-height:1.4;">${h(msg.mensaje)}</p>
+        ${replyBtn}
+    </div>
+  `;
+}
+
+window.setReply = function(id, nombre) {
+  document.getElementById('respuesta_a').value = id;
+  document.getElementById('reply-to-name').textContent = nombre;
+  document.getElementById('reply-indicator').style.display = 'flex';
+  document.getElementById('mensaje-input').focus();
+};
+
+window.cancelReply = function() {
+  document.getElementById('respuesta_a').value = '';
+  document.getElementById('reply-indicator').style.display = 'none';
+};
+
+document.getElementById('chat-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('mensaje-input');
+  const mensaje = input.value.trim();
+  const respuesta_a = document.getElementById('respuesta_a').value;
+
+  if (!mensaje) return;
+
+  input.value = '';
+  cancelReply();
+
+  try {
+    const r = await fetch(`api/foro.php?action=post_mensaje&materia_id=${MATERIA_ID}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mensaje, respuesta_a })
+    });
+    const text = await r.text();
+    
+    try {
+        const result = JSON.parse(text);
+        if(result.success) loadForo(); 
+        else console.error("Error del servidor:", result.error);
+    } catch(err) {
+        console.error("El servidor devolvió HTML en vez de JSON al enviar:", text);
+    }
+  } catch (error) { console.error("Error enviando:", error); }
+});
+
+document.getElementById('mensaje-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+  }
+});
 </script>
 
 <?php include __DIR__.'/layout/foot.php'; ?>
