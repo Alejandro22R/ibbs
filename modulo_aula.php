@@ -1,10 +1,9 @@
 <?php
 $page_title = 'Aula Virtual';
-$page_sub   = 'Anuncios, materiales, actividades y foro de la materia';
+$page_sub   = 'Anuncios, materiales, actividades, tareas y foro de la materia';
 $active_link = 'materias';
 include __DIR__.'/layout/head.php';
-// Acceso: admin, superadmin y profesor. El permiso fino (¿es EL docente
-// de esta materia?) lo resuelve api/aula.php en cada llamada.
+// Acceso: admin, superadmin, profesor y alumno.
 if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
@@ -18,7 +17,7 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
 </a>
 <?php endif; ?>
 
-<!-- Selector de materia — se muestra cuando no llega ?materia_id= en la URL -->
+<!-- Selector de materia -->
 <div class="card" id="areaSelector" style="display:<?=$materia_id?'none':'block'?>;margin-bottom:1.4rem;">
   <div class="card-body">
     <div class="field" style="max-width:420px;">
@@ -50,6 +49,7 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
     <button class="tab-btn active" data-tab-group="aula" data-tab="anuncios" onclick="switchTab('aula','anuncios')">📢 Anuncios</button>
     <button class="tab-btn" data-tab-group="aula" data-tab="materiales" onclick="switchTab('aula','materiales')">📁 Materiales</button>
     <button class="tab-btn" data-tab-group="aula" data-tab="actividades" onclick="switchTab('aula','actividades')">📝 Actividades</button>
+    <button class="tab-btn" data-tab-group="aula" data-tab="tareas" onclick="switchTab('aula','tareas')">📋 Tareas</button>
     <button class="tab-btn" data-tab-group="aula" data-tab="foro" onclick="switchTab('aula','foro')">💬 Foro / Dudas</button>
   </div>
 
@@ -100,21 +100,29 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
     </div>
   </div>
 
+  <!-- ═══ TAB: TAREAS (NUEVO) ═══ -->
+  <div class="tab-pane" data-pane-group="aula" data-pane="tareas">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+      <button class="btn btn-primary can-manage" style="display:none;" onclick="abrirTareaModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Crear Tarea
+      </button>
+    </div>
+    <div id="listaTareas"><div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span></div></div>
+  </div>
+
   <!-- ═══ TAB: FORO / DUDAS ═══ -->
   <div class="tab-pane" data-pane-group="aula" data-pane="foro">
     <div class="card" style="display:flex;flex-direction:column;height:550px;overflow:hidden;border:1px solid var(--border);padding:0;">
-      
       <!-- Caja de Mensajes -->
       <div id="chat-box" style="flex:1;overflow-y:auto;padding:1.5rem;background:var(--paper);display:flex;flex-direction:column;gap:1rem;">
         <div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span> Cargando foro...</div>
       </div>
-
       <!-- Indicador de Respuesta -->
       <div id="reply-indicator" style="display:none;background:var(--bg);padding:.6rem 1.5rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:.85rem;justify-content:space-between;align-items:center;">
         <span>Respondiendo a: <strong id="reply-to-name" style="color:var(--ink);"></strong></span>
         <button onclick="cancelReply()" style="background:none;border:none;color:#dc2626;cursor:pointer;font-weight:bold;font-size:1.1rem;padding:0;">&times;</button>
       </div>
-
       <!-- Formulario -->
       <div style="padding:1rem 1.5rem;background:#fff;border-top:1px solid var(--border);">
         <form id="chat-form" style="display:flex;gap:.8rem;align-items:flex-end;margin:0;">
@@ -132,6 +140,8 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
   </div>
 
 </div>
+
+<!-- ================= MODALES ================= -->
 
 <!-- MODAL ANUNCIO (crear/editar) -->
 <div class="modal-backdrop" id="mAnuncio">
@@ -236,6 +246,75 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
   </div>
 </div>
 
+<!-- MODAL CREAR TAREA (Docente) -->
+<div class="modal-backdrop" id="mTarea">
+  <div class="modal">
+    <div class="modal-head"><h3>Nueva Tarea</h3>
+      <button class="modal-close" onclick="closeModal('mTarea')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <form id="fTarea" onsubmit="guardarTarea(event)">
+        <div class="form-grid" style="margin-bottom:1rem;">
+          <div class="field field-full"><label>Título de la Tarea *</label><input name="titulo" required></div>
+          <div class="field field-full"><label>Descripción / Instrucciones</label><textarea name="descripcion" rows="3"></textarea></div>
+          <div class="field"><label>Fecha y Hora Límite *</label><input type="datetime-local" name="fecha_limite" required></div>
+          <div class="field"><label>Nota Máxima</label><input type="number" name="nota_maxima" value="20" step="1"></div>
+          <div class="field field-full"><label>Archivo adjunto (Opcional)</label><input type="file" name="archivo"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:.6rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('mTarea')">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnGuardarTarea">Publicar Tarea</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SUBIR ENTREGA (Alumno) -->
+<div class="modal-backdrop" id="mSubirEntrega">
+  <div class="modal">
+    <div class="modal-head"><h3 id="mSubirTitulo">Entregar Tarea</h3>
+      <button class="modal-close" onclick="closeModal('mSubirEntrega')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <form id="fEntrega" onsubmit="guardarEntrega(event)">
+        <input type="hidden" name="tarea_id" id="entTareaId">
+        <div class="form-grid" style="margin-bottom:1rem;">
+          <div class="field field-full">
+            <label>Tu respuesta escrita (Opcional si subes archivo)</label>
+            <textarea name="texto_respuesta" rows="4" placeholder="Escribe aquí tu respuesta o comentarios..."></textarea>
+          </div>
+          <div class="field field-full">
+            <label>Subir Archivo de Entrega (PDF, Word, imagen, etc.)</label>
+            <input type="file" name="archivo">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:.6rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('mSubirEntrega')">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSubirEntrega">Enviar Entrega</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL VER Y CALIFICAR ENTREGAS (Docente) -->
+<div class="modal-backdrop" id="mVerEntregas">
+  <div class="modal md">
+    <div class="modal-head"><h3 id="mVerEntTitulo">Entregas de Alumnos</h3>
+      <button class="modal-close" onclick="closeModal('mVerEntregas')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th style="text-align:left;">Alumno</th><th>Estado</th><th>Archivo / Texto</th><th style="width:90px;">Nota</th><th>Observación</th><th></th></tr></thead>
+          <tbody id="tbodyEntregas"><tr class="empty-row"><td colspan="6"><span class="spin"></span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 const MATERIA_ID = <?=$materia_id?>;
 let CAN_MANAGE = false;
@@ -274,7 +353,7 @@ async function cargarSelectorMaterias() {
 
 async function iniciarAula() {
   cargarSelectorMaterias();
-  if (!MATERIA_ID) return; // se queda mostrando solo el selector
+  if (!MATERIA_ID) return; 
 
   const d = await aulaAjax('materia_info');
   document.getElementById('areaCargando').style.display = 'none';
@@ -291,11 +370,12 @@ async function iniciarAula() {
   loadAnuncios();
   loadMateriales();
   loadActividades();
+  loadTareas(); // <-- Cargar nueva pestaña de tareas
   
   // Iniciar el foro y el auto-refresco
   loadForo();
   if(foroInterval) clearInterval(foroInterval);
-  foroInterval = setInterval(loadForo, 5000); // Actualiza cada 5 segundos
+  foroInterval = setInterval(loadForo, 5000); 
 }
 
 /* ══ ANUNCIOS ══ */
@@ -505,15 +585,182 @@ async function guardarCalificaciones() {
   else toast(d?.msg || 'Error', 'err');
 }
 
+/* ══ TAREAS Y ENTREGAS ══ */
+async function loadTareas() {
+  try {
+    const r = await fetch(`api/tareas.php?action=list&materia_id=${MATERIA_ID}`);
+    const text = await r.text();
+    let d;
+    try {
+        d = JSON.parse(text);
+    } catch(err) {
+        document.getElementById('listaTareas').innerHTML = `<div style="background:#fee2e2;color:#dc2626;padding:1.5rem;border-radius:8px;margin:1rem 0;border:1px solid #f87171;"><b>⚠️ Error de conexión con api/tareas.php</b><br><br>El servidor no devolvió datos válidos.<br><b>Respuesta del servidor:</b><br><textarea style="width:100%;height:80px;margin-top:10px;font-size:12px;" readonly>${text}</textarea></div>`;
+        return;
+    }
+
+    const el = document.getElementById('listaTareas');
+    
+    if (!d?.ok) { el.innerHTML = '<p class="text-center" style="color:var(--muted);padding:2rem;">Error cargando tareas.</p>'; return; }
+    if (!d.data.length) { el.innerHTML = '<p class="text-center" style="color:var(--muted);padding:2rem;">No hay tareas asignadas.</p>'; return; }
+    
+    el.innerHTML = d.data.map(t => {
+      let actionHtml = '';
+      if (CAN_MANAGE) {
+        actionHtml = `<button class="btn btn-sm btn-primary" onclick="abrirVerEntregas(${t.id}, '${h(t.titulo).replace(/'/g,"\\'")}')">🔍 Ver y Calificar Entregas</button>`;
+      } else {
+        if (t.entrega_id) {
+          const notaText = t.nota !== null ? `<span style="color:#059669;font-weight:bold;">Calificada: ${t.nota}/${t.nota_maxima}</span>` : '<span style="color:#d97706;font-weight:bold;">Entregado - Esperando nota</span>';
+          actionHtml = `<div style="display:flex;align-items:center;gap:1rem;">
+                          <span style="font-size:.85rem;">${notaText}</span>
+                          <button class="btn btn-sm btn-secondary" onclick="abrirSubirEntrega(${t.id}, '${h(t.titulo).replace(/'/g,"\\'")}')">🔄 Actualizar Entrega</button>
+                        </div>`;
+        } else {
+          actionHtml = `<button class="btn btn-sm btn-primary" onclick="abrirSubirEntrega(${t.id}, '${h(t.titulo).replace(/'/g,"\\'")}')">📤 Entregar Tarea</button>`;
+        }
+      }
+      
+      const archivoHtml = t.archivo ? `<br><a href="uploads/tareas/${t.archivo}" target="_blank" style="font-size:.8rem;color:var(--primary);text-decoration:underline;">📎 Descargar adjunto de la tarea</a>` : '';
+
+      return `
+      <div class="card" style="margin-bottom:.9rem;border-left:4px solid var(--primary);">
+        <div class="card-body">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <h3 style="font-size:1.1rem;margin-bottom:.2rem;">${h(t.titulo)}</h3>
+              <p style="font-size:.85rem;color:var(--muted);margin-bottom:.5rem;">Vence: ${new Date(t.fecha_limite).toLocaleString()}</p>
+              <p style="font-size:.9rem;color:var(--ink);white-space:pre-wrap;margin-bottom:.5rem;">${h(t.descripcion)}</p>
+              ${archivoHtml}
+            </div>
+          </div>
+          <div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:.8rem;display:flex;justify-content:flex-end;">
+            ${actionHtml}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+function abrirTareaModal() {
+  document.getElementById('fTarea').reset();
+  openModal('mTarea');
+}
+
+async function guardarTarea(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnGuardarTarea');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  
+  const fd = new FormData(e.target);
+  fd.append('action', 'crear');
+  fd.append('materia_id', MATERIA_ID);
+  
+  try {
+    const r = await fetch('api/tareas.php', { method: 'POST', body: fd });
+    const text = await r.text();
+    const d = JSON.parse(text);
+    if (d.ok) { toast(d.msg); closeModal('mTarea'); loadTareas(); }
+    else Ibbs.error(d.msg);
+  } catch(err) { console.log(err); Ibbs.error('Error al guardar la tarea. Revisa tu api/tareas.php'); }
+  btn.disabled = false; btn.textContent = 'Publicar Tarea';
+}
+
+function abrirSubirEntrega(tarea_id, titulo) {
+  document.getElementById('fEntrega').reset();
+  document.getElementById('entTareaId').value = tarea_id;
+  document.getElementById('mSubirTitulo').textContent = 'Entregar: ' + titulo;
+  openModal('mSubirEntrega');
+}
+
+async function guardarEntrega(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btnSubirEntrega');
+  btn.disabled = true; btn.textContent = 'Subiendo...';
+  
+  const fd = new FormData(e.target);
+  fd.append('action', 'entregar');
+  fd.append('materia_id', MATERIA_ID); 
+  
+  try {
+    const r = await fetch('api/tareas.php', { method: 'POST', body: fd });
+    const text = await r.text();
+    const d = JSON.parse(text);
+    if (d.ok) { toast(d.msg); closeModal('mSubirEntrega'); loadTareas(); }
+    else Ibbs.error(d.msg);
+  } catch(err) { Ibbs.error('Error subiendo la entrega.'); }
+  btn.disabled = false; btn.textContent = 'Enviar Entrega';
+}
+
+async function abrirVerEntregas(tarea_id, titulo) {
+  document.getElementById('mVerEntTitulo').textContent = 'Entregas: ' + titulo;
+  const tb = document.getElementById('tbodyEntregas');
+  tb.innerHTML = '<tr class="empty-row"><td colspan="6"><span class="spin"></span></td></tr>';
+  openModal('mVerEntregas');
+  
+  try {
+    const r = await fetch(`api/tareas.php?action=ver_entregas&materia_id=${MATERIA_ID}&tarea_id=${tarea_id}`);
+    const text = await r.text();
+    let d;
+    try {
+        d = JSON.parse(text);
+    } catch(err) {
+        tb.innerHTML = `<tr><td colspan="6" style="color:#dc2626;padding:1rem;">Error de servidor. Revisa la consola (F12).</td></tr>`;
+        console.error("Respuesta cruda:", text);
+        return;
+    }
+
+    if (!d?.ok) { tb.innerHTML = `<tr class="empty-row"><td colspan="6">${d.msg}</td></tr>`; return; }
+    if (!d.data.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="6">No hay alumnos inscritos en esta materia.</td></tr>'; return; }
+    
+    tb.innerHTML = d.data.map(e => {
+      const estado = e.entrega_id ? '<span class="badge b-presente">Entregado</span>' : '<span class="badge b-ausente">No entregado</span>';
+      
+      let contenidoHtml = '—';
+      if(e.entrega_id) {
+          contenidoHtml = '';
+          if(e.texto_respuesta) contenidoHtml += `<div style="font-size:.8rem;max-height:60px;overflow-y:auto;border:1px solid #eee;padding:4px;margin-bottom:4px;">${h(e.texto_respuesta)}</div>`;
+          if(e.archivo) contenidoHtml += `<a href="uploads/entregas/${e.archivo}" target="_blank" style="font-size:.8rem;color:var(--primary);text-decoration:underline;">Descargar archivo</a>`;
+      }
+
+      return `<tr>
+        <td style="text-align:left;font-weight:bold;">${h(e.apellido)}, ${h(e.nombre)}<br><span style="font-size:.7rem;font-weight:normal;color:var(--muted);">${e.cedula}</span></td>
+        <td>${estado}</td>
+        <td style="text-align:left;max-width:200px;">${contenidoHtml}</td>
+        <td><input type="number" id="n_${e.entrega_id}" value="${e.nota!==null?e.nota:''}" style="width:60px;text-align:center;padding:4px;border:1px solid #ccc;border-radius:4px;" ${!e.entrega_id?'disabled':''}></td>
+        <td><input type="text" id="o_${e.entrega_id}" value="${h(e.observacion_docente)}" placeholder="Opcional" style="width:100%;padding:4px;border:1px solid #ccc;border-radius:4px;" ${!e.entrega_id?'disabled':''}></td>
+        <td>${e.entrega_id ? `<button class="btn btn-sm btn-success" onclick="calificarEntrega(${e.entrega_id})">Guardar</button>` : ''}</td>
+      </tr>`;
+    }).join('');
+  } catch(err) { console.log(err); }
+}
+
+async function calificarEntrega(entrega_id) {
+  const nota = document.getElementById(`n_${entrega_id}`).value;
+  const obs = document.getElementById(`o_${entrega_id}`).value;
+  
+  const fd = new URLSearchParams();
+  fd.append('action', 'calificar');
+  fd.append('entrega_id', entrega_id);
+  fd.append('nota', nota);
+  fd.append('observacion', obs);
+  
+  try {
+    const r = await fetch('api/tareas.php', { method: 'POST', body: fd });
+    const text = await r.text();
+    const d = JSON.parse(text);
+    if(d.ok) toast('Calificación guardada'); else Ibbs.error(d.msg);
+  } catch(e) { Ibbs.error('Error al guardar nota'); }
+}
+
 /* ══ FORO / DUDAS ══ */
 async function loadForo() {
   if (!MATERIA_ID) return;
   try {
     const r = await fetch(`api/foro.php?action=get_mensajes&materia_id=${MATERIA_ID}`);
-    const text = await r.text(); // Leer como texto primero
+    const text = await r.text(); 
     
     try {
-        const mensajes = JSON.parse(text); // Intentar convertir a JSON
+        const mensajes = JSON.parse(text); 
         if (mensajes.error) {
             console.error("Error del servidor:", mensajes.error, mensajes.detalle);
             return;
@@ -523,7 +770,6 @@ async function loadForo() {
           renderMessages(mensajes);
         }
     } catch(err) {
-        // SI LLEGA A FALLAR, te imprimirá el código HTML que causó el error aquí:
         console.error("El servidor devolvió un error HTML en lugar de JSON:", text);
     }
   } catch (e) { console.error("Error cargando foro", e); }
