@@ -3,6 +3,13 @@ $page_title='Panel de Control';
 $page_sub='Resumen general del sistema académico IBBS';
 $active_link='inicio';
 include __DIR__.'/layout/head.php';
+
+// Bloqueo de seguridad: Si un alumno intenta entrar al Panel de Control de Admin, lo enviamos a su propio portal.
+if($_rol === 'alumno') {
+    echo '<script>window.location="portal_alumno.php";</script>'; 
+    exit;
+}
+
 // Check if system needs setup
 $_con_ob = db();
 $_cnt_alumnos = (int)(mysqli_fetch_assoc(mysqli_query($_con_ob,"SELECT COUNT(*) c FROM alumnos"))['c']??0);
@@ -145,7 +152,6 @@ mysqli_close($_con_ob);
     <div class="card-body"><canvas id="chartDoc" height="180"></canvas></div>
   </div>
 </div>
-
 
 <script>
 const LIME='#39ff14', INK='#1a4d2e', BLUE='#3b82f6', AMBER='#f59e0b', RED='#ef4444', GREEN='#22c55e', MUTED='rgba(0,0,0,.15)';

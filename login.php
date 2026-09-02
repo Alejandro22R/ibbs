@@ -44,7 +44,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $_SESSION['usuario']   = $row['usuario'];
         $_SESSION['rol']       = $row['rol'];
         $_SESSION['foto']      = $row['foto'];
-        echo json_encode(['ok'=>true,'msg'=>'Bienvenido.']); exit;
+        
+        // Redirección dinámica basada en el rol
+        $redirect = ($row['rol'] === 'alumno') ? 'portal_alumno.php' : 'index.php';
+        
+        echo json_encode(['ok'=>true,'msg'=>'Bienvenido.','redirect'=>$redirect]); exit;
     }
 
     // ── REGISTRO PASO 1: validar datos básicos (sin guardar) ──
@@ -251,7 +255,6 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 </style>
 </head>
 <body>
-
 <div class="left">
   <div class="left-bg"></div>
   <div class="left-grad"></div>
@@ -464,7 +467,20 @@ function strength(v){
   b.style.background=col;
 }
 
-async function doLogin(){setErr('errLogin','');const btn=document.getElementById('btnLogin');btn.disabled=true;btn.textContent='Entrando…';const d=await post('login',{usuario:document.getElementById('lUser').value,password:document.getElementById('lPwd').value});if(d.ok){window.location='index.php';}else{setErr('errLogin',d.msg);btn.disabled=false;btn.textContent='Iniciar sesión';}}
+async function doLogin(){
+  setErr('errLogin','');
+  const btn=document.getElementById('btnLogin');
+  btn.disabled=true;
+  btn.textContent='Entrando…';
+  const d=await post('login',{usuario:document.getElementById('lUser').value,password:document.getElementById('lPwd').value});
+  if(d.ok){
+    window.location = d.redirect || 'index.php'; // Usa la redirección dinámica
+  }else{
+    setErr('errLogin',d.msg);
+    btn.disabled=false;
+    btn.textContent='Iniciar sesión';
+  }
+}
 
 async function doReg1(){setErr('errReg1','');const btn=document.getElementById('btnReg1');btn.disabled=true;btn.textContent='Verificando…';const pwdErr = validarPassword(document.getElementById('rP').value);
   if (pwdErr) { setErr('errReg1', pwdErr); btn.disabled=false; btn.textContent='Continuar →'; return; }
