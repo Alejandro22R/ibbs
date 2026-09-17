@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 02-09-2026 a las 04:48:34
+-- Tiempo de generación: 18-09-2026 a las 01:53:18
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -132,7 +132,8 @@ CREATE TABLE `docentes` (
 INSERT INTO `docentes` (`id`, `nombre`, `apellido`, `cedula`, `correo`, `telefono`, `especialidad`, `ciudad`, `foto`, `usuario_id`, `activo`, `creado_en`) VALUES
 (1, 'Jorge', 'rodriguez', '13595357', 'enma@gmail.com', '04249340248', 'licenciado en teologia', 'Bolivar', NULL, NULL, 1, '2026-03-04 18:49:50'),
 (3, 'Enmanuel', 'rodriguez', '32316408', 'coraspedavid606@gmail.com', '04120872957', 'xxxx', 'Bolivar', NULL, NULL, 1, '2026-03-07 23:09:21'),
-(4, 'intreoduccion biblica', 'rojas', '135953578', 'coraspedavid606@gmail.com', '04249440764', 'licenciado en teologia', 'Bolivar', NULL, NULL, 1, '2026-03-11 06:27:54');
+(4, 'intreoduccion biblica', 'rojas', '135953578', 'coraspedavid606@gmail.com', '04249440764', 'licenciado en teologia', 'Bolivar', NULL, NULL, 1, '2026-03-11 06:27:54'),
+(6, 'Profesor', 'De Prueba', '32316409', 'enmanuell@gmail.com', NULL, 'General', NULL, NULL, NULL, 1, '2026-09-17 14:52:27');
 
 -- --------------------------------------------------------
 
@@ -150,6 +151,13 @@ CREATE TABLE `entregas` (
   `nota` decimal(5,2) DEFAULT NULL,
   `observacion_docente` text DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `entregas`
+--
+
+INSERT INTO `entregas` (`id`, `tarea_id`, `alumno_id`, `texto_respuesta`, `archivo`, `fecha_entrega`, `nota`, `observacion_docente`) VALUES
+(1, 1, 1, 'enmanuel prueba', 'entrega_6aac12cb44547.pdf', '2026-09-17 12:18:19', NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -180,7 +188,12 @@ INSERT INTO `foro_mensajes` (`id`, `materia_id`, `usuario_nombre`, `rol`, `mensa
 (6, 6, 'Enmanuel', 'superadmin', 'xd', NULL, '2026-09-02 00:04:19'),
 (7, 6, 'Enmanuel', 'superadmin', 'w', 6, '2026-09-02 00:04:24'),
 (8, 3, 'Enmanuel', 'superadmin', 'ggg', NULL, '2026-09-02 00:13:30'),
-(9, 3, 'Enmanuel', 'superadmin', '232', 8, '2026-09-02 00:13:33');
+(9, 3, 'Enmanuel', 'superadmin', '232', 8, '2026-09-02 00:13:33'),
+(10, 7, 'Enmanuel', 'superadmin', 'rere', NULL, '2026-09-17 00:44:54'),
+(11, 7, 'Enmanuel', 'superadmin', 'ada', NULL, '2026-09-17 00:44:57'),
+(12, 3, 'Enmanuel', 'alumno', 'enma prueba', NULL, '2026-09-17 16:18:47'),
+(13, 3, 'Enmanuel', 'alumno', 'adada', NULL, '2026-09-17 16:19:47'),
+(14, 4, 'Enmanuel', 'alumno', 'prueba 1', NULL, '2026-09-17 16:30:55');
 
 -- --------------------------------------------------------
 
@@ -235,7 +248,7 @@ CREATE TABLE `materia_alumno` (
 INSERT INTO `materia_alumno` (`id`, `materia_id`, `alumno_id`, `nota_final`, `nota_fecha`, `nota_registrada_por`, `nota_actualizada_en`) VALUES
 (1, 3, 1, 20.0, '2026-04-21', 2, '2026-04-21 11:36:59'),
 (2, 3, 3, 15.0, '2026-08-01', 2, '2026-07-31 20:55:06'),
-(3, 4, 1, NULL, NULL, NULL, NULL);
+(3, 4, 1, 18.0, '2026-09-05', 2, '2026-09-05 11:00:16');
 
 -- --------------------------------------------------------
 
@@ -248,6 +261,15 @@ CREATE TABLE `materia_docente` (
   `materia_id` int(11) NOT NULL,
   `docente_id` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Volcado de datos para la tabla `materia_docente`
+--
+
+INSERT INTO `materia_docente` (`id`, `materia_id`, `docente_id`) VALUES
+(3, 3, 1),
+(2, 4, 3),
+(1, 4, 6);
 
 -- --------------------------------------------------------
 
@@ -319,7 +341,11 @@ CREATE TABLE `tareas` (
 --
 
 INSERT INTO `tareas` (`id`, `materia_id`, `titulo`, `descripcion`, `archivo`, `fecha_limite`, `nota_maxima`, `creado_en`) VALUES
-(1, 3, 'Hermeneutica ', '', '6a978c4d2be66_1788316749.html', '2026-09-04 22:39:00', 16.00, '2026-09-01 22:39:09');
+(1, 3, 'Hermeneutica ', '', '6a978c4d2be66_1788316749.html', '2026-09-04 22:39:00', 16.00, '2026-09-01 22:39:09'),
+(2, 7, 'wewewe', 'wewe', '6aab3b13036aa_1789606675.jfif', '2026-09-16 20:57:00', 20.00, '2026-09-16 20:57:55'),
+(3, 7, 'Hermeneutica ', 'wa', '6aac316b9d4ca_1789669739.pptx', '2026-09-18 14:28:00', 20.00, '2026-09-17 14:28:59'),
+(4, 4, 'asas', 'wdwdw', 'material_6aac7a4e90d98_1789688398.docx', '2026-09-18 19:39:00', 20.00, '2026-09-17 19:39:58'),
+(5, 4, 'sdsd', 'sds', 'material_6aac7c27b717b_1789688871.docx', '2026-09-18 19:47:00', 20.00, '2026-09-17 19:47:51');
 
 -- --------------------------------------------------------
 
@@ -350,9 +376,10 @@ CREATE TABLE `usuarios` (
 
 INSERT INTO `usuarios` (`id`, `usuario`, `correo`, `cedula`, `password_hash`, `rol`, `activo`, `foto`, `preg1`, `resp1_hash`, `preg2`, `resp2_hash`, `creado_en`, `delete_pin`) VALUES
 (2, 'Enmanuel', 'coraspedavid@gmail.com', '32316408', '$2y$10$7oPIixRxZlAxczCPMLxDq.5qJDguX32geF2877jwQy0w4/uWRXvVq', 'superadmin', 1, 'uploads/fotos/usuario_2_1777839823.jpg', '¿En qué ciudad naciste?', '$2y$10$MS118RY6ZLdXDICHIV1MLuegKEzPW8Egp5If/Z49NImFJ5Oo4onTS', '¿Cuál es el apellido de tu madre?', '$2y$10$8hLXqqi2roYg/Ii0A8VJh.B2Wzy66rirdd4tEndzOUww5wL7Ijj62', '2026-03-04 18:44:45', '$2y$10$S6ISC67AHLBJglbJfq9DReaGV3gapYTSjLCO.TJSUyGArwd7Ax3IG'),
-(3, 'oscar', 'garciaoscarantonio22@gmail.com', '', '$2y$10$/LjmVwTVv2Gu2QYdK2I/1Oseg3sFUtR2fn5sPYP8yrAae01fjC.iq', 'admin', 1, NULL, NULL, NULL, NULL, NULL, '2026-03-04 22:47:21', NULL),
+(3, 'oscar', 'garciaoscarantonio22@gmail.com', '', '$2y$10$qNN/uYegoELXZrgNT/bMVu1ysWVdGQYi8arFCeuoBeT1zOX5FmObK', 'admin', 1, NULL, NULL, NULL, NULL, NULL, '2026-03-04 22:47:21', NULL),
 (5, 'jonas', 'enmanuel@gmail.com', '12345678', '$2y$10$x.2i.uN5Hv.bj6c.RivQNeIWb9LjkbejxdcpWTY8xsMXx6IRNsruK', 'alumno', 1, NULL, '¿Cuál es el nombre de tu primera mascota?', '$2y$10$LZUFxpl2oBqpcyZFHInx6eya/z57F6F4pNtrYpHoJsVb4N2tLZlkS', '¿En qué ciudad naciste?', '$2y$10$u1cb/yHl5HFCa5fFU.aIVuzYrUhxOC/ewFnMDGuEa275c1/hmvSUO', '2026-04-13 17:07:56', NULL),
-(7, 'eee', 'enmanuell@gmail.com', '32316409', '$2y$10$ERhPj99zCLT4TwQdpw1e8OcD3THyFlPf8eELBu8oqVjgsosHjqFIC', 'profesor', 1, NULL, '¿Cuál es el nombre de tu primera mascota?', '$2y$10$yFaUfaVCNbFleXuV3ZyOIerF1gk66MXkG.gxT3FLHQ1WeZT2BFvjm', '¿En qué ciudad naciste?', '$2y$10$OI2pa/fjrCX6J291bW37sOedy2UeturyqoCX/4E7c22hxY8dnQ6X.', '2026-09-01 20:05:48', NULL);
+(7, 'eee', 'enmanuell@gmail.com', '32316409', '$2y$10$ERhPj99zCLT4TwQdpw1e8OcD3THyFlPf8eELBu8oqVjgsosHjqFIC', 'profesor', 1, NULL, '¿Cuál es el nombre de tu primera mascota?', '$2y$10$yFaUfaVCNbFleXuV3ZyOIerF1gk66MXkG.gxT3FLHQ1WeZT2BFvjm', '¿En qué ciudad naciste?', '$2y$10$OI2pa/fjrCX6J291bW37sOedy2UeturyqoCX/4E7c22hxY8dnQ6X.', '2026-09-01 20:05:48', NULL),
+(8, 'RAMON', 'enmanuAAel@gmail.com', '32316407', '$2y$10$YaFCFq2QI4Cff4t/0gEpN.voYlVI47a/tTNHAYDJ7iNz7wy2fUnNe', 'profesor', 1, NULL, '¿Cuál es el nombre de tu primera mascota?', '$2y$10$hmJQeV2TJ/2oCVvr1e7KsOhbAXD08ecN4BHkLypmIkymRgpMFTK9G', '¿Cuál es el apellido de tu madre?', '$2y$10$SLDvKCjNgCzXCkC8ilAbzOX57ELhpoWpWgoPtcv.fxlv8pJ042Ir.', '2026-09-17 14:31:14', NULL);
 
 --
 -- Índices para tablas volcadas
@@ -482,19 +509,19 @@ ALTER TABLE `audit_log`
 -- AUTO_INCREMENT de la tabla `docentes`
 --
 ALTER TABLE `docentes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT de la tabla `entregas`
 --
 ALTER TABLE `entregas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT de la tabla `foro_mensajes`
 --
 ALTER TABLE `foro_mensajes`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT de la tabla `materias`
@@ -512,7 +539,7 @@ ALTER TABLE `materia_alumno`
 -- AUTO_INCREMENT de la tabla `materia_docente`
 --
 ALTER TABLE `materia_docente`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT de la tabla `notificaciones`
@@ -530,13 +557,13 @@ ALTER TABLE `periodos`
 -- AUTO_INCREMENT de la tabla `tareas`
 --
 ALTER TABLE `tareas`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- Restricciones para tablas volcadas
