@@ -3,11 +3,11 @@ $page_title = 'Materias';
 $page_sub   = 'Gestión de materias, horarios y asignaciones';
 $active_link = 'materias';
 include __DIR__.'/layout/head.php';
+
 // Acceso admin o superadmin
 if(!in_array($_rol,['superadmin','admin'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
-
 ?>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
   <a href="api/export_plantilla.php?tipo=materias" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
@@ -44,8 +44,17 @@ if(!in_array($_rol,['superadmin','admin'])){
     <div class="modal-body">
       <form id="fCM" onsubmit="submitCreate(event)">
         <div class="form-grid" style="margin-bottom:1rem;">
-          <div class="field"><label>Nombre *</label><input name="nombre" data-only="letters" placeholder="Matemáticas I"></div>
-          <div class="field"><label>Código *</label><input name="codigo" data-only="code" placeholder="MAT-101"></div>
+          <div class="field"><label>Nombre *</label><input name="nombre" data-only="letters" placeholder="Matemáticas I" required></div>
+          <div class="field"><label>Código *</label><input name="codigo" data-only="code" placeholder="MAT-101" required></div>
+          
+          <!-- SECTOR AÑADIDO: Asignación de docente desde la creación -->
+          <div class="field field-full">
+            <label>Docente Asignado</label>
+            <select name="docente_id" id="selCreateD">
+              <option value="">— Sin asignar —</option>
+            </select>
+          </div>
+          
           <div class="field field-full"><label>Descripción</label><textarea name="descripcion" rows="2"></textarea></div>
           <div class="field field-full">
             <label>Días</label>
@@ -80,6 +89,8 @@ if(!in_array($_rol,['superadmin','admin'])){
         <button class="tab-btn" data-tab-group="eM" data-tab="doc" onclick="switchTab('eM','doc')">Docentes</button>
         <button class="tab-btn" data-tab-group="eM" data-tab="alu" onclick="switchTab('eM','alu')">Alumnos</button>
       </div>
+      
+      <!-- Tab Info Básica -->
       <div class="tab-pane active" data-pane-group="eM" data-pane="info">
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre</label><input id="eNN"></div>
@@ -97,19 +108,39 @@ if(!in_array($_rol,['superadmin','admin'])){
         </div>
         <button class="btn btn-primary" onclick="submitEdit()">Guardar cambios</button>
       </div>
+      
+      <!-- Tab Docentes (Estilo pulido) -->
       <div class="tab-pane" data-pane-group="eM" data-pane="doc">
-        <div style="display:flex;gap:.7rem;margin-bottom:1rem;align-items:flex-end;">
-          <div class="field" style="flex:1;margin:0;"><label>Agregar docente</label><select id="selAddD"><option value="">— Seleccionar —</option></select></div>
+        <div class="section-label" style="margin-top:.5rem;">AGREGAR DOCENTE</div>
+        <div style="display:flex;gap:.7rem;margin-bottom:1.5rem;align-items:center;">
+          <div class="field" style="flex:1;margin:0;">
+            <select id="selAddD"><option value="">— Seleccionar —</option></select>
+          </div>
           <button class="btn btn-primary" onclick="addDoc()">Agregar</button>
         </div>
-        <div class="tbl-wrap"><table><thead><tr><th>Docente</th><th></th></tr></thead><tbody id="tbMD"></tbody></table></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Docente</th><th style="width: 80px;"></th></tr></thead>
+            <tbody id="tbMD"></tbody>
+          </table>
+        </div>
       </div>
+      
+      <!-- Tab Alumnos (Estilo pulido) -->
       <div class="tab-pane" data-pane-group="eM" data-pane="alu">
-        <div style="display:flex;gap:.7rem;margin-bottom:1rem;align-items:flex-end;">
-          <div class="field" style="flex:1;margin:0;"><label>Inscribir alumno</label><select id="selAddA"><option value="">— Seleccionar —</option></select></div>
+        <div class="section-label" style="margin-top:.5rem;">INSCRIBIR ALUMNO</div>
+        <div style="display:flex;gap:.7rem;margin-bottom:1.5rem;align-items:center;">
+          <div class="field" style="flex:1;margin:0;">
+            <select id="selAddA"><option value="">— Seleccionar —</option></select>
+          </div>
           <button class="btn btn-primary" onclick="addAlu()">Inscribir</button>
         </div>
-        <div class="tbl-wrap"><table><thead><tr><th>Alumno</th><th></th></tr></thead><tbody id="tbMA"></tbody></table></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Alumno</th><th style="width: 80px;"></th></tr></thead>
+            <tbody id="tbMA"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -118,12 +149,34 @@ if(!in_array($_rol,['superadmin','admin'])){
 <script>
 let _mid=null;
 document.addEventListener('ibbs:ready', () => loadMaterias());
+
 (async()=>{
-  const d=await ajax('docente_all_simple'); if(d?.ok) document.getElementById('selAddD').innerHTML='<option value="">— Seleccionar —</option>'+d.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
-  const a=await ajax('alumno_all_simple'); if(a?.ok) document.getElementById('selAddA').innerHTML='<option value="">— Seleccionar —</option>'+a.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
+  // Cargar docentes para el modal de Crear y el de Editar
+  const d=await ajax('docente_all_simple'); 
+  if(d?.ok) {
+    const opts = '<option value="">— Seleccionar —</option>'+d.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
+    
+    // Para el modal de Editar
+    const selAddD = document.getElementById('selAddD');
+    if(selAddD) selAddD.innerHTML = opts;
+    
+    // Para el modal de Crear Materia (recién incorporado)
+    const selCreateD = document.getElementById('selCreateD');
+    if(selCreateD) selCreateD.innerHTML = '<option value="">— Sin asignar —</option>'+d.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
+  }
+  
+  // Cargar alumnos para el modal de Editar
+  const a=await ajax('alumno_all_simple'); 
+  if(a?.ok) {
+      document.getElementById('selAddA').innerHTML='<option value="">— Seleccionar —</option>'+a.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
+  }
 })();
 
-function estadoBadge(e){ const m={en_curso:'b-tardanza',pendiente:'b-ausente',culminada:'b-presente'}; const l={en_curso:'En curso',pendiente:'Pendiente',culminada:'Culminada'}; return `<span class="badge ${m[e]||'b-tardanza'}">${l[e]||e}</span>`; }
+function estadoBadge(e){ 
+    const m={en_curso:'b-tardanza',pendiente:'b-ausente',culminada:'b-presente'}; 
+    const l={en_curso:'En curso',pendiente:'Pendiente',culminada:'Culminada'}; 
+    return `<span class="badge ${m[e]||'b-tardanza'}">${l[e]||e}</span>`; 
+}
 
 async function loadMaterias(){
   console.log('[IBBS] Calling materia_list...'); const d=await ajax('materia_list'); console.log('[IBBS] materia_list response:', d); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="7">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
@@ -179,12 +232,21 @@ async function toggleEstado(id,est){
   if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
 }
 
+// ----------------------------------------------------
+// Renderizado exacto de tablas (Docentes y Alumnos)
+// ----------------------------------------------------
 function renderMD(list){
-  document.getElementById('tbMD').innerHTML=list.length?list.map(d=>`<tr><td>${d.apellido||''} ${d.nombre}</td><td class="td-actions"><button class="btn btn-sm btn-danger" onclick="rmDoc(${d.id},this)">Quitar</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="2">Sin docentes</td></tr>';
+  document.getElementById('tbMD').innerHTML=list.length
+    ? list.map(d=>`<tr><td>${d.apellido||''} ${d.nombre}</td><td class="td-actions" style="justify-content:flex-end;"><button class="btn btn-sm btn-danger" onclick="rmDoc(${d.id},this)">Quitar</button></td></tr>`).join('')
+    : '<tr class="empty-row"><td colspan="2">Sin docentes</td></tr>';
 }
+
 function renderMA(list){
-  document.getElementById('tbMA').innerHTML=list.length?list.map(a=>`<tr><td>${a.apellido||''} ${a.nombre}</td><td class="td-actions"><button class="btn btn-sm btn-danger" onclick="rmAlu(${a.id},this)">Quitar</button></td></tr>`).join(''):'<tr class="empty-row"><td colspan="2">Sin alumnos</td></tr>';
+  document.getElementById('tbMA').innerHTML=list.length
+    ? list.map(a=>`<tr><td>${a.apellido||''} ${a.nombre}</td><td class="td-actions" style="justify-content:flex-end;"><button class="btn btn-sm btn-danger" onclick="rmAlu(${a.id},this)">Quitar</button></td></tr>`).join('')
+    : '<tr class="empty-row"><td colspan="2">Sin alumnos</td></tr>';
 }
+
 async function addDoc(){
   const did=document.getElementById('selAddD').value; if(!did){Ibbs.error('Selecciona un docente de la lista.','Sin selección');return;}
   const d=await ajax('materia_add_docente',{materia_id:_mid,docente_id:did});

@@ -881,6 +881,7 @@ document.getElementById('mensaje-input').addEventListener('keydown', function(e)
     document.getElementById('chat-form').dispatchEvent(new Event('submit'));
   }
 });
+
 </script>
 
 <?php include __DIR__.'/layout/foot.php'; ?>

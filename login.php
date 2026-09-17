@@ -27,16 +27,20 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         }
         $con = db();
         if (!$con) { echo json_encode(['ok'=>false,'msg'=>'Error de BD.']); exit; }
+        
         $u = trim($_POST['usuario']??'');
         $p = trim($_POST['password']??'');
+        
         $st = mysqli_prepare($con,"SELECT id,usuario,password_hash,rol,activo,foto FROM usuarios WHERE (usuario=? OR correo=? OR cedula=?) LIMIT 1");
         mysqli_stmt_bind_param($st,'sss',$u,$u,$u);
         mysqli_stmt_execute($st);
         $r = mysqli_stmt_get_result($st);
         $row = mysqli_fetch_assoc($r);
+        
         if (!$row) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Usuario no encontrado.']); exit; }
         if (!$row['activo']) { echo json_encode(['ok'=>false,'msg'=>'Cuenta desactivada.']); exit; }
         if (!password_verify($p,$row['password_hash'])) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Contraseña incorrecta.']); exit; }
+        
         login_throttle_reset();
         session_regenerate_id(true); // evita fijación de sesión al autenticarse
         $_SESSION['loggedin']  = true;
@@ -45,8 +49,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $_SESSION['rol']       = $row['rol'];
         $_SESSION['foto']      = $row['foto'];
         
-        // Redirección dinámica basada en el rol
-        $redirect = ($row['rol'] === 'alumno') ? 'portal_alumno.php' : 'index.php';
+        // Redirección dinámica basada en el rol corregida
+        if ($row['rol'] === 'alumno') {
+            $redirect = 'portal_alumno.php';
+        } elseif ($row['rol'] === 'profesor' || $row['rol'] === 'docente') {
+            $redirect = 'portal_docente.php';
+        } else {
+            $redirect = 'index.php'; // Para el superadmin / director
+        }
         
         echo json_encode(['ok'=>true,'msg'=>'Bienvenido.','redirect'=>$redirect]); exit;
     }
@@ -167,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
 <html lang="es">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
+<meta name="csrf-token" content="<?=htmlspecialchars(csrf_token() ?? '')?>">
 <title>IBBS — Acceso</title>
 <style>
 /* Fuentes locales */
@@ -261,7 +271,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
   <div class="left-glow"></div>
   <div class="left-content">
     <div class="left-logo">
-      <img src="assets/logo.jpg" alt="IBBS">
+      <img src="assets/logo.jpg" alt="IBBS" onerror="this.src='https://placehold.co/84x84/1a4d2e/39ff14?text=IBBS'">
       <div class="left-logo-text">
         <strong>Instituto Bíblico Bautista del Sur</strong>
         <small>Sistema Académico IBBS</small>
@@ -275,7 +285,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 <div class="right">
   <div class="card">
     <div class="logo-sm">
-      <img src="assets/logo.jpg" alt="IBBS">
+      <img src="assets/logo.jpg" alt="IBBS" onerror="this.src='https://placehold.co/46x46/1a4d2e/39ff14?text=IBBS'">
       <div><strong>IBBS</strong><small>Sistema Académico</small></div>
     </div>
 
@@ -427,9 +437,20 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 
 <script>
 function show(id){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
-async function post(action,data){const fd=new FormData();fd.append('action',action);const _csrf=document.querySelector('meta[name="csrf-token"]');if(_csrf)fd.append('csrf_token',_csrf.content);Object.keys(data).forEach(k=>fd.append(k,data[k]));const r=await fetch('login.php',{method:'POST',body:fd});return r.json();}
+
+async function post(action,data){
+  const fd=new FormData();
+  fd.append('action',action);
+  const _csrf=document.querySelector('meta[name="csrf-token"]');
+  if(_csrf) fd.append('csrf_token',_csrf.content);
+  Object.keys(data).forEach(k=>fd.append(k,data[k]));
+  const r=await fetch('login.php',{method:'POST',body:fd});
+  return r.json();
+}
+
 function setErr(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display=msg?'block':'none';}
 function setOk(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display=msg?'block':'none';}
+
 function applyLoginValidation(el) {
   const rule = el.getAttribute('data-only');
   if (!rule) return;
@@ -445,14 +466,15 @@ function applyLoginValidation(el) {
   });
 }
 document.querySelectorAll('[data-only]').forEach(applyLoginValidation);
+
 function validarPassword(pwd) {
   if (pwd.length < 8)       return 'La contraseña debe tener al menos 8 caracteres.';
   if (!/[A-Z]/.test(pwd))   return 'Debe contener al menos una mayúscula.';
   if (!/[a-z]/.test(pwd))   return 'Debe contener al menos una minúscula.';
-  if (!/[0-9!@#$%^&*()_+\-=[\]{};':",./<>?|`~]/.test(pwd))
-                             return 'Debe contener al menos un número o carácter especial.';
+  if (!/[0-9!@#$%^&*()_+\-=[\]{};':",./<>?|`~]/.test(pwd)) return 'Debe contener al menos un número o carácter especial.';
   return null;
 }
+
 function strength(v){
   const b=document.getElementById('sbar');
   let s=0;
@@ -474,7 +496,7 @@ async function doLogin(){
   btn.textContent='Entrando…';
   const d=await post('login',{usuario:document.getElementById('lUser').value,password:document.getElementById('lPwd').value});
   if(d.ok){
-    window.location = d.redirect || 'index.php'; // Usa la redirección dinámica
+    window.location = d.redirect || 'index.php';
   }else{
     setErr('errLogin',d.msg);
     btn.disabled=false;
@@ -482,19 +504,68 @@ async function doLogin(){
   }
 }
 
-async function doReg1(){setErr('errReg1','');const btn=document.getElementById('btnReg1');btn.disabled=true;btn.textContent='Verificando…';const pwdErr = validarPassword(document.getElementById('rP').value);
+async function doReg1(){
+  setErr('errReg1','');
+  const btn=document.getElementById('btnReg1');
+  btn.disabled=true;
+  btn.textContent='Verificando…';
+  const pwdErr = validarPassword(document.getElementById('rP').value);
   if (pwdErr) { setErr('errReg1', pwdErr); btn.disabled=false; btn.textContent='Continuar →'; return; }
-  const d=await post('reg_check',{usuario:document.getElementById('rU').value,cedula:document.getElementById('rCed').value,correo:document.getElementById('rM').value,password:document.getElementById('rP').value,repetir:document.getElementById('rP2').value});btn.disabled=false;btn.textContent='Continuar →';if(d.ok){show('pReg2');}else setErr('errReg1',d.msg);}
+  const d=await post('reg_check',{usuario:document.getElementById('rU').value,cedula:document.getElementById('rCed').value,correo:document.getElementById('rM').value,password:document.getElementById('rP').value,repetir:document.getElementById('rP2').value});
+  btn.disabled=false;
+  btn.textContent='Continuar →';
+  if(d.ok){show('pReg2');}else setErr('errReg1',d.msg);
+}
 
-async function doReg2(){setErr('errReg2','');const p1=document.getElementById('rPrg1').value,r1=document.getElementById('rR1').value,p2=document.getElementById('rPrg2').value,r2=document.getElementById('rR2').value;if(!p1||!r1||!p2||!r2){setErr('errReg2','Responde ambas preguntas.');return;}if(p1===p2){setErr('errReg2','Las preguntas deben ser diferentes.');return;}const btn=document.getElementById('btnReg2');btn.disabled=true;btn.textContent='Guardando…';const d=await post('reg_pregs',{preg1:p1,resp1:r1,preg2:p2,resp2:r2});btn.disabled=false;btn.textContent='Continuar →';if(d.ok){show('pReg3');}else setErr('errReg2',d.msg);}
+async function doReg2(){
+  setErr('errReg2','');
+  const p1=document.getElementById('rPrg1').value,r1=document.getElementById('rR1').value,p2=document.getElementById('rPrg2').value,r2=document.getElementById('rR2').value;
+  if(!p1||!r1||!p2||!r2){setErr('errReg2','Responde ambas preguntas.');return;}
+  if(p1===p2){setErr('errReg2','Las preguntas deben ser diferentes.');return;}
+  const btn=document.getElementById('btnReg2');
+  btn.disabled=true;
+  btn.textContent='Guardando…';
+  const d=await post('reg_pregs',{preg1:p1,resp1:r1,preg2:p2,resp2:r2});
+  btn.disabled=false;
+  btn.textContent='Continuar →';
+  if(d.ok){show('pReg3');}else setErr('errReg2',d.msg);
+}
 
-async function doReg3(){setErr('errReg3','');setOk('okReg3','');const btn=document.getElementById('btnReg3');btn.disabled=true;btn.textContent='Creando cuenta…';const d=await post('reg_finish',{password:document.getElementById('rP3').value,repetir:document.getElementById('rP4').value});btn.disabled=false;btn.textContent='✓ Crear mi cuenta';if(d.ok){setOk('okReg3',d.msg);setTimeout(()=>show('pLogin'),2500);}else setErr('errReg3',d.msg);}
+async function doReg3(){
+  setErr('errReg3','');
+  setOk('okReg3','');
+  const btn=document.getElementById('btnReg3');
+  btn.disabled=true;
+  btn.textContent='Creando cuenta…';
+  const d=await post('reg_finish',{password:document.getElementById('rP3').value,repetir:document.getElementById('rP4').value});
+  btn.disabled=false;
+  btn.textContent='✓ Crear mi cuenta';
+  if(d.ok){setOk('okReg3',d.msg);setTimeout(()=>show('pLogin'),2500);}else setErr('errReg3',d.msg);
+}
 
-async function doRec1(){setErr('errRec1','');const d=await post('rec_cedula',{cedula:document.getElementById('recCed').value});if(!d.ok){setErr('errRec1',d.msg);return;}document.getElementById('recUid').value=d.data.uid;document.getElementById('lblPrg1').textContent=d.data.preg1;document.getElementById('lblPrg2').textContent=d.data.preg2;show('pRec2');}
+async function doRec1(){
+  setErr('errRec1','');
+  const d=await post('rec_cedula',{cedula:document.getElementById('recCed').value});
+  if(!d.ok){setErr('errRec1',d.msg);return;}
+  document.getElementById('recUid').value=d.data.uid;
+  document.getElementById('lblPrg1').textContent=d.data.preg1;
+  document.getElementById('lblPrg2').textContent=d.data.preg2;
+  show('pRec2');
+}
 
-async function doRec2(){setErr('errRec2','');const d=await post('rec_verificar',{uid:document.getElementById('recUid').value,resp1:document.getElementById('recR1').value,resp2:document.getElementById('recR2').value});if(!d.ok){setErr('errRec2',d.msg);return;}show('pRec3');}
+async function doRec2(){
+  setErr('errRec2','');
+  const d=await post('rec_verificar',{uid:document.getElementById('recUid').value,resp1:document.getElementById('recR1').value,resp2:document.getElementById('recR2').value});
+  if(!d.ok){setErr('errRec2',d.msg);return;}
+  show('pRec3');
+}
 
-async function doRec3(){setErr('errRec3','');setOk('okRec3','');const d=await post('rec_newpwd',{password:document.getElementById('recP').value,repetir:document.getElementById('recP2').value});if(d.ok){setOk('okRec3',d.msg);setTimeout(()=>show('pLogin'),2500);}else setErr('errRec3',d.msg);}
+async function doRec3(){
+  setErr('errRec3','');
+  setOk('okRec3','');
+  const d=await post('rec_newpwd',{password:document.getElementById('recP').value,repetir:document.getElementById('recP2').value});
+  if(d.ok){setOk('okRec3',d.msg);setTimeout(()=>show('pLogin'),2500);}else setErr('errRec3',d.msg);
+}
 
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('pLogin').classList.contains('active'))doLogin();});
 </script>

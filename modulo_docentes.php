@@ -3,12 +3,19 @@ $page_title = 'Docentes';
 $page_sub   = 'Registro y gestión del personal docente';
 $active_link = 'docentes';
 include __DIR__.'/layout/head.php';
+
 // Acceso admin o superadmin
 if(!in_array($_rol,['superadmin','admin'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
 
+// Obtener materias activas para el modal de asignación
+$con = db();
+$todas_materias = [];
+$res_mat = mysqli_query($con, "SELECT id, nombre FROM materias WHERE activo = 1");
+if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row;
 ?>
+
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
   <a href="api/export_plantilla.php?tipo=docentes" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
   <button class="btn btn-primary" onclick="openModal('mCD')">
@@ -16,6 +23,7 @@ if(!in_array($_rol,['superadmin','admin'])){
     Nuevo Docente
   </button>
 </div>
+
 <div class="card">
   <div class="card-head">
     <h3>Historial de Docentes</h3>
@@ -96,13 +104,59 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
 </div>
 
+<!-- MODAL ASIGNAR MATERIA -->
+<div class="modal-backdrop" id="mAMD">
+  <div class="modal">
+    <div class="modal-head"><h3>Asignar Materia a Docente</h3>
+      <button class="modal-close" onclick="closeModal('mAMD')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <form id="fAMD" onsubmit="asignarMateriaSubmit(event)">
+        <input type="hidden" id="amd_docente_id" name="docente_id">
+        <div class="form-grid" style="margin-bottom:1rem;">
+          <div class="field" style="grid-column: span 2;">
+            <label>Docente Seleccionado</label>
+            <input type="text" id="amd_docente_nombre" readonly disabled style="background:var(--cream); cursor:not-allowed; border: 1.5px solid var(--border);">
+          </div>
+          <div class="field" style="grid-column: span 2;">
+            <label>Materia a Vincular *</label>
+            <select name="materia_id" id="amd_materia_id" required style="width: 100%; padding: .65rem; border: 1.5px solid var(--border); border-radius: 8px; font-size: .9rem; background: var(--paper); outline: none;">
+              <option value="">-- Elija una materia --</option>
+              <?php foreach($todas_materias as $mat): ?>
+                <option value="<?= $mat['id'] ?>"><?= htmlspecialchars($mat['nombre']) ?></option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:.6rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('mAMD')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Vincular Materia</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('ibbs:ready', () => loadDocentes());
+
 async function loadDocentes(){
-  console.log('[IBBS] Calling docente_list...'); const d=await ajax('docente_list'); console.log('[IBBS] docente_list response:', d); if(!d?.ok){ document.getElementById('tbodyD').innerHTML='<tr class="empty-row"><td colspan="8">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
-  const tb=document.getElementById('tbodyD');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="8">Sin docentes.</td></tr>';return;}
-  tb.innerHTML=d.data.map(r=>`<tr>
+  console.log('[IBBS] Calling docente_list...'); 
+  const d = await ajax('docente_list'); 
+  console.log('[IBBS] docente_list response:', d); 
+  
+  if(!d?.ok){ 
+      document.getElementById('tbodyD').innerHTML='<tr class="empty-row"><td colspan="8">'+( d?.msg||'Error al conectar')+'</td></tr>'; 
+      return; 
+  }
+  
+  const tb = document.getElementById('tbodyD');
+  if(!d.data.length){
+      tb.innerHTML='<tr class="empty-row"><td colspan="8">Sin docentes.</td></tr>';
+      return;
+  }
+  
+  tb.innerHTML = d.data.map(r => `<tr>
     <td><strong>${r.cedula}</strong></td>
     <td>${r.apellido}, ${r.nombre}</td>
     <td style="font-size:.82rem;">${r.correo}</td>
@@ -111,11 +165,13 @@ async function loadDocentes(){
     <td><span class="badge b-profesor">${r.nm}</span></td>
     <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
     <td class="td-actions">
+      <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignar(${r.id}, '${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" style="background:var(--ink);color:var(--lime);">Asignar</button>
       <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
       <button class="btn btn-sm btn-primary" onclick="editDoc(${r.id})">Editar</button>
       <button class="btn btn-sm btn-danger" onclick="delDoc(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')">Eliminar</button>
     </td></tr>`).join('');
 }
+
 async function createDoc(e){
   e.preventDefault();
   if(!validarForm([
@@ -124,28 +180,67 @@ async function createDoc(e){
     {name:'cedula',   label:'Cédula',   tipo:'cedula'},
     {name:'correo',   label:'Correo',   tipo:'email'},
   ])) return;
-  const fd=new FormData(e.target); fd.append('action','docente_create');
-  const r=await fetch('api/ajax.php',{method:'POST',body:fd}); const d=await r.json();
-  if(d.ok){toast(d.msg);closeModal('mCD');e.target.reset();loadDocentes();}else Ibbs.error(d.msg);
+  
+  const fd = new FormData(e.target); 
+  fd.append('action','docente_create');
+  const r = await fetch('api/ajax.php',{method:'POST',body:fd}); 
+  const d = await r.json();
+  
+  if(d.ok){
+      toast(d.msg);
+      closeModal('mCD');
+      e.target.reset();
+      loadDocentes();
+  } else {
+      Ibbs.error(d.msg);
+  }
 }
+
 async function editDoc(id){
-  const d=await ajax('docente_get',{id}); if(!d?.ok){toast(d?.msg||'Err','err');return;}
-  const r=d.data;
+  const d = await ajax('docente_get',{id}); 
+  if(!d?.ok){toast(d?.msg||'Err','err');return;}
+  const r = d.data;
   document.getElementById('eDId').value=id;
-  document.getElementById('eDN').value=r.nombre; document.getElementById('eDA').value=r.apellido;
-  document.getElementById('eDC').value=r.cedula; document.getElementById('eDM').value=r.correo;
-  document.getElementById('eDT').value=r.telefono||''; document.getElementById('eDE').value=r.especialidad||'';
-  document.getElementById('eDCi').value=r.ciudad||''; document.getElementById('eDAct').value=r.activo;
+  document.getElementById('eDN').value=r.nombre; 
+  document.getElementById('eDA').value=r.apellido;
+  document.getElementById('eDC').value=r.cedula; 
+  document.getElementById('eDM').value=r.correo;
+  document.getElementById('eDT').value=r.telefono||''; 
+  document.getElementById('eDE').value=r.especialidad||'';
+  document.getElementById('eDCi').value=r.ciudad||''; 
+  document.getElementById('eDAct').value=r.activo;
   openModal('mED');
 }
+
 async function saveEdit(){
-  const d=await ajax('docente_update',{id:document.getElementById('eDId').value,nombre:document.getElementById('eDN').value,apellido:document.getElementById('eDA').value,cedula:document.getElementById('eDC').value,correo:document.getElementById('eDM').value,telefono:document.getElementById('eDT').value,especialidad:document.getElementById('eDE').value,ciudad:document.getElementById('eDCi').value,activo:document.getElementById('eDAct').value});
-  if(d?.ok){toast(d.msg);closeModal('mED');loadDocentes();}else toast(d?.msg||'Err','err');
+  const d = await ajax('docente_update',{
+      id:document.getElementById('eDId').value,
+      nombre:document.getElementById('eDN').value,
+      apellido:document.getElementById('eDA').value,
+      cedula:document.getElementById('eDC').value,
+      correo:document.getElementById('eDM').value,
+      telefono:document.getElementById('eDT').value,
+      especialidad:document.getElementById('eDE').value,
+      ciudad:document.getElementById('eDCi').value,
+      activo:document.getElementById('eDAct').value
+  });
+  if(d?.ok){
+      toast(d.msg);
+      closeModal('mED');
+      loadDocentes();
+  } else {
+      toast(d?.msg||'Err','err');
+  }
 }
+
 async function verPerfil(id){
-  const d=await ajax('docente_get',{id}); if(!d?.ok){toast(d?.msg,'err');return;}
-  const r=d.data; const ini=(r.nombre||'?')[0].toUpperCase();
-  const asist=r.asistencias||{}; const tot=Object.values(asist).reduce((a,b)=>a+b,0);
+  const d = await ajax('docente_get',{id}); 
+  if(!d?.ok){toast(d?.msg,'err');return;}
+  const r = d.data; 
+  const ini = (r.nombre||'?')[0].toUpperCase();
+  const asist = r.asistencias||{}; 
+  const tot = Object.values(asist).reduce((a,b)=>a+b,0);
+  
   document.getElementById('perfilD').innerHTML=`
     <div class="profile-card">
       <div class="profile-ava">${ini}</div>
@@ -170,13 +265,17 @@ async function verPerfil(id){
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">${Object.entries({presente:'b-presente',ausente:'b-ausente',tardanza:'b-tardanza',justificado:'b-justificado'}).map(([k,c])=>`<span class="badge ${c}">${k}: ${asist[k]||0}</span>`).join('')}</div>`;
   openModal('mPD');
 }
+
 async function delDoc(id,n){
   ibbsConfirm(`¿Eliminar al docente "${n}"? Esta acción es irreversible.`, async ()=>{
     const d=await ajax('docente_delete',{id});
     if(d?.ok){toast(d.msg);loadDocentes();}else Ibbs.error(d?.msg||'Error');
   });
 }
-function filterTable(t,q){document.querySelectorAll('#'+t+' tbody tr:not(.empty-row)').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none');}
+
+function filterTable(t,q){
+    document.querySelectorAll('#'+t+' tbody tr:not(.empty-row)').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none');
+}
 
 function filtrarDocentes() {
   const qN = (document.getElementById('fDocNombre')?.value||'').toLowerCase();
@@ -187,5 +286,43 @@ function filtrarDocentes() {
     tr.style.display = (matchN && matchC) ? '' : 'none';
   });
 }
+
+// --- LÓGICA: ASIGNAR MATERIAS ---
+function abrirModalAsignar(id, nombre) {
+  document.getElementById('amd_docente_id').value = id;
+  document.getElementById('amd_docente_nombre').value = nombre;
+  document.getElementById('fAMD').reset();
+  openModal('mAMD');
+}
+
+async function asignarMateriaSubmit(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = form.querySelector('button[type="submit"]');
+  const btnText = btn.innerText;
+  
+  btn.disabled = true;
+  btn.innerText = 'Vinculando...';
+  
+  try {
+    const formData = new FormData(form);
+    const res = await fetch('asignar_materia.php', { method: 'POST', body: formData });
+    const data = await res.json();
+    
+    if (data.ok) {
+      toast('Materia asignada correctamente.');
+      closeModal('mAMD');
+      loadDocentes(); // Recargamos para actualizar el contador de materias en la tabla
+    } else {
+      Ibbs.error(data.msg || 'Error al asignar materia');
+    }
+  } catch (error) {
+    Ibbs.error('Error de conexión con el servidor.');
+  } finally {
+    btn.disabled = false;
+    btn.innerText = btnText;
+  }
+}
 </script>
+
 <?php include __DIR__.'/layout/foot.php'; ?>
