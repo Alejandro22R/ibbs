@@ -7,15 +7,23 @@
  * El navegador (EventSource) se reconecta solo si la conexión se
  * corta, así que no hace falta manejar reconexión a mano.
  *
- * Por qué la conexión dura ~25s y no para siempre: en Apache con
+ * Por qué la conexión dura ~40s y no para siempre: en Apache con
  * mod_php (el modo típico de XAMPP) cada conexión abierta ocupa un
  * worker del servidor completo. Mantener miles de conexiones SSE
  * abiertas indefinidamente agotaría el pool de workers y tumbaría el
  * resto del sitio. En vez de eso, este endpoint sondea la base cada
- * ~1s durante una ventana acotada y, si aparece algo, lo entrega al
+ * ~3s durante una ventana acotada y, si aparece algo, lo entrega al
  * instante; si no, la conexión se cierra sola al final de la ventana
- * y el navegador abre una nueva — el efecto para el usuario es el
- * mismo (push casi instantáneo) pero cada worker se libera pronto.
+ * y el navegador abre una nueva.
+ *
+ * Importante para dimensionar el servidor en producción: este
+ * intervalo (3s) y la ventana (40s) bajan la carga de CPU/BD por
+ * conexión, pero NO bajan cuántos procesos PHP están abiertos a la
+ * vez — eso depende de cuántas pestañas están conectadas, no de cada
+ * cuánto preguntan. El ahorro real de memoria viene de
+ * layout/foot.php, que cierra la conexión cuando la pestaña pasa a
+ * segundo plano (Page Visibility API) y la reabre al volver — así solo
+ * las pestañas realmente activas ocupan un worker.
  *
  * El cliente manda ?since=<id> con el último id que ya vio (layout/foot.php).
  */
@@ -70,7 +78,8 @@ $st = mysqli_prepare($con, "SELECT id,tipo,titulo,mensaje,materia_id,creado_en
 
 set_time_limit(0);
 $inicio = time();
-$duracionMax = 25; // segundos por conexión — ver nota arriba
+$duracionMax = 40;  // segundos por conexión — ver nota arriba
+$intervalo   = 3;   // segundos entre sondeos a la BD — ver nota arriba
 
 while (time() - $inicio < $duracionMax) {
     if (connection_aborted()) break;
@@ -90,7 +99,7 @@ while (time() - $inicio < $duracionMax) {
     echo ": ping\n\n";
     flush();
 
-    sleep(1);
+    sleep($intervalo);
 }
 
 echo "event: reconnect\ndata: fin_de_ventana\n\n";
