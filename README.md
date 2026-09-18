@@ -26,7 +26,10 @@ document root.
 │   ├── aula.php                               #   Aula Virtual: anuncios, materiales, actividades/calificaciones
 │   ├── clases_grabadas.php                    #   Repositorio de videos (YouTube/Drive/Vimeo) por materia
 │   ├── clases_vivo.php                        #   Videollamadas (Jitsi Meet / Google Meet / otro) por materia
+│   ├── notificaciones_stream.php              #   Push en tiempo real (Server-Sent Events)
+│   ├── foro.php, tareas.php                   #   Foro y tareas/entregas (usados desde modulo_aula.php)
 │   ├── backup.php, upload_foto.php, export_*.php
+├── config/notificaciones.php                 # notificar_usuario() / notificar_materia() — dispara el push
 ├── assets/                                   # CSS, imágenes, librerías de terceros (Chart.js, SweetAlert2, boxicons, fuentes)
 ├── uploads/
 │   ├── fotos/                                # Fotos de perfil subidas por los usuarios (no versionadas)
@@ -36,8 +39,15 @@ document root.
     └── migrations/                           # Cambios incrementales de esquema, uno por módulo nuevo
         ├── 001_aula_virtual.sql
         ├── 002_clases_grabadas.sql
-        └── 003_clases_vivo.sql
+        ├── 003_clases_vivo.sql
+        └── 004_notificaciones_tiempo_real.sql
 ```
+
+Además de `modulo_*.php`, el portal reactivó los roles alumno/docente con
+páginas propias: `portal_alumno.php` y `portal_docente.php` (con foro y
+tareas/entregas — `guardar_foro_mensaje.php`, `obtener_mensajes_foro.php`,
+`crear_tarea.php`, `procesar_entrega.php`, `calificar_entrega.php`,
+`asignar_materia.php`).
 
 `.htaccess` (raíz y `uploads/`) bloquea el acceso directo a `database/`,
 a los `.sql` sueltos, y la ejecución de scripts subidos a `uploads/`.
@@ -123,6 +133,75 @@ El "Unirse" siempre abre en pestaña nueva (`target=_blank
 rel=noopener`) — no hay embed de videollamada en vivo dentro del
 sistema. El docente puede marcar el estado (Programada / En curso /
 Finalizada / Cancelada) manualmente desde la lista.
+
+## Notificaciones en tiempo real
+
+Antes eran *pull*: la campana solo se revisaba una vez al cargar la
+página. Ahora `layout/foot.php` abre además una conexión persistente a
+`api/notificaciones_stream.php` (Server-Sent Events) apenas carga
+cualquier página del sistema — nueva notificación → toast + contador
+de la campana al instante, sin recargar.
+
+Por qué SSE y no WebSockets: corre sobre HTTP normal, sin puerto ni
+proceso aparte — funciona tal cual en un XAMPP/Apache compartido, que
+es donde corre este proyecto. La contra de SSE bajo Apache+mod_php es
+que cada conexión abierta ocupa un worker del servidor completo, así
+que **cada conexión dura ~25s y se corta sola** — el navegador
+(`EventSource`) reconecta automáticamente y de forma nativa recuerda
+el último id recibido (`Last-Event-ID`), así que el efecto para el
+usuario es push continuo aunque por debajo sean conexiones cortas
+encadenadas.
+
+Para que un módulo dispare una notificación, ni sabe que existe SSE —
+solo llama a un helper de `config/notificaciones.php` (ya cargado por
+el bootstrap) después de guardar lo que sea:
+
+```php
+notificar_materia($con, $materia_id, 'anuncio', "Nuevo anuncio: $titulo", $contenido, $uid);
+// o para un solo destinatario:
+notificar_usuario($con, $usuario_id, 'calificacion', "Tarea calificada", "Tu nota: $nota", $materia_id);
+```
+
+`notificar_materia()` le llega a todos los docentes y alumnos
+inscritos en esa materia (excepto a quien disparó el evento).
+Reutiliza la tabla `notificaciones` que ya existía — la migración 004
+solo la extiende (tipo libre en vez de ENUM fijo, + `materia_id`).
+
+Disparadores ya conectados: nuevo anuncio (Aula Virtual), clase en
+vivo que arranca, nueva clase grabada, nuevo mensaje de foro, nueva
+tarea, y tarea calificada.
+
+### Hallazgos de seguridad al integrar este módulo
+
+Al conectar los disparadores se encontraron y corrigieron varios
+problemas en código agregado después de la última revisión de
+seguridad:
+
+- **`api/foro.php` y `api/tareas.php`** (enganchados a las pestañas
+  Foro/Tareas de `modulo_aula.php`) tenían credenciales de BD
+  hardcodeadas (bypaseando `config/database.php`) y ningún token CSRF
+  — se reescribieron para usar el bootstrap, y `modulo_aula.php` ya
+  manda el token en sus 5 llamadas que modifican datos.
+- **`calificar_entrega.php`** exigía `$_SESSION['rol'] === 'docente'`,
+  un valor que el sistema nunca asigna (el rol real es `'profesor'`)
+  — ningún docente real podía calificar. Corregido.
+- Bug pre-existente en `notif_list` (api/ajax.php): las notificaciones
+  "para todos" (`usuario_id` NULL) no filtraban por rol — cualquier
+  usuario logueado veía las alertas dirigidas a admin. Corregido.
+- Se borraron `api/materiales.php` y `modulo_foro_materia.php` —
+  código muerto sin ninguna referencia, y el primero además roto
+  (ruta inexistente, variable de sesión que no usa el resto del
+  sistema).
+
+**Pendiente, no corregido en este pase** (toca ~2000 líneas de UI
+nueva, mejor como tarea aparte): `portal_alumno.php` y
+`portal_docente.php` no mandan token CSRF en ninguno de sus formularios
+ni fetch — sus propios endpoints (`guardar_foro_mensaje.php`,
+`crear_tarea.php`, `procesar_entrega.php`, `calificar_entrega.php`,
+`asignar_materia.php`) tampoco lo exigen todavía. Antes de llevar el
+campus a producción real conviene agregar el `<meta name="csrf-token">`
+a esas dos páginas y sumar `csrf_require_post()` a esos endpoints,
+siguiendo el mismo patrón que ya usa el resto del sistema.
 
 ## Convenciones para módulos nuevos
 
