@@ -355,32 +355,50 @@ function _notifSetBadge(n){
   else { el.style.display='none'; }
 }
 
-setTimeout(async function(){
-  let ultimoId = 0;
-  try {
-    const d = await ajax('notif_list');
-    if(d?.ok){
-      _notifSetBadge(parseInt(d.count)||0);
-      (d.data||[]).forEach(n => { ultimoId = Math.max(ultimoId, parseInt(n.id)||0); });
-    }
-  } catch(e) { /* silencioso */ }
+let _notifUltimoId = 0;
+let _notifEs = null;
 
-  // Conexión persistente: el propio navegador reintenta sola si se corta
-  // (el servidor cierra cada tramo cada ~25s a propósito — ver
-  // api/notificaciones_stream.php). No hace falta reabrir a mano.
+function _notifAbrirStream() {
   if (typeof EventSource === 'undefined') return; // navegador muy viejo: se queda con el chequeo inicial
+  if (_notifEs) return; // ya hay una conexión abierta
   try {
-    const es = new EventSource('api/notificaciones_stream.php?since=' + ultimoId);
-    es.onmessage = (ev) => {
+    _notifEs = new EventSource('api/notificaciones_stream.php?since=' + _notifUltimoId);
+    _notifEs.onmessage = (ev) => {
       let n; try { n = JSON.parse(ev.data); } catch(e) { return; }
+      _notifUltimoId = Math.max(_notifUltimoId, parseInt(n.id) || 0);
       _notifSetBadge(_notifUnread + 1);
       const icono = NOTIF_ICONS[n.tipo] || 'ℹ️';
       toast(icono + ' ' + (n.titulo || 'Nueva notificación'));
     };
     // Si el servidor o la red fallan, EventSource reintenta solo —
     // no hace nada acá salvo dejar que el navegador reconecte.
-    es.onerror = () => {};
+    _notifEs.onerror = () => {};
   } catch(e) { /* silencioso */ }
+}
+function _notifCerrarStream() {
+  if (_notifEs) { _notifEs.close(); _notifEs = null; }
+}
+
+// La pestaña en segundo plano no necesita mantener el worker del
+// servidor ocupado — se cierra la conexión y se reabre al volver
+// (retoma desde _notifUltimoId, no se pierde nada). Con miles de
+// usuarios esto es lo que realmente baja cuántas conexiones
+// simultáneas tiene que sostener el servidor en producción.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) _notifCerrarStream();
+  else _notifAbrirStream();
+});
+
+setTimeout(async function(){
+  try {
+    const d = await ajax('notif_list');
+    if(d?.ok){
+      _notifSetBadge(parseInt(d.count)||0);
+      (d.data||[]).forEach(n => { _notifUltimoId = Math.max(_notifUltimoId, parseInt(n.id)||0); });
+    }
+  } catch(e) { /* silencioso */ }
+
+  if (!document.hidden) _notifAbrirStream();
 }, 800);
 </script>
 
