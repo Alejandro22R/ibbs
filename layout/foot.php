@@ -340,16 +340,46 @@ setTimeout(function() {
   catch(e) { console.error('ibbs:ready dispatch error:', e); }
 }, 0);
 
-// Campana de notificaciones — carga después, sin bloquear nada
+// Campana de notificaciones — carga inicial + conexión en vivo (SSE)
+const NOTIF_ICONS = {
+  anuncio:'📢', foro:'💬', tarea:'📋', calificacion:'✅',
+  clase_vivo:'🔴', grabacion:'🎬', reprobado:'⚠️', asistencia:'⚠️',
+  sistema:'⚙️', info:'ℹ️'
+};
+let _notifUnread = 0;
+function _notifSetBadge(n){
+  _notifUnread = Math.max(0, n);
+  const el = document.getElementById('notifCount');
+  if(!el) return;
+  if(_notifUnread>0){ el.textContent = _notifUnread>9?'9+':_notifUnread; el.style.display='flex'; }
+  else { el.style.display='none'; }
+}
+
 setTimeout(async function(){
+  let ultimoId = 0;
   try {
     const d = await ajax('notif_list');
-    if(!d?.ok) return;
-    const el = document.getElementById('notifCount');
-    if(!el) return;
-    const cnt = parseInt(d.count)||0;
-    if(cnt>0){ el.textContent = cnt>9?'9+':cnt; el.style.display='flex'; }
-    else { el.style.display='none'; }
+    if(d?.ok){
+      _notifSetBadge(parseInt(d.count)||0);
+      (d.data||[]).forEach(n => { ultimoId = Math.max(ultimoId, parseInt(n.id)||0); });
+    }
+  } catch(e) { /* silencioso */ }
+
+  // Conexión persistente: el propio navegador reintenta sola si se corta
+  // (el servidor cierra cada tramo cada ~25s a propósito — ver
+  // api/notificaciones_stream.php). No hace falta reabrir a mano.
+  if (typeof EventSource === 'undefined') return; // navegador muy viejo: se queda con el chequeo inicial
+  try {
+    const es = new EventSource('api/notificaciones_stream.php?since=' + ultimoId);
+    es.onmessage = (ev) => {
+      let n; try { n = JSON.parse(ev.data); } catch(e) { return; }
+      _notifSetBadge(_notifUnread + 1);
+      const icono = NOTIF_ICONS[n.tipo] || 'ℹ️';
+      toast(icono + ' ' + (n.titulo || 'Nueva notificación'));
+    };
+    // Si el servidor o la red fallan, EventSource reintenta solo —
+    // no hace nada acá salvo dejar que el navegador reconecte.
+    es.onerror = () => {};
   } catch(e) { /* silencioso */ }
 }, 800);
 </script>

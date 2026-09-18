@@ -96,6 +96,7 @@ if ($action === 'anuncio_create') {
     mysqli_stmt_bind_param($st, 'iissi', $mid, $uid, $titulo, $contenido, $fijado);
     if (!mysqli_stmt_execute($st)) json_fail('No se pudo publicar el anuncio.');
     log_audit($con, $uid, 'AULA_ANUNCIO_CREATE', "materia=$mid");
+    notificar_materia($con, $mid, 'anuncio', "Nuevo anuncio: $titulo", $contenido, $uid);
     echo json_encode(['ok'=>true,'msg'=>'Anuncio publicado.']); exit;
 }
 

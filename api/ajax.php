@@ -547,7 +547,13 @@ if($action==='notif_list'){
         creado_en DATETIME DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB");
     $lista=[];
-    $r=mysqli_query($con,"SELECT * FROM notificaciones WHERE (usuario_id=$uid OR usuario_id IS NULL) AND leida=0 ORDER BY creado_en DESC LIMIT 30");
+    // Los "broadcast" (usuario_id NULL) solo se muestran si el rol del
+    // usuario coincide con para_rol — antes se veían todos entre sí.
+    $roles=notif_roles_aceptados($_rol);
+    $st=mysqli_prepare($con,"SELECT * FROM notificaciones WHERE (usuario_id=? OR (usuario_id IS NULL AND para_rol IN (?,?,?))) AND leida=0 ORDER BY creado_en DESC LIMIT 30");
+    mysqli_stmt_bind_param($st,'isss',$uid,$roles[0],$roles[1],$roles[2]);
+    mysqli_stmt_execute($st);
+    $r=mysqli_stmt_get_result($st);
     if($r) while($f=mysqli_fetch_assoc($r)) $lista[]=$f;
     echo json_encode(['ok'=>true,'data'=>$lista,'count'=>count($lista)]); exit;
 }
