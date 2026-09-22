@@ -12,6 +12,15 @@ if(!$aid) die('ID inválido');
 $con = db();
 if (!$con) die('Error de conexión a la base de datos.');
 
+// Un alumno solo puede descargar su propia constancia; el resto de
+// roles (admin/superadmin/profesor) puede ver la de cualquiera, igual
+// que el resto de los reportes del sistema.
+if (($_SESSION['rol'] ?? '') === 'alumno') {
+    $uidSesion = (int)($_SESSION['user_id'] ?? 0);
+    $propio = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE id=$aid AND usuario_id=$uidSesion LIMIT 1"));
+    if (!$propio) die('No tenés permiso para ver esta constancia.');
+}
+
 $a = mysqli_fetch_assoc(mysqli_query($con,"SELECT a.*, u.correo uc FROM alumnos a LEFT JOIN usuarios u ON u.id=a.usuario_id WHERE a.id=$aid LIMIT 1"));
 if(!$a) die('Alumno no encontrado');
 

@@ -193,15 +193,44 @@ seguridad:
   (ruta inexistente, variable de sesión que no usa el resto del
   sistema).
 
-**Pendiente, no corregido en este pase** (toca ~2000 líneas de UI
-nueva, mejor como tarea aparte): `portal_alumno.php` y
-`portal_docente.php` no mandan token CSRF en ninguno de sus formularios
-ni fetch — sus propios endpoints (`guardar_foro_mensaje.php`,
-`crear_tarea.php`, `procesar_entrega.php`, `calificar_entrega.php`,
-`asignar_materia.php`) tampoco lo exigen todavía. Antes de llevar el
-campus a producción real conviene agregar el `<meta name="csrf-token">`
-a esas dos páginas y sumar `csrf_require_post()` a esos endpoints,
-siguiendo el mismo patrón que ya usa el resto del sistema.
+**Resuelto en un pase posterior — foro/chat unificado:**
+`portal_alumno.php` y `portal_docente.php` tenían su propio chat de
+foro (`guardar_foro_mensaje.php` / `obtener_mensajes_foro.php`), sin
+CSRF y sin validar que el usuario tuviera permiso sobre la materia
+(cualquiera logueado podía leer o escribir en el foro de cualquier
+materia con solo cambiar el `materia_id`). Se eliminaron esos dos
+archivos y ambos portales ahora consumen el mismo `api/foro.php` que ya
+usa `modulo_aula.php` — con `<meta name="csrf-token">` agregado a las
+dos páginas, `materia_puede_ver()` en cada request, y sanitizado del
+mensaje en el cliente (antes se insertaba tal cual en el DOM). También
+se sumó autoría real (columna `usuario_id`, migración
+`005_foro_usuario_id.sql`) y un botón "Borrar": el autor puede borrar su
+propio mensaje, y quien gestiona la materia (admin/superadmin siempre,
+profesor solo si está asignado) puede moderar cualquiera — todo
+revalidado en el backend, nunca solo ocultando el botón.
+
+**Resuelto — permisos en Calificaciones:** `api/ajax.php`
+(`nota_guardar`, `nota_borrar`, `notas_tabla_materia`) y
+`api/export_pdf.php` no verificaban `materia_puede_gestionar()` — un
+profesor podía cargar o borrar notas, y exportar el PDF, de una materia
+que no le pertenece. El selector de materia de `modulo_notas.php`
+también listaba todas las materias del sistema en vez de
+`materias_asignadas()`. Además, la tabla de notas ahora muestra quién
+registró cada nota y cuándo (columnas `nota_registrada_por` /
+`nota_actualizada_en`, que ya existían pero no se mostraban), y se
+arregló el enlace roto "Constancia de Notas" de `portal_alumno.php`
+(apuntaba a un archivo inexistente) para que use
+`api/export_boletin.php`, ahora restringido a que un alumno solo pueda
+descargar la suya propia.
+
+**Pendiente, no corregido en este pase**: `crear_tarea.php`,
+`procesar_entrega.php`, `calificar_entrega.php` y
+`asignar_materia.php` (formularios de `portal_alumno.php` /
+`portal_docente.php` fuera del foro) todavía no mandan ni exigen token
+CSRF. Antes de llevar el campus a producción real conviene sumarles
+`csrf_require_post()` en el backend y el token en sus fetch/formularios,
+siguiendo el mismo patrón que ya usa el resto del sistema (y el que
+acaba de sumar el foro).
 
 ## Convenciones para módulos nuevos
 

@@ -218,6 +218,7 @@ if($action==='nota_guardar'){
     $fecha=trim($_POST['fecha']??date('Y-m-d'));
     if(!$mid){echo json_encode(['ok'=>false,'msg'=>'Falta materia_id.']);exit;}
     if(!$aid){echo json_encode(['ok'=>false,'msg'=>'Falta alumno_id.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
     if($cal<0||$cal>20){echo json_encode(['ok'=>false,'msg'=>'Nota debe estar entre 0 y 20. Recibido: '.$nota_raw]);exit;}
     // Upsert
     $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
@@ -227,21 +228,29 @@ if($action==='nota_guardar'){
         $res=mysqli_query($con,"INSERT INTO materia_alumno(materia_id,alumno_id,nota_final,nota_fecha,nota_registrada_por,nota_actualizada_en) VALUES($mid,$aid,$cal,'".esc($con,$fecha)."',$uid,NOW())");
     }
     if(!$res){echo json_encode(['ok'=>false,'msg'=>'BD error: '.mysqli_error($con)]);exit;}
+    log_audit($con,$uid,'NOTA_GUARDAR',"materia=$mid alumno=$aid nota=$cal");
     $estado=$cal>=15?'Aprobado':'Reprobado';
     echo json_encode(['ok'=>true,'msg'=>"Nota $cal guardada. $estado."]); exit;
 }
 if($action==='nota_borrar'){
     $mid=(int)($_POST['materia_id']??0); $aid=(int)($_POST['alumno_id']??0);
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
     mysqli_query($con,"UPDATE materia_alumno SET nota_final=NULL,nota_fecha=NULL,nota_registrada_por=NULL,nota_actualizada_en=NULL WHERE materia_id=$mid AND alumno_id=$aid");
+    log_audit($con,$uid,'NOTA_BORRAR',"materia=$mid alumno=$aid");
     echo json_encode(['ok'=>true,'msg'=>'Nota borrada.']); exit;
 }
 if($action==='notas_tabla_materia'){
     $mid=(int)($_POST['materia_id']??0);
     if(!$mid){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
     $mat=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM materias WHERE id=$mid"));
     $docs=[]; $rd=mysqli_query($con,"SELECT d.nombre,d.apellido FROM docentes d JOIN materia_docente md ON md.docente_id=d.id WHERE md.materia_id=$mid");
     while($f=mysqli_fetch_assoc($rd)) $docs[]=$f;
-    $alumnos=[]; $ra=mysqli_query($con,"SELECT a.id,a.nombre,a.apellido,a.cedula,a.ciudad,ma.nota_final,ma.nota_fecha FROM alumnos a JOIN materia_alumno ma ON ma.alumno_id=a.id WHERE ma.materia_id=$mid ORDER BY a.apellido,a.nombre");
+    $alumnos=[]; $ra=mysqli_query($con,"SELECT a.id,a.nombre,a.apellido,a.cedula,a.ciudad,ma.nota_final,ma.nota_fecha,ma.nota_actualizada_en,
+        u.usuario AS nota_registrada_por_nombre
+        FROM alumnos a JOIN materia_alumno ma ON ma.alumno_id=a.id
+        LEFT JOIN usuarios u ON u.id=ma.nota_registrada_por
+        WHERE ma.materia_id=$mid ORDER BY a.apellido,a.nombre");
     while($f=mysqli_fetch_assoc($ra)) $alumnos[]=$f;
     $apr=0; foreach($alumnos as $_a){ if($_a['nota_final']!==null&&(float)$_a['nota_final']>=15) $apr++; }
     $rep=0; foreach($alumnos as $_a){ if($_a['nota_final']!==null&&(float)$_a['nota_final']<15) $rep++; }

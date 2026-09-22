@@ -99,6 +99,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
     <title>Portal Docente | IBBS</title>
     
     <!-- CSS Maestro del Sistema IBBS -->
@@ -943,6 +944,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         let materiaActivaChatId = <?= !empty($materias) ? $materias[0]['id'] : 0 ?>;
         let ultimoIdMensaje = 0;
         let chatInterval = null;
+        const MI_USUARIO_ID = <?= (int)$user_id ?>;
+        function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
 
         function prepararRespuesta(nombreUsuario, idMensaje) {
             document.getElementById('chat-reply-to-id').value = idMensaje;
@@ -961,7 +964,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             document.getElementById('chat-title').innerText = nombreMateria;
             document.getElementById('chat-materia-id').value = materiaId;
             cancelarRespuesta();
-            
+
             document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active-chat'));
             if(element) element.classList.add('active-chat');
 
@@ -970,70 +973,105 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             cargarMensajesForo();
         }
 
+        function roleBadgeDocente(rol) {
+            if (rol === 'profesor') return '<i class="fas fa-chalkboard-teacher" style="margin-left:4px;" title="Profesor"></i>';
+            if (rol === 'admin' || rol === 'superadmin') return '<i class="fas fa-user-shield" style="margin-left:4px;" title="Administrador"></i>';
+            return '';
+        }
+
         function cargarMensajesForo() {
             if (materiaActivaChatId === 0) return;
-            fetch(`obtener_mensajes_foro.php?materia_id=${materiaActivaChatId}&ultimo_id=${ultimoIdMensaje}`)
+            fetch(`api/foro.php?action=get_mensajes&materia_id=${materiaActivaChatId}`)
             .then(res => res.json())
-            .then(data => {
-                if(data.ok && data.mensajes.length > 0) {
-                    const chatBox = document.getElementById('chat-messages-container');
-                    if(ultimoIdMensaje === 0) chatBox.innerHTML = ''; 
-
-                    data.mensajes.forEach(msg => {
-                        let isMe = msg.usuario_nombre === '<?= htmlspecialchars($_SESSION['usuario'] ?? '') ?>';
-                        let replyHtml = '';
-                        if (msg.respuesta_a_nombre) {
-                            replyHtml = `<div style="font-size:.7rem; background:rgba(0,0,0,.1); padding:4px 8px; border-radius:4px; margin-bottom:6px; border-left:2px solid currentColor;"><i class="fas fa-reply"></i> a ${msg.respuesta_a_nombre}</div>`;
-                        }
-
-                        let html = '';
-                        if (isMe) {
-                            html = `
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; width: 100%;">
-                                <span style="font-size: .65rem; color: var(--muted); margin-bottom: .2rem; font-weight: 700;">Tú</span>
-                                <div class="msg-bubble msg-mine">
-                                    ${replyHtml}
-                                    <p>${msg.mensaje}</p>
-                                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: .4rem; margin-top: .4rem; font-size: .65rem; opacity: .7;">
-                                        <span>${msg.hora}</span> <i class="fas fa-check-double text-ibbs-lime"></i>
-                                    </div>
-                                </div>
-                            </div>`;
-                        } else {
-                            let isDocente = (msg.rol === 'docente' || msg.rol === 'superadmin' || msg.rol === 'profesor' || msg.rol === 'admin');
-                            let nameColor = isDocente ? 'color: var(--ink);' : 'color: var(--muted);';
-                            let badge = isDocente ? '<i class="fas fa-chalkboard-teacher" style="margin-left: 4px;" title="Profesor/Admin"></i>' : '';
-                            html = `
-                            <div style="display: flex; flex-direction: column; align-items: flex-start; width: 100%;">
-                                <span style="font-size: .65rem; ${nameColor} margin-bottom: .2rem; font-weight: 700;">${msg.usuario_nombre} ${badge}</span>
-                                <div class="msg-bubble msg-other">
-                                    ${replyHtml}
-                                    <p>${msg.mensaje}</p>
-                                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: .4rem; font-size: .65rem;">
-                                        <span style="color: var(--muted);">${msg.hora}</span>
-                                        <button type="button" onclick="prepararRespuesta('${msg.usuario_nombre}', ${msg.id})" style="background: none; border: none; color: var(--ink); font-weight: 700; cursor: pointer; text-decoration: underline;">Responder</button>
-                                    </div>
-                                </div>
-                            </div>`;
-                        }
-                        chatBox.innerHTML += html;
-                        ultimoIdMensaje = Math.max(ultimoIdMensaje, msg.id);
-                    });
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                } else if(ultimoIdMensaje === 0 && (!data.mensajes || data.mensajes.length === 0)) {
-                    document.getElementById('chat-messages-container').innerHTML = `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted); gap: .5rem;"><i class="far fa-comments" style="font-size: 2.5rem;"></i><p style="font-size: .8rem; font-weight: 700; text-transform: uppercase;">No hay mensajes aún.</p></div>`;
+            .then(mensajes => {
+                if (mensajes && mensajes.error) { console.error("Error del servidor:", mensajes.error); return; }
+                const chatBox = document.getElementById('chat-messages-container');
+                if (!mensajes || mensajes.length === 0) {
+                    chatBox.innerHTML = `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted); gap: .5rem;"><i class="far fa-comments" style="font-size: 2.5rem;"></i><p style="font-size: .8rem; font-weight: 700; text-transform: uppercase;">No hay mensajes aún.</p></div>`;
+                    ultimoIdMensaje = 0;
+                    return;
                 }
+
+                chatBox.innerHTML = '';
+                mensajes.forEach(msg => {
+                    let isMe = msg.usuario_id === MI_USUARIO_ID;
+                    let replyHtml = '';
+                    if (msg.respuesta_a_nombre) {
+                        replyHtml = `<div style="font-size:.7rem; background:rgba(0,0,0,.1); padding:4px 8px; border-radius:4px; margin-bottom:6px; border-left:2px solid currentColor;"><i class="fas fa-reply"></i> a ${hChat(msg.respuesta_a_nombre)}</div>`;
+                    }
+                    const hora = new Date(msg.fecha).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                    const delBtn = msg.puede_borrar
+                        ? `<button type="button" onclick="borrarMensajeForo(${msg.id})" style="background:none;border:none;color:var(--red);font-weight:700;cursor:pointer;text-decoration:underline;margin-left:.6rem;">Borrar</button>`
+                        : '';
+
+                    let html = '';
+                    if (isMe) {
+                        html = `
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; width: 100%;">
+                            <span style="font-size: .65rem; color: var(--muted); margin-bottom: .2rem; font-weight: 700;">Tú</span>
+                            <div class="msg-bubble msg-mine">
+                                ${replyHtml}
+                                <p>${hChat(msg.mensaje)}</p>
+                                <div style="display: flex; justify-content: flex-end; align-items: center; gap: .4rem; margin-top: .4rem; font-size: .65rem; opacity: .7;">
+                                    <span>${hora}</span> <i class="fas fa-check-double text-ibbs-lime"></i>${delBtn}
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        let isDocente = (msg.rol === 'superadmin' || msg.rol === 'profesor' || msg.rol === 'admin');
+                        let nameColor = isDocente ? 'color: var(--ink);' : 'color: var(--muted);';
+                        html = `
+                        <div style="display: flex; flex-direction: column; align-items: flex-start; width: 100%;">
+                            <span style="font-size: .65rem; ${nameColor} margin-bottom: .2rem; font-weight: 700;">${hChat(msg.usuario_nombre)} ${roleBadgeDocente(msg.rol)}</span>
+                            <div class="msg-bubble msg-other">
+                                ${replyHtml}
+                                <p>${hChat(msg.mensaje)}</p>
+                                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: .4rem; font-size: .65rem;">
+                                    <span style="color: var(--muted);">${hora}</span>
+                                    <span>
+                                        <button type="button" onclick="prepararRespuesta('${hChat(msg.usuario_nombre)}', ${msg.id})" style="background: none; border: none; color: var(--ink); font-weight: 700; cursor: pointer; text-decoration: underline;">Responder</button>${delBtn}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                    chatBox.innerHTML += html;
+                    ultimoIdMensaje = Math.max(ultimoIdMensaje, msg.id);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
             }).catch(err => console.error(err));
+        }
+
+        async function borrarMensajeForo(id) {
+            if (!confirm('¿Borrar este mensaje?')) return;
+            try {
+                const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const r = await fetch(`api/foro.php?action=delete_mensaje&materia_id=${materiaActivaChatId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
+                });
+                const result = await r.json();
+                if (result.success) cargarMensajesForo();
+                else alert(result.error || 'No se pudo borrar el mensaje.');
+            } catch (e) { console.error(e); }
         }
 
         function sendChat(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input-text');
-            if(input.value.trim() === '') return;
-            const formData = new FormData(e.target);
+            const mensaje = input.value.trim();
+            if (mensaje === '') return;
+            const respuesta_a = document.getElementById('chat-reply-to-id').value;
             input.value = ''; cancelarRespuesta();
-            fetch('guardar_foro_mensaje.php', { method: 'POST', body: formData })
-            .then(res => res.json()).then(data => { if(data.ok) cargarMensajesForo(); })
+            const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            fetch(`api/foro.php?action=post_mensaje&materia_id=${materiaActivaChatId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mensaje, respuesta_a, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
+            })
+            .then(res => res.json())
+            .then(data => { if (data.success) cargarMensajesForo(); else alert(data.error || 'No se pudo enviar el mensaje.'); })
             .catch(err => console.error(err));
         }
 

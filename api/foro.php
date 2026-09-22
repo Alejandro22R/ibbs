@@ -35,11 +35,17 @@ $action = $_GET['action'] ?? '';
 
 /* ════ OBTENER MENSAJES (solo lectura) ═══════════════════════════ */
 if ($action === 'get_mensajes') {
-    $st = mysqli_prepare($con, "SELECT id,materia_id,usuario_nombre,rol,mensaje,respuesta_a,fecha FROM foro_mensajes WHERE materia_id=? ORDER BY fecha ASC");
+    $st = mysqli_prepare($con, "SELECT id,materia_id,usuario_id,usuario_nombre,rol,mensaje,respuesta_a,fecha FROM foro_mensajes WHERE materia_id=? ORDER BY fecha ASC");
     mysqli_stmt_bind_param($st, 'i', $materia_id);
     mysqli_stmt_execute($st);
     $r = mysqli_stmt_get_result($st);
-    $mensajes = []; while ($f = mysqli_fetch_assoc($r)) $mensajes[] = $f;
+    $puedeModerar = materia_puede_gestionar($con, $uid, $_rol, $materia_id);
+    $mensajes = [];
+    while ($f = mysqli_fetch_assoc($r)) {
+        $f['usuario_id'] = $f['usuario_id'] !== null ? (int)$f['usuario_id'] : null;
+        $f['puede_borrar'] = $puedeModerar || ($f['usuario_id'] !== null && $f['usuario_id'] === $uid);
+        $mensajes[] = $f;
+    }
     echo json_encode($mensajes); exit;
 }
 
@@ -64,13 +70,48 @@ if ($action === 'post_mensaje' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!mysqli_fetch_row(mysqli_stmt_get_result($stR))) $respuestaA = null;
     }
 
-    $st = mysqli_prepare($con, "INSERT INTO foro_mensajes(materia_id,usuario_nombre,rol,mensaje,respuesta_a) VALUES(?,?,?,?,?)");
-    mysqli_stmt_bind_param($st, 'isssi', $materia_id, $usuarioNombre, $_rol, $mensaje, $respuestaA);
+    $st = mysqli_prepare($con, "INSERT INTO foro_mensajes(materia_id,usuario_id,usuario_nombre,rol,mensaje,respuesta_a) VALUES(?,?,?,?,?,?)");
+    mysqli_stmt_bind_param($st, 'iisssi', $materia_id, $uid, $usuarioNombre, $_rol, $mensaje, $respuestaA);
     if (!mysqli_stmt_execute($st)) { echo json_encode(['success' => false, 'error' => 'No se pudo publicar el mensaje.']); exit; }
 
     log_audit($con, $uid, 'FORO_MENSAJE', "materia=$materia_id");
     $resumen = mb_strlen($mensaje) > 80 ? mb_substr($mensaje, 0, 80).'…' : $mensaje;
     notificar_materia($con, $materia_id, 'foro', "Nuevo mensaje en el foro de $usuarioNombre", $resumen, $uid);
+    echo json_encode(['success' => true, 'id' => mysqli_insert_id($con)]); exit;
+}
+
+/* ════ BORRAR MENSAJE ═══════════════════════════════════════════
+ * El autor puede borrar el suyo; quien gestiona la materia (admin/
+ * superadmin siempre, profesor solo si está asignado) puede borrar
+ * cualquiera — moderación. Nunca se confía en lo que mande el
+ * frontend: se revalida todo contra la fila real en BD. */
+if ($action === 'delete_mensaje' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+
+    if (!csrf_verify($data['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token de seguridad inválido. Recarga la página.']); exit;
+    }
+
+    $msgId = (int)($data['id'] ?? 0);
+    if (!$msgId) { echo json_encode(['success' => false, 'error' => 'Mensaje no válido']); exit; }
+
+    $st = mysqli_prepare($con, "SELECT id,usuario_id FROM foro_mensajes WHERE id=? AND materia_id=? LIMIT 1");
+    mysqli_stmt_bind_param($st, 'ii', $msgId, $materia_id);
+    mysqli_stmt_execute($st);
+    $fila = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+    if (!$fila) { echo json_encode(['success' => false, 'error' => 'Mensaje no encontrado']); exit; }
+
+    $esAutor  = $fila['usuario_id'] !== null && (int)$fila['usuario_id'] === $uid;
+    $esModera = materia_puede_gestionar($con, $uid, $_rol, $materia_id);
+    if (!$esAutor && !$esModera) {
+        echo json_encode(['success' => false, 'error' => 'No tenés permiso para borrar este mensaje.']); exit;
+    }
+
+    $stD = mysqli_prepare($con, "DELETE FROM foro_mensajes WHERE id=? AND materia_id=?");
+    mysqli_stmt_bind_param($stD, 'ii', $msgId, $materia_id);
+    if (!mysqli_stmt_execute($stD)) { echo json_encode(['success' => false, 'error' => 'No se pudo borrar el mensaje.']); exit; }
+
+    log_audit($con, $uid, 'FORO_MENSAJE_BORRAR', "materia=$materia_id msg=$msgId".($esAutor?'':' (moderación)'));
     echo json_encode(['success' => true]); exit;
 }
 

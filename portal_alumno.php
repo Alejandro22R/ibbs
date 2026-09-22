@@ -82,6 +82,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
     <title>Portal del Alumno | IBBS</title>
     
     <!-- Google Fonts (Nunito y Playfair Display) -->
@@ -584,7 +585,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         </div>
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Notas</h3>
                         <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Reporte académico oficial con el desglose detallado de tus calificaciones finales aprobadas y tu promedio general.</p>
-                        <a href="generar_constancia_notas.php" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-green transition-colors flex items-center justify-center gap-2 mt-auto">
+                        <a href="api/export_boletin.php?alumno_id=<?=$alumno_id?>" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-green transition-colors flex items-center justify-center gap-2 mt-auto">
                             <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
                         </a>
                     </div>
@@ -825,6 +826,8 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         let materiaActivaChatId = <?= !empty($materias) ? $materias[0]['id'] : 0 ?>;
         let ultimoIdMensaje = 0;
         let chatInterval = null;
+        const MI_USUARIO_ID = <?= (int)$user_id ?>;
+        function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
 
         function prepararRespuesta(nombreUsuario, idMensaje) {
             document.getElementById('chat-reply-to-id').value = idMensaje;
@@ -864,83 +867,118 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             cargarMensajesForo();
         }
 
+        function roleBadgeChat(rol) {
+            if (rol === 'profesor') return '<span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ibbs-blue/10 text-ibbs-blue ml-1">Profesor</span>';
+            if (rol === 'admin' || rol === 'superadmin') return '<span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ibbs-red/10 text-ibbs-red ml-1">Admin</span>';
+            return '';
+        }
+
         function cargarMensajesForo() {
             if (materiaActivaChatId === 0) return;
-            fetch(`obtener_mensajes_foro.php?materia_id=${materiaActivaChatId}&ultimo_id=${ultimoIdMensaje}`)
+            fetch(`api/foro.php?action=get_mensajes&materia_id=${materiaActivaChatId}`)
             .then(res => res.json())
-            .then(data => {
-                if(data.ok && data.mensajes.length > 0) {
-                    const chatBox = document.getElementById('chat-messages-container');
-                    if(ultimoIdMensaje === 0) chatBox.innerHTML = ''; 
-
-                    data.mensajes.forEach(msg => {
-                        let isMe = msg.usuario_nombre === '<?= htmlspecialchars($_SESSION['usuario'] ?? '') ?>';
-                        let replyHtml = '';
-                        if (msg.respuesta_a_nombre) {
-                            let replyBg = isMe ? 'bg-black/20 border-ibbs-lime/50 text-white/80' : 'bg-ibbs-cream border-ibbs-border text-ibbs-muted';
-                            replyHtml = `
-                                <div class="text-[10px] ${replyBg} px-2.5 py-1 rounded mb-2 border-l-2 flex items-center gap-1.5">
-                                    <i class="fas fa-reply text-[9px]"></i> a ${msg.respuesta_a_nombre}
-                                </div>
-                            `;
-                        }
-
-                        let html = '';
-                        if (isMe) {
-                            html = `
-                            <div class="flex flex-col items-end mt-3 animate-fade-in w-full">
-                                <span class="text-[10px] text-ibbs-muted mr-1 mb-1 font-bold">Tú</span>
-                                <div class="chat-bubble-me max-w-[85%] md:max-w-[70%] rounded-2xl p-3 shadow-sm relative group">
-                                    ${replyHtml}
-                                    <p class="text-sm leading-relaxed">${msg.mensaje}</p>
-                                    <div class="flex justify-end items-center mt-1.5 gap-2">
-                                        <span class="text-[9px] text-ibbs-lime/70">${msg.hora}</span>
-                                        <i class="fas fa-check-double text-[9px] text-ibbs-lime"></i>
-                                    </div>
-                                </div>
-                            </div>`;
-                        } else {
-                            let roleColor = msg.rol === 'docente' ? 'text-ibbs-blue' : 'text-ibbs-muted';
-                            let roleBadge = msg.rol === 'docente' ? '<i class="fas fa-chalkboard-teacher ml-1"></i>' : '';
-                            html = `
-                            <div class="flex flex-col items-start mt-3 animate-fade-in w-full">
-                                <span class="text-[10px] ${roleColor} ml-1 mb-1 font-bold">${msg.usuario_nombre} ${roleBadge}</span>
-                                <div class="chat-bubble-other max-w-[85%] md:max-w-[70%] rounded-2xl p-3 shadow-sm relative group">
-                                    ${replyHtml}
-                                    <p class="text-sm leading-relaxed text-ibbs-ink">${msg.mensaje}</p>
-                                    <div class="flex justify-between items-center mt-1.5 gap-4">
-                                        <span class="text-[9px] text-ibbs-muted">${msg.hora}</span>
-                                        <button type="button" onclick="prepararRespuesta('${msg.usuario_nombre}', ${msg.id})" class="text-[10px] text-ibbs-ink font-bold hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Responder
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>`;
-                        }
-                        chatBox.innerHTML += html;
-                        ultimoIdMensaje = Math.max(ultimoIdMensaje, msg.id);
-                    });
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                } else if(ultimoIdMensaje === 0 && (!data.mensajes || data.mensajes.length === 0)) {
-                    document.getElementById('chat-messages-container').innerHTML = `
+            .then(mensajes => {
+                if (mensajes && mensajes.error) { console.error("Error del servidor:", mensajes.error); return; }
+                const chatBox = document.getElementById('chat-messages-container');
+                if (!mensajes || mensajes.length === 0) {
+                    chatBox.innerHTML = `
                         <div class="flex flex-col items-center justify-center h-full text-ibbs-muted space-y-2 opacity-50">
                             <i class="far fa-comments text-4xl"></i>
                             <p class="text-xs font-bold uppercase tracking-wider">No hay mensajes aún.</p>
                         </div>
                     `;
+                    ultimoIdMensaje = 0;
+                    return;
                 }
+
+                chatBox.innerHTML = '';
+                mensajes.forEach(msg => {
+                    let isMe = msg.usuario_id === MI_USUARIO_ID;
+                    let replyHtml = '';
+                    if (msg.respuesta_a_nombre) {
+                        let replyBg = isMe ? 'bg-black/20 border-ibbs-lime/50 text-white/80' : 'bg-ibbs-cream border-ibbs-border text-ibbs-muted';
+                        replyHtml = `
+                            <div class="text-[10px] ${replyBg} px-2.5 py-1 rounded mb-2 border-l-2 flex items-center gap-1.5">
+                                <i class="fas fa-reply text-[9px]"></i> a ${hChat(msg.respuesta_a_nombre)}
+                            </div>
+                        `;
+                    }
+                    const hora = new Date(msg.fecha).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                    const delBtn = msg.puede_borrar
+                        ? `<button type="button" onclick="borrarMensajeForo(${msg.id})" class="text-[10px] text-ibbs-red font-bold hover:underline opacity-0 group-hover:opacity-100 transition-opacity ml-3">Borrar</button>`
+                        : '';
+
+                    let html = '';
+                    if (isMe) {
+                        html = `
+                        <div class="flex flex-col items-end mt-3 animate-fade-in w-full">
+                            <span class="text-[10px] text-ibbs-muted mr-1 mb-1 font-bold">Tú</span>
+                            <div class="chat-bubble-me max-w-[85%] md:max-w-[70%] rounded-2xl p-3 shadow-sm relative group">
+                                ${replyHtml}
+                                <p class="text-sm leading-relaxed">${hChat(msg.mensaje)}</p>
+                                <div class="flex justify-end items-center mt-1.5 gap-2">
+                                    <span class="text-[9px] text-ibbs-lime/70">${hora}</span>
+                                    <i class="fas fa-check-double text-[9px] text-ibbs-lime"></i>
+                                    ${delBtn}
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        html = `
+                        <div class="flex flex-col items-start mt-3 animate-fade-in w-full">
+                            <span class="text-[10px] text-ibbs-muted ml-1 mb-1 font-bold">${hChat(msg.usuario_nombre)} ${roleBadgeChat(msg.rol)}</span>
+                            <div class="chat-bubble-other max-w-[85%] md:max-w-[70%] rounded-2xl p-3 shadow-sm relative group">
+                                ${replyHtml}
+                                <p class="text-sm leading-relaxed text-ibbs-ink">${hChat(msg.mensaje)}</p>
+                                <div class="flex justify-between items-center mt-1.5 gap-4">
+                                    <span class="text-[9px] text-ibbs-muted">${hora}</span>
+                                    <span>
+                                        <button type="button" onclick="prepararRespuesta('${hChat(msg.usuario_nombre)}', ${msg.id})" class="text-[10px] text-ibbs-ink font-bold hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
+                                            Responder
+                                        </button>${delBtn}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                    chatBox.innerHTML += html;
+                    ultimoIdMensaje = Math.max(ultimoIdMensaje, msg.id);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
             }).catch(err => console.error("Error:", err));
+        }
+
+        async function borrarMensajeForo(id) {
+            if (!confirm('¿Borrar este mensaje?')) return;
+            try {
+                const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const r = await fetch(`api/foro.php?action=delete_mensaje&materia_id=${materiaActivaChatId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
+                });
+                const result = await r.json();
+                if (result.success) cargarMensajesForo();
+                else alert(result.error || 'No se pudo borrar el mensaje.');
+            } catch (e) { console.error(e); }
         }
 
         function sendChat(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input-text');
-            if(input.value.trim() === '') return;
-            const formData = new FormData(e.target);
-            input.value = ''; 
+            const mensaje = input.value.trim();
+            if (mensaje === '') return;
+            const respuesta_a = document.getElementById('chat-reply-to-id').value;
+            input.value = '';
             cancelarRespuesta();
-            fetch('guardar_foro_mensaje.php', { method: 'POST', body: formData })
-            .then(res => res.json()).then(data => { if(data.ok) cargarMensajesForo(); })
+            const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            fetch(`api/foro.php?action=post_mensaje&materia_id=${materiaActivaChatId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mensaje, respuesta_a, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
+            })
+            .then(res => res.json())
+            .then(data => { if (data.success) cargarMensajesForo(); else alert(data.error || 'No se pudo enviar el mensaje.'); })
             .catch(err => console.error(err));
         }
 

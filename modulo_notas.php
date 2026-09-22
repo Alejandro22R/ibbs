@@ -9,9 +9,9 @@ if(!in_array($_rol,['superadmin','admin','profesor'])){
 }
 
 $con = db();
-$materias = [];
-$r = mysqli_query($con,"SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 ORDER BY nombre");
-while($f=mysqli_fetch_assoc($r)) $materias[]=$f;
+// Admin/superadmin ven todas las materias; un profesor solo las suyas
+// (materias_asignadas ya centraliza esta regla — ver config/materia_permisos.php).
+$materias = materias_asignadas($con, $_uid, $_rol);
 mysqli_close($con);
 ?>
 
@@ -163,6 +163,9 @@ async function loadTabla() {
         ? `<span class="badge ${ok ? 'b-presente' : 'b-ausente'}">${ok ? 'Aprobado' : 'Reprobado'}</span>`
         : '<span style="font-size:.75rem;color:var(--muted);">Pendiente</span>';
       const fecha = al.nota_fecha ? `<span style="font-size:.75rem;color:var(--muted);">${al.nota_fecha}</span>` : '—';
+      const registro = (nv !== null && al.nota_registrada_por_nombre)
+        ? `<div style="font-size:.72rem;color:var(--muted);">Por ${h(al.nota_registrada_por_nombre)}${al.nota_actualizada_en ? ' · '+al.nota_actualizada_en.replace('T',' ').slice(0,16) : ''}</div>`
+        : '';
 
       rows += `<tr>
         <td>${i+1}</td>
@@ -176,6 +179,7 @@ async function loadTabla() {
             title="Clic para editar">
             ${nv !== null ? nv.toFixed(1) : '—'}
           </button>
+          ${registro}
         </td>
         <td style="text-align:center;">${badge}</td>
         <td style="text-align:center;">${fecha}</td>
