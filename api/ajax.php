@@ -162,11 +162,12 @@ if($action==='materia_get'){
     if(!$f){echo json_encode(['ok'=>false,'msg'=>'No encontrada.']);exit;}
     $rd=mysqli_query($con,"SELECT d.id,d.nombre,d.apellido FROM docentes d JOIN materia_docente md ON md.docente_id=d.id WHERE md.materia_id=$id");
     $f['docentes']=[]; while($dd=mysqli_fetch_assoc($rd)) $f['docentes'][]=$dd;
-    $ra=mysqli_query($con,"SELECT a.id,a.nombre,a.apellido,a.cedula,a.foto FROM alumnos a JOIN materia_alumno ma ON ma.alumno_id=a.id WHERE ma.materia_id=$id ORDER BY a.apellido,a.nombre");
+    $ra=mysqli_query($con,"SELECT a.id,a.nombre,a.apellido,a.cedula,a.foto,ma.auto_inscrito FROM alumnos a JOIN materia_alumno ma ON ma.alumno_id=a.id WHERE ma.materia_id=$id ORDER BY a.apellido,a.nombre");
     $f['alumnos']=[]; while($aa=mysqli_fetch_assoc($ra)) $f['alumnos'][]=$aa;
     echo json_encode(['ok'=>true,'data'=>$f]); exit;
 }
 if($action==='materia_add_docente'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid=(int)($_POST['materia_id']??0); $did=(int)($_POST['docente_id']??0);
     $st=mysqli_prepare($con,"SELECT id FROM materia_docente WHERE materia_id=? AND docente_id=?");
     mysqli_stmt_bind_param($st,'ii',$mid,$did); mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
@@ -190,24 +191,61 @@ if($action==='materia_add_docente'){
     echo json_encode(['ok'=>true,'msg'=>'Docente asignado.']); exit;
 }
 if($action==='materia_remove_docente'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid=(int)($_POST['materia_id']??0); $did=(int)($_POST['docente_id']??0);
     mysqli_query($con,"DELETE FROM materia_docente WHERE materia_id=$mid AND docente_id=$did");
+    log_audit($con,$uid,'MATERIA_DOCENTE_QUITAR',"materia=$mid docente=$did");
     echo json_encode(['ok'=>true,'msg'=>'Removido.']); exit;
 }
 if($action==='materia_add_alumno'){
+    // Asignación "manual" por el staff. La autoinscripción del propio
+    // alumno usa la acción materia_autoinscribir, más abajo.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid=(int)($_POST['materia_id']??0); $aid=(int)($_POST['alumno_id']??0);
     $st=mysqli_prepare($con,"SELECT id FROM materia_alumno WHERE materia_id=? AND alumno_id=?");
     mysqli_stmt_bind_param($st,'ii',$mid,$aid); mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
     if(mysqli_stmt_num_rows($st)){echo json_encode(['ok'=>false,'msg'=>'El alumno ya está inscrito.']);exit;}
     mysqli_stmt_close($st);
-    $st=mysqli_prepare($con,"INSERT INTO materia_alumno(materia_id,alumno_id) VALUES(?,?)");
+    $st=mysqli_prepare($con,"INSERT INTO materia_alumno(materia_id,alumno_id,auto_inscrito) VALUES(?,?,0)");
     mysqli_stmt_bind_param($st,'ii',$mid,$aid); mysqli_stmt_execute($st);
+    log_audit($con,$uid,'MATERIA_ALUMNO_ASIGNAR',"materia=$mid alumno=$aid");
     echo json_encode(['ok'=>true,'msg'=>'Alumno inscrito correctamente.']); exit;
 }
 if($action==='materia_remove_alumno'){
     $mid=(int)($_POST['materia_id']??0); $aid=(int)($_POST['alumno_id']??0);
+    $fila=mysqli_fetch_assoc(mysqli_query($con,"SELECT auto_inscrito FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
+    if(!$fila){echo json_encode(['ok'=>false,'msg'=>'El alumno no está inscrito en esta materia.']);exit;}
+    if((int)$fila['auto_inscrito']===1){
+        // El alumno se inscribió solo (siendo "regular") — solo el
+        // superadmin puede revocarla, ni admin ni profesor.
+        if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Esta inscripción la hizo el propio alumno; solo un superadmin puede quitarla.']);exit;}
+    } else {
+        if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    }
     mysqli_query($con,"DELETE FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid");
+    log_audit($con,$uid,'MATERIA_ALUMNO_QUITAR',"materia=$mid alumno=$aid".((int)$fila['auto_inscrito']===1?' (auto-inscrito)':''));
     echo json_encode(['ok'=>true,'msg'=>'Alumno removido de la materia.']); exit;
+}
+if($action==='materia_autoinscribir'){
+    // El propio alumno se inscribe, solo si ya fue marcado "regular"
+    // por el superadmin (ver alumno_update).
+    if($_rol!=='alumno'){echo json_encode(['ok'=>false,'msg'=>'Solo un alumno puede autoinscribirse.']);exit;}
+    $mid=(int)($_POST['materia_id']??0);
+    if(!$mid){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
+    $al=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,regular FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
+    if(!$al){echo json_encode(['ok'=>false,'msg'=>'No se encontró tu registro de alumno.']);exit;}
+    if(!(int)$al['regular']){echo json_encode(['ok'=>false,'msg'=>'Tu inscripción aún no fue marcada como regular. Contacta a la administración para poder autoinscribirte.']);exit;}
+    $aid=(int)$al['id'];
+    $mat=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,estado FROM materias WHERE id=$mid AND activo=1 LIMIT 1"));
+    if(!$mat){echo json_encode(['ok'=>false,'msg'=>'Materia no disponible.']);exit;}
+    if($mat['estado']==='culminada'){echo json_encode(['ok'=>false,'msg'=>'Esta materia ya culminó y no admite inscripciones.']);exit;}
+    $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
+    if($ex){echo json_encode(['ok'=>false,'msg'=>'Ya estás inscrito en esta materia.']);exit;}
+    $st=mysqli_prepare($con,"INSERT INTO materia_alumno(materia_id,alumno_id,auto_inscrito) VALUES(?,?,1)");
+    mysqli_stmt_bind_param($st,'ii',$mid,$aid);
+    if(!mysqli_stmt_execute($st)){echo json_encode(['ok'=>false,'msg'=>'No se pudo completar la inscripción.']);exit;}
+    log_audit($con,$uid,'MATERIA_AUTOINSCRIPCION',"materia=$mid alumno=$aid");
+    echo json_encode(['ok'=>true,'msg'=>'¡Listo! Quedaste inscrito en la materia.']); exit;
 }
 
 // ════ NOTAS ════════════════════════════════════════════════════
@@ -269,13 +307,13 @@ if($action==='inscripcion_alumno_materias'){
     // Materias en las que YA está inscrito
     $inscritas=[];
     $ri=mysqli_query($con,"
-        SELECT m.id,m.nombre,m.codigo,m.estado,ma.nota_final,ma.nota_fecha,
+        SELECT m.id,m.nombre,m.codigo,m.estado,ma.nota_final,ma.nota_fecha,ma.auto_inscrito,
                GROUP_CONCAT(DISTINCT CONCAT(d.nombre,' ',d.apellido) SEPARATOR ', ') docentes
         FROM materias m
         JOIN materia_alumno ma ON ma.materia_id=m.id AND ma.alumno_id=$aid
         LEFT JOIN materia_docente md ON md.materia_id=m.id
         LEFT JOIN docentes d ON d.id=md.docente_id
-        GROUP BY m.id,ma.nota_final,ma.nota_fecha
+        GROUP BY m.id,ma.nota_final,ma.nota_fecha,ma.auto_inscrito
         ORDER BY m.nombre");
     while($f=mysqli_fetch_assoc($ri)) $inscritas[]=$f;
 
@@ -369,6 +407,13 @@ if($action==='alumno_update'){
     mysqli_stmt_close($ck);
     $st=mysqli_prepare($con,"UPDATE alumnos SET nombre=?,apellido=?,cedula=?,correo=?,telefono=?,ciudad=?,activo=? WHERE id=?");
     mysqli_stmt_bind_param($st,'ssssssii',$n,$a,$c,$m,$t,$ci,$ac,$id); mysqli_stmt_execute($st);
+    // "Regular" (habilita autoinscripción) solo lo cambia el superadmin,
+    // aunque un admin también pueda editar el resto del perfil.
+    if(isset($_POST['regular']) && $_rol==='superadmin'){
+        $reg=(int)!!$_POST['regular'];
+        mysqli_query($con,"UPDATE alumnos SET regular=$reg WHERE id=$id");
+        log_audit($con,$uid,'ALUMNO_REGULAR',"ID=$id regular=$reg");
+    }
     echo json_encode(['ok'=>true,'msg'=>'Alumno actualizado.']); exit;
 }
 if($action==='alumno_delete'){
@@ -694,6 +739,7 @@ if($action==='importar_alumnos'){
 
 // ════ CERTIFICADO PDF — datos para generar ══════════════════
 if($action==='cert_datos'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $aid=(int)($_POST['alumno_id']??0);
     if(!$aid){echo json_encode(['ok'=>false,'msg'=>'Falta alumno.']);exit;}
     $a=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM alumnos WHERE id=$aid"));

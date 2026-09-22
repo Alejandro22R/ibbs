@@ -29,8 +29,8 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
   <div class="tbl-wrap">
     <table id="tblA">
-      <thead><tr><th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyA"><tr class="empty-row"><td colspan="7"><span class="spin"></span></td></tr></tbody>
+      <thead><tr><th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyA"><tr class="empty-row"><td colspan="8"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -76,6 +76,15 @@ if(!in_array($_rol,['superadmin','admin'])){
         <div class="field"><label>Teléfono</label><input id="eAT"></div>
         <div class="field"><label>Ciudad</label><input id="eACi" data-only="letters" placeholder="Escribe la ciudad"></div>
         <div class="field"><label>Estado</label><select id="eAAct"><option value="1">Activo</option><option value="0">Inactivo</option></select></div>
+        <?php if($_rol==='superadmin'): ?>
+        <div class="field">
+          <label>Alumno regular</label>
+          <select id="eARegular">
+            <option value="0">No (solo el staff lo inscribe)</option>
+            <option value="1">Sí (puede autoinscribirse en materias)</option>
+          </select>
+        </div>
+        <?php endif; ?>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:.6rem;">
         <button class="btn btn-secondary" onclick="closeModal('mEA')">Cancelar</button>
@@ -99,9 +108,9 @@ if(!in_array($_rol,['superadmin','admin'])){
 document.addEventListener('ibbs:ready', () => loadAlumnos());
 async function loadAlumnos(){
   const ciudad=document.getElementById('filtCiudad').value.trim();
-  console.log('[IBBS] Calling alumno_list...'); const d=await ajax('alumno_list',{ciudad}); console.log('[IBBS] alumno_list response:', d); if(!d?.ok){ document.getElementById('tbodyA').innerHTML='<tr class="empty-row"><td colspan="7">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  console.log('[IBBS] Calling alumno_list...'); const d=await ajax('alumno_list',{ciudad}); console.log('[IBBS] alumno_list response:', d); if(!d?.ok){ document.getElementById('tbodyA').innerHTML='<tr class="empty-row"><td colspan="8">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
   const tb=document.getElementById('tbodyA');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="7">Sin alumnos.</td></tr>';return;}
+  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="8">Sin alumnos.</td></tr>';return;}
   tb.innerHTML=d.data.map(r=>`<tr>
     <td><strong>${r.cedula}</strong></td>
     <td>${r.apellido}, ${r.nombre}</td>
@@ -109,6 +118,7 @@ async function loadAlumnos(){
     <td style="font-size:.82rem;">${r.ciudad||'—'}</td>
     <td><span class="badge b-alumno">${r.nm}</span></td>
     <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
+    <td>${r.regular=='1'?'<span class="badge b-presente" title="Puede autoinscribirse en materias">Sí</span>':'<span style="color:var(--muted);font-size:.78rem;">No</span>'}</td>
     <td class="td-actions">
       <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
       <button class="btn btn-sm btn-primary" onclick="editA(${r.id})">Editar</button>
@@ -128,10 +138,15 @@ async function editA(id){
   document.getElementById('eAC').value=r.cedula; document.getElementById('eAM').value=r.correo;
   document.getElementById('eAT').value=r.telefono||''; document.getElementById('eACi').value=r.ciudad||'';
   document.getElementById('eAAct').value=r.activo;
+  const selReg=document.getElementById('eARegular');
+  if(selReg) selReg.value=r.regular??0;
   openModal('mEA');
 }
 async function saveEditA(){
-  const d=await ajax('alumno_update',{id:document.getElementById('eAId').value,nombre:document.getElementById('eAN').value,apellido:document.getElementById('eAA').value,cedula:document.getElementById('eAC').value,correo:document.getElementById('eAM').value,telefono:document.getElementById('eAT').value,ciudad:document.getElementById('eACi').value,activo:document.getElementById('eAAct').value});
+  const payload={id:document.getElementById('eAId').value,nombre:document.getElementById('eAN').value,apellido:document.getElementById('eAA').value,cedula:document.getElementById('eAC').value,correo:document.getElementById('eAM').value,telefono:document.getElementById('eAT').value,ciudad:document.getElementById('eACi').value,activo:document.getElementById('eAAct').value};
+  const selReg=document.getElementById('eARegular');
+  if(selReg) payload.regular=selReg.value;
+  const d=await ajax('alumno_update',payload);
   if(d?.ok){toast(d.msg);closeModal('mEA');loadAlumnos();}else toast(d?.msg||'Err','err');
 }
 async function verPerfil(id){

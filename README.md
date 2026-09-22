@@ -40,7 +40,9 @@ document root.
         ├── 001_aula_virtual.sql
         ├── 002_clases_grabadas.sql
         ├── 003_clases_vivo.sql
-        └── 004_notificaciones_tiempo_real.sql
+        ├── 004_notificaciones_tiempo_real.sql
+        ├── 005_foro_usuario_id.sql
+        └── 006_alumno_regular_autoinscripcion.sql
 ```
 
 Además de `modulo_*.php`, el portal reactivó los roles alumno/docente con
@@ -217,11 +219,42 @@ que no le pertenece. El selector de materia de `modulo_notas.php`
 también listaba todas las materias del sistema en vez de
 `materias_asignadas()`. Además, la tabla de notas ahora muestra quién
 registró cada nota y cuándo (columnas `nota_registrada_por` /
-`nota_actualizada_en`, que ya existían pero no se mostraban), y se
-arregló el enlace roto "Constancia de Notas" de `portal_alumno.php`
-(apuntaba a un archivo inexistente) para que use
-`api/export_boletin.php`, ahora restringido a que un alumno solo pueda
-descargar la suya propia.
+`nota_actualizada_en`, que ya existían pero no se mostraban).
+
+**Asignación de materias — permisos y autoinscripción:**
+`materia_add_docente`, `materia_remove_docente`, `materia_add_alumno`,
+`materia_remove_alumno` y `cert_datos` (`api/ajax.php`) no verificaban
+rol en absoluto — solo estaban "protegidas" porque las páginas que las
+llaman (`modulo_materias.php`, `modulo_inscripciones.php`,
+`modulo_herramientas.php`) están gateadas a admin/superadmin, pero
+cualquier logueado podía llamarlas directo. Ahora exigen
+admin/superadmin en el backend, no solo en el frontend.
+
+Se suma **autoinscripción para alumnos "regulares"** (migración
+`006_alumno_regular_autoinscripcion.sql`):
+- `alumnos.regular` (0 por defecto) — el **superadmin** (no el admin)
+  marca a un alumno como regular desde "Editar Alumno" en
+  `modulo_alumnos.php`.
+- Un alumno regular ve en su portal (`portal_alumno.php` → Mis
+  Materias) las materias disponibles y puede inscribirse él mismo
+  (`materia_autoinscribir`), sin depender de que el staff lo haga.
+- Esa inscripción queda marcada (`materia_alumno.auto_inscrito=1`) y
+  **no puede ser revocada por un admin ni por un profesor** —
+  `materia_remove_alumno` ahora exige rol `superadmin` exacto para
+  borrar una fila auto-inscrita; las asignadas por el staff siguen
+  pudiendo quitarlas admin o superadmin, como antes. Tanto
+  `modulo_inscripciones.php` como `modulo_materias.php` muestran un
+  badge "Auto-inscrito" 🔒 en vez del botón "Quitar" cuando corresponde.
+
+**Constancias de Estudio y de Notas — autoservicio para el alumno:**
+`portal_alumno.php` enlazaba a `generar_constancia_estudio.php`, un
+archivo que nunca existió. Se creó `api/export_constancia.php?tipo=estudio|notas`
+con el mismo diseño oficial (membrete, párrafo legal, tabla de notas en
+letras, firmas) que ya usaba el superadmin en la pestaña "Certificados"
+de `modulo_herramientas.php` — pero como página propia, servida
+directamente: un alumno la pide sin `alumno_id` (se resuelve solo su
+propio registro) y un admin/superadmin puede seguir pidiéndola para
+cualquiera con `&alumno_id=X`, igual que antes.
 
 **Pendiente, no corregido en este pase**: `crear_tarea.php`,
 `procesar_entrega.php`, `calificar_entrega.php` y

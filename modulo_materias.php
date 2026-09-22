@@ -148,6 +148,7 @@ if(!in_array($_rol,['superadmin','admin'])){
 
 <script>
 let _mid=null;
+const MI_ROL='<?=$_rol?>';
 document.addEventListener('ibbs:ready', () => loadMaterias());
 
 (async()=>{
@@ -243,7 +244,14 @@ function renderMD(list){
 
 function renderMA(list){
   document.getElementById('tbMA').innerHTML=list.length
-    ? list.map(a=>`<tr><td>${a.apellido||''} ${a.nombre}</td><td class="td-actions" style="justify-content:flex-end;"><button class="btn btn-sm btn-danger" onclick="rmAlu(${a.id},this)">Quitar</button></td></tr>`).join('')
+    ? list.map(a=>{
+        const auto = !!(a.auto_inscrito==1);
+        const puedeQuitar = !auto || MI_ROL==='superadmin';
+        const accion = puedeQuitar
+          ? `<button class="btn btn-sm btn-danger" onclick="rmAlu(${a.id},this)">Quitar</button>`
+          : `<span title="Auto-inscripción: solo un superadmin puede quitarla" style="color:var(--muted);font-size:.85rem;">🔒</span>`;
+        return `<tr><td>${a.apellido||''} ${a.nombre}${auto?' <span class="badge b-alumno" style="font-size:.6rem;vertical-align:middle;">Auto-inscrito</span>':''}</td><td class="td-actions" style="justify-content:flex-end;">${accion}</td></tr>`;
+      }).join('')
     : '<tr class="empty-row"><td colspan="2">Sin alumnos</td></tr>';
 }
 

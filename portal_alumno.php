@@ -41,6 +41,15 @@ $res_materias = mysqli_stmt_get_result($stmt_m);
 $materias = [];
 while($row = mysqli_fetch_assoc($res_materias)) $materias[] = $row;
 
+// Materias disponibles para autoinscripción (solo si el alumno es "regular")
+$materias_disponibles = [];
+if ($alumno && !empty($alumno['regular'])) {
+    $ids_inscritas = array_column($materias, 'id');
+    $excluir = count($ids_inscritas) ? implode(',', array_map('intval', $ids_inscritas)) : '0';
+    $rd = mysqli_query($con, "SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 AND estado!='culminada' AND id NOT IN ($excluir) ORDER BY nombre");
+    while ($row = mysqli_fetch_assoc($rd)) $materias_disponibles[] = $row;
+}
+
 // Obtener tareas y entregas
 $query_tareas = "SELECT t.*, m.nombre as materia_nombre, e.id as entrega_id, e.nota 
                  FROM tareas t 
@@ -333,7 +342,37 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
                     <h2 class="text-2xl font-serif text-ibbs-ink">Mis Materias</h2>
                 </div>
-                
+
+                <!-- AUTOINSCRIPCIÓN -->
+                <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border p-5">
+                    <h3 class="text-base font-bold text-ibbs-ink mb-1 flex items-center gap-2">
+                        <i class="fas fa-user-check text-ibbs-lime2"></i> Autoinscripción
+                    </h3>
+                    <?php if (empty($alumno['regular'])): ?>
+                    <p class="text-sm text-ibbs-muted">
+                        Tu inscripción todavía no fue marcada como <strong>regular</strong> por la administración.
+                        Una vez que lo esté, vas a poder inscribirte tú mismo(a) en las materias disponibles desde aquí.
+                    </p>
+                    <?php else: ?>
+                        <p class="text-sm text-ibbs-muted mb-3">
+                            Sos alumno(a) regular: podés inscribirte directamente. Una vez inscrito(a), solo la administración puede quitarte de la materia.
+                        </p>
+                        <?php if (empty($materias_disponibles)): ?>
+                        <p class="text-sm text-ibbs-muted italic">No hay materias disponibles para inscripción en este momento.</p>
+                        <?php else: ?>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <select id="selAutoInsc" class="flex-1 border border-ibbs-border rounded-lg px-3 py-2 text-sm bg-white">
+                                <option value="">— Selecciona una materia —</option>
+                                <?php foreach ($materias_disponibles as $md): ?>
+                                <option value="<?= $md['id'] ?>"><?= htmlspecialchars($md['codigo'].' · '.$md['nombre']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button onclick="autoInscribirme()" class="btn-ibbs px-5 py-2 rounded-lg text-sm font-bold">Inscribirme</button>
+                        </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     <?php foreach($materias as $m): ?>
                     <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden hover:shadow-[0_4px_24px_rgba(0,0,0,0.06)] transition-shadow group flex flex-col">
@@ -573,7 +612,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         </div>
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Estudio</h3>
                         <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Documento oficial membretado que certifica tu inscripción y condición actual como alumno regular en nuestra institución.</p>
-                        <a href="generar_constancia_estudio.php" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-blue transition-colors flex items-center justify-center gap-2 mt-auto">
+                        <a href="api/export_constancia.php?tipo=estudio" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-blue transition-colors flex items-center justify-center gap-2 mt-auto">
                             <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
                         </a>
                     </div>
@@ -585,7 +624,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         </div>
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Notas</h3>
                         <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Reporte académico oficial con el desglose detallado de tus calificaciones finales aprobadas y tu promedio general.</p>
-                        <a href="api/export_boletin.php?alumno_id=<?=$alumno_id?>" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-green transition-colors flex items-center justify-center gap-2 mt-auto">
+                        <a href="api/export_constancia.php?tipo=notas" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-green transition-colors flex items-center justify-center gap-2 mt-auto">
                             <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
                         </a>
                     </div>
@@ -828,6 +867,23 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         let chatInterval = null;
         const MI_USUARIO_ID = <?= (int)$user_id ?>;
         function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+        async function autoInscribirme() {
+            const sel = document.getElementById('selAutoInsc');
+            const mid = sel ? sel.value : '';
+            if (!mid) { alert('Selecciona una materia primero.'); return; }
+            try {
+                const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const fd = new FormData();
+                fd.append('action', 'materia_autoinscribir');
+                fd.append('materia_id', mid);
+                fd.append('csrf_token', _csrfMeta ? _csrfMeta.content : '');
+                const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) { alert(d.msg); location.reload(); }
+                else alert(d.msg || 'No se pudo completar la inscripción.');
+            } catch (e) { console.error(e); alert('Error de conexión.'); }
+        }
 
         function prepararRespuesta(nombreUsuario, idMensaje) {
             document.getElementById('chat-reply-to-id').value = idMensaje;
