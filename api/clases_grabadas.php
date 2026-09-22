@@ -139,6 +139,7 @@ if ($action === 'clase_create' || $action === 'clase_update') {
         mysqli_stmt_bind_param($st, 'iisssss', $mid, $uid, $titulo, $descripcion, $url, $plataforma, $fecha);
         if (!mysqli_stmt_execute($st)) json_fail('No se pudo guardar la clase.');
         log_audit($con, $uid, 'CLASE_GRABADA_CREATE', "materia=$mid");
+        notificar_materia($con, $mid, 'grabacion', "Nueva clase grabada: $titulo", $descripcion, $uid);
         echo json_encode(['ok'=>true,'msg'=>'Clase grabada agregada.']); exit;
     } else {
         $id = (int)($_POST['id'] ?? 0);

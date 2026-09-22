@@ -22,6 +22,8 @@ $stmt = mysqli_prepare($con, "INSERT INTO foro_mensajes (materia_id, usuario_nom
 mysqli_stmt_bind_param($stmt, "isssi", $materia_id, $usuario_nombre, $rol, $mensaje, $respuesta_a);
 
 if (mysqli_stmt_execute($stmt)) {
+    $resumen = mb_strlen($mensaje) > 80 ? mb_substr($mensaje, 0, 80).'…' : $mensaje;
+    notificar_materia($con, $materia_id, 'foro', "Nuevo mensaje en el foro de $usuario_nombre", $resumen, (int)($_SESSION['user_id'] ?? 0));
     echo json_encode(['ok' => true, 'id' => mysqli_insert_id($con)]);
 } else {
     echo json_encode(['ok' => false, 'msg' => 'Error al guardar el mensaje.']);

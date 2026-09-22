@@ -1,74 +1,77 @@
 <?php
-// Desactivamos la impresión de errores HTML para que no rompa el JSON de Javascript
-error_reporting(0); 
-ini_set('display_errors', 0);
+/**
+ * IBBS — Foro / Dudas por materia (endpoint), usado desde la pestaña
+ * "Foro" de modulo_aula.php. Requiere la tabla `foro_mensajes`.
+ *
+ * get_mensajes es de solo lectura (GET, sin CSRF). post_mensaje
+ * modifica datos: exige sesión + permiso de ver la materia + token
+ * CSRF — como este endpoint recibe el cuerpo como JSON crudo (no un
+ * POST de formulario), el token viaja dentro de ese mismo JSON en vez
+ * de $_POST, así que se valida a mano con csrf_verify().
+ */
+
+ob_start();
+error_reporting(0);
+require_once __DIR__.'/../config/bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
-session_start();
+ob_clean();
 
-// Usamos la conexión directa que sabemos que funciona en tu base de datos
-$host = 'localhost';
-$db   = 'ibbs';
-$user = 'root';
-$pass = '';
-
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    echo json_encode(['error' => 'Error de conexión a DB', 'detalle' => $e->getMessage()]);
-    exit;
+if (empty($_SESSION['loggedin'])) {
+    echo json_encode(['error' => 'Sesión expirada.']); exit;
 }
 
-$materia_id = isset($_GET['materia_id']) ? intval($_GET['materia_id']) : 0;
-if ($materia_id === 0) {
-    echo json_encode(['error' => 'Materia no válida']);
-    exit;
+$con = db();
+if (!$con) { echo json_encode(['error' => 'Error de conexión a la base de datos.']); exit; }
+
+$uid  = (int)($_SESSION['user_id'] ?? 0);
+$_rol = $_SESSION['rol'] ?? 'profesor';
+$usuarioNombre = $_SESSION['usuario'] ?? 'Usuario';
+
+$materia_id = (int)($_GET['materia_id'] ?? 0);
+if (!$materia_id) { echo json_encode(['error' => 'Materia no válida']); exit; }
+if (!materia_puede_ver($con, $uid, $_rol, $materia_id)) { echo json_encode(['error' => 'Sin permiso sobre esta materia.']); exit; }
+
+$action = $_GET['action'] ?? '';
+
+/* ════ OBTENER MENSAJES (solo lectura) ═══════════════════════════ */
+if ($action === 'get_mensajes') {
+    $st = mysqli_prepare($con, "SELECT id,materia_id,usuario_nombre,rol,mensaje,respuesta_a,fecha FROM foro_mensajes WHERE materia_id=? ORDER BY fecha ASC");
+    mysqli_stmt_bind_param($st, 'i', $materia_id);
+    mysqli_stmt_execute($st);
+    $r = mysqli_stmt_get_result($st);
+    $mensajes = []; while ($f = mysqli_fetch_assoc($r)) $mensajes[] = $f;
+    echo json_encode($mensajes); exit;
 }
 
-// Obtenemos los datos de sesión, con valores por defecto por precaución
-$usuario = $_SESSION['usuario'] ?? 'Usuario';
-$rol = $_SESSION['rol'] ?? 'alumno';
+/* ════ PUBLICAR MENSAJE ════════════════════════════════════════════ */
+if ($action === 'post_mensaje' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
 
-if (isset($_GET['action'])) {
-    
-    // OBTENER MENSAJES
-    if ($_GET['action'] == 'get_mensajes') {
-        try {
-            $stmt = $pdo->prepare("SELECT * FROM foro_mensajes WHERE materia_id = ? ORDER BY fecha ASC");
-            $stmt->execute([$materia_id]);
-            $mensajes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            echo json_encode($mensajes);
-        } catch(Exception $e) {
-            echo json_encode(['error' => 'Error SQL', 'detalle' => $e->getMessage()]);
-        }
-        exit;
+    if (!csrf_verify($data['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token de seguridad inválido. Recarga la página.']); exit;
     }
 
-    // PUBLICAR MENSAJE
-    if ($_GET['action'] == 'post_mensaje' && $_SERVER['REQUEST_METHOD'] == 'POST') {
-        $data = json_decode(file_get_contents('php://input'), true);
-        $mensaje = trim($data['mensaje'] ?? '');
-        $respuesta_a = !empty($data['respuesta_a']) ? intval($data['respuesta_a']) : null;
+    $mensaje = trim($data['mensaje'] ?? '');
+    $respuestaA = !empty($data['respuesta_a']) ? (int)$data['respuesta_a'] : null;
+    if ($mensaje === '') { echo json_encode(['success' => false, 'error' => 'Mensaje vacío']); exit; }
+    if (mb_strlen($mensaje) > 2000) { echo json_encode(['success' => false, 'error' => 'El mensaje es demasiado largo (máx. 2000 caracteres).']); exit; }
 
-        if (!empty($mensaje)) {
-            try {
-                $stmt = $pdo->prepare("INSERT INTO foro_mensajes (materia_id, usuario_nombre, rol, mensaje, respuesta_a) VALUES (?, ?, ?, ?, ?)");
-                $stmt->execute([
-                    $materia_id, 
-                    $usuario, 
-                    $rol, 
-                    $mensaje, 
-                    $respuesta_a
-                ]);
-                echo json_encode(['success' => true]);
-            } catch(Exception $e) {
-                echo json_encode(['success' => false, 'error' => 'Error SQL', 'detalle' => $e->getMessage()]);
-            }
-        } else {
-            echo json_encode(['success' => false, 'error' => 'Mensaje vacío']);
-        }
-        exit;
+    // Si responde a otro mensaje, que sea uno real de esta misma materia.
+    if ($respuestaA) {
+        $stR = mysqli_prepare($con, "SELECT id FROM foro_mensajes WHERE id=? AND materia_id=? LIMIT 1");
+        mysqli_stmt_bind_param($stR, 'ii', $respuestaA, $materia_id);
+        mysqli_stmt_execute($stR);
+        if (!mysqli_fetch_row(mysqli_stmt_get_result($stR))) $respuestaA = null;
     }
+
+    $st = mysqli_prepare($con, "INSERT INTO foro_mensajes(materia_id,usuario_nombre,rol,mensaje,respuesta_a) VALUES(?,?,?,?,?)");
+    mysqli_stmt_bind_param($st, 'isssi', $materia_id, $usuarioNombre, $_rol, $mensaje, $respuestaA);
+    if (!mysqli_stmt_execute($st)) { echo json_encode(['success' => false, 'error' => 'No se pudo publicar el mensaje.']); exit; }
+
+    log_audit($con, $uid, 'FORO_MENSAJE', "materia=$materia_id");
+    $resumen = mb_strlen($mensaje) > 80 ? mb_substr($mensaje, 0, 80).'…' : $mensaje;
+    notificar_materia($con, $materia_id, 'foro', "Nuevo mensaje en el foro de $usuarioNombre", $resumen, $uid);
+    echo json_encode(['success' => true]); exit;
 }
 
 echo json_encode(['error' => 'Acción no válida']);

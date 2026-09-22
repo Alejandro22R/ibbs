@@ -62,6 +62,7 @@ $stmt = mysqli_prepare($con, "INSERT INTO tareas (materia_id, titulo, descripcio
 mysqli_stmt_bind_param($stmt, "issssd", $materia_id, $titulo, $descripcion, $archivo_nombre, $fecha_limite, $nota_maxima);
 
 if (mysqli_stmt_execute($stmt)) {
+    notificar_materia($con, $materia_id, 'tarea', "Nueva tarea: $titulo", $descripcion, (int)($_SESSION['user_id'] ?? 0));
     echo json_encode(['ok' => true, 'msg' => 'Actividad publicada exitosamente con sus recursos.']);
 } else {
     echo json_encode(['ok' => false, 'msg' => 'Error al registrar en la base de datos: ' . mysqli_error($con)]);

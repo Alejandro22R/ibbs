@@ -184,6 +184,14 @@ if ($action === 'vivo_set_estado') {
     mysqli_stmt_bind_param($st, 'sii', $estado, $id, $mid);
     mysqli_stmt_execute($st);
     log_audit($con, $uid, 'CLASE_VIVO_ESTADO', "id=$id estado=$estado");
+
+    if ($estado === 'en_curso') {
+        $stT = mysqli_prepare($con, "SELECT titulo FROM clases_vivo WHERE id=? LIMIT 1");
+        mysqli_stmt_bind_param($stT, 'i', $id);
+        mysqli_stmt_execute($stT);
+        $titulo = mysqli_fetch_assoc(mysqli_stmt_get_result($stT))['titulo'] ?? 'Clase en vivo';
+        notificar_materia($con, $mid, 'clase_vivo', "¡Comenzó! $titulo", 'La clase en vivo ya está disponible — entra ahora.', $uid);
+    }
     echo json_encode(['ok'=>true,'msg'=>'Estado actualizado.']); exit;
 }
 

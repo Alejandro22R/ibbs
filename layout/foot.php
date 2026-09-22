@@ -340,17 +340,65 @@ setTimeout(function() {
   catch(e) { console.error('ibbs:ready dispatch error:', e); }
 }, 0);
 
-// Campana de notificaciones — carga después, sin bloquear nada
+// Campana de notificaciones — carga inicial + conexión en vivo (SSE)
+const NOTIF_ICONS = {
+  anuncio:'📢', foro:'💬', tarea:'📋', calificacion:'✅',
+  clase_vivo:'🔴', grabacion:'🎬', reprobado:'⚠️', asistencia:'⚠️',
+  sistema:'⚙️', info:'ℹ️'
+};
+let _notifUnread = 0;
+function _notifSetBadge(n){
+  _notifUnread = Math.max(0, n);
+  const el = document.getElementById('notifCount');
+  if(!el) return;
+  if(_notifUnread>0){ el.textContent = _notifUnread>9?'9+':_notifUnread; el.style.display='flex'; }
+  else { el.style.display='none'; }
+}
+
+let _notifUltimoId = 0;
+let _notifEs = null;
+
+function _notifAbrirStream() {
+  if (typeof EventSource === 'undefined') return; // navegador muy viejo: se queda con el chequeo inicial
+  if (_notifEs) return; // ya hay una conexión abierta
+  try {
+    _notifEs = new EventSource('api/notificaciones_stream.php?since=' + _notifUltimoId);
+    _notifEs.onmessage = (ev) => {
+      let n; try { n = JSON.parse(ev.data); } catch(e) { return; }
+      _notifUltimoId = Math.max(_notifUltimoId, parseInt(n.id) || 0);
+      _notifSetBadge(_notifUnread + 1);
+      const icono = NOTIF_ICONS[n.tipo] || 'ℹ️';
+      toast(icono + ' ' + (n.titulo || 'Nueva notificación'));
+    };
+    // Si el servidor o la red fallan, EventSource reintenta solo —
+    // no hace nada acá salvo dejar que el navegador reconecte.
+    _notifEs.onerror = () => {};
+  } catch(e) { /* silencioso */ }
+}
+function _notifCerrarStream() {
+  if (_notifEs) { _notifEs.close(); _notifEs = null; }
+}
+
+// La pestaña en segundo plano no necesita mantener el worker del
+// servidor ocupado — se cierra la conexión y se reabre al volver
+// (retoma desde _notifUltimoId, no se pierde nada). Con miles de
+// usuarios esto es lo que realmente baja cuántas conexiones
+// simultáneas tiene que sostener el servidor en producción.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) _notifCerrarStream();
+  else _notifAbrirStream();
+});
+
 setTimeout(async function(){
   try {
     const d = await ajax('notif_list');
-    if(!d?.ok) return;
-    const el = document.getElementById('notifCount');
-    if(!el) return;
-    const cnt = parseInt(d.count)||0;
-    if(cnt>0){ el.textContent = cnt>9?'9+':cnt; el.style.display='flex'; }
-    else { el.style.display='none'; }
+    if(d?.ok){
+      _notifSetBadge(parseInt(d.count)||0);
+      (d.data||[]).forEach(n => { _notifUltimoId = Math.max(_notifUltimoId, parseInt(n.id)||0); });
+    }
   } catch(e) { /* silencioso */ }
+
+  if (!document.hidden) _notifAbrirStream();
 }, 800);
 </script>
 

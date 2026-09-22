@@ -654,7 +654,9 @@ async function guardarTarea(e) {
   const fd = new FormData(e.target);
   fd.append('action', 'crear');
   fd.append('materia_id', MATERIA_ID);
-  
+  const _csrfT1 = document.querySelector('meta[name="csrf-token"]');
+  if (_csrfT1) fd.append('csrf_token', _csrfT1.content);
+
   try {
     const r = await fetch('api/tareas.php', { method: 'POST', body: fd });
     const text = await r.text();
@@ -679,8 +681,10 @@ async function guardarEntrega(e) {
   
   const fd = new FormData(e.target);
   fd.append('action', 'entregar');
-  fd.append('materia_id', MATERIA_ID); 
-  
+  fd.append('materia_id', MATERIA_ID);
+  const _csrfT2 = document.querySelector('meta[name="csrf-token"]');
+  if (_csrfT2) fd.append('csrf_token', _csrfT2.content);
+
   try {
     const r = await fetch('api/tareas.php', { method: 'POST', body: fd });
     const text = await r.text();
@@ -740,6 +744,8 @@ async function calificarEntrega(entrega_id) {
   
   const fd = new URLSearchParams();
   fd.append('action', 'calificar');
+  const _csrfT3 = document.querySelector('meta[name="csrf-token"]');
+  if (_csrfT3) fd.append('csrf_token', _csrfT3.content);
   fd.append('entrega_id', entrega_id);
   fd.append('nota', nota);
   fd.append('observacion', obs);
@@ -858,10 +864,11 @@ document.getElementById('chat-form').addEventListener('submit', async (e) => {
   cancelReply();
 
   try {
+    const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
     const r = await fetch(`api/foro.php?action=post_mensaje&materia_id=${MATERIA_ID}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mensaje, respuesta_a })
+        body: JSON.stringify({ mensaje, respuesta_a, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
     });
     const text = await r.text();
     
