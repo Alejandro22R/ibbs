@@ -42,7 +42,9 @@ document root.
         ├── 003_clases_vivo.sql
         ├── 004_notificaciones_tiempo_real.sql
         ├── 005_foro_usuario_id.sql
-        └── 006_alumno_regular_autoinscripcion.sql
+        ├── 006_alumno_regular_autoinscripcion.sql
+        ├── 007_materia_inscripcion_abierta.sql
+        └── 008_asegurar_rol_alumno.sql
 ```
 
 Además de `modulo_*.php`, el portal reactivó los roles alumno/docente con
@@ -286,14 +288,68 @@ Flujo completo para un alumno nuevo:
    `materia_alumno.alumno_id`, así que en cuanto se inscribe empieza a
    ver contenido real.
 
-**Pendiente, no corregido en este pase**: `crear_tarea.php`,
-`procesar_entrega.php`, `calificar_entrega.php` y
-`asignar_materia.php` (formularios de `portal_alumno.php` /
-`portal_docente.php` fuera del foro) todavía no mandan ni exigen token
-CSRF. Antes de llevar el campus a producción real conviene sumarles
-`csrf_require_post()` en el backend y el token en sus fetch/formularios,
-siguiendo el mismo patrón que ya usa el resto del sistema (y el que
-acaba de sumar el foro).
+**Resuelto — CSRF y permisos en Tareas y asignación docente:**
+`crear_tarea.php`, `procesar_entrega.php`, `calificar_entrega.php` y
+`asignar_materia.php` no mandaban ni exigían token CSRF, y tenían
+huecos de permisos reales:
+- `crear_tarea.php` dejaba a cualquier profesor publicar una tarea en
+  **cualquier** materia, no solo en las suyas — ahora exige
+  `materia_puede_gestionar()`.
+- `procesar_entrega.php` no verificaba que el alumno estuviera inscrito
+  en la materia de la tarea — ahora sí, antes de aceptar la entrega.
+- `calificar_entrega.php` no verificaba que el profesor gestionara la
+  materia de esa entrega — cualquier profesor podía calificar entregas
+  ajenas. Ahora se resuelve la materia de la entrega y se valida.
+- `asignar_materia.php` (asignar una materia a un docente) aceptaba el
+  rol `profesor`/`docente` además de admin/superadmin — un profesor
+  podía asignarse materias a sí mismo o a otros, salteándose a la
+  administración por completo. Ahora exige admin/superadmin, que es lo
+  único que la propia UI de `portal_docente.php` ya mostraba.
+
+Los tres formularios afectados (`portal_alumno.php` → Tareas,
+`portal_docente.php` → Calificar/Nueva Tarea/Asignar Materia) ahora
+llevan `<input type="hidden" name="csrf_token">` con el token de la
+sesión.
+
+## Apertura de inscripción por materia (`materias.inscripcion_abierta`)
+
+Migración `007_materia_inscripcion_abierta.sql`. Que una materia esté
+`activo=1` y no `culminada` no significa que el superadmin quiera que
+los alumnos se autoinscriban en ella — por eso la autoinscripción exige
+además un interruptor aparte, exclusivo de admin/superadmin:
+`modulo_materias.php` muestra un botón 🔓 Abierta / 🔒 Cerrada por cada
+materia (acción `materia_toggle_inscripcion`). `materia_autoinscribir`
+y la lista de "materias disponibles" del portal del alumno solo
+muestran/permiten las que tienen `inscripcion_abierta=1` — asignar la
+materia a mano desde el panel (`materia_add_alumno`) sigue funcionando
+igual, sin depender de este interruptor. De paso, `materia_create`,
+`materia_update`, `materia_set_estado` y `materia_delete` (que no
+verificaban rol en absoluto) ahora exigen admin/superadmin también.
+
+## Si el registro de alumnos "sigue entrando como profesor"
+
+El bug de `login.php` (registro público creaba `rol='profesor'` fijo)
+ya está corregido en el código — si después de actualizar seguís
+viendo el problema, lo más probable es una de estas dos cosas, no un
+bug nuevo:
+
+1. **Estás entrando con una cuenta de prueba creada ANTES del fix.**
+   Esa fila en `usuarios` ya quedó guardada con `rol='profesor'` y
+   corregir el código no cambia datos ya existentes. Solución: registrate
+   con un usuario/cédula/correo nuevo, o editá esa fila a mano (`UPDATE
+   usuarios SET rol='alumno' WHERE usuario='...';`, o desde
+   `modulo_usuarios.php` como superadmin).
+2. **Tu base de datos es de una versión vieja de `ibbs.sql`** y la
+   columna `usuarios.rol` es un `ENUM` que todavía no incluye
+   `'alumno'` — en ese caso ningún registro público podría entrar bien
+   como alumno sin importar el código PHP. La migración
+   `008_asegurar_rol_alumno.sql` redefine ese `ENUM` con las 4 opciones
+   que ya usa el resto del sistema.
+
+Para no tener que aplicar los archivos uno por uno, `database/aplicar_todas_las_migraciones.sql`
+junta las migraciones 001–008 en un solo archivo para pegar de una vez
+en phpMyAdmin (pestaña SQL de la base `ibbs`) — es seguro correrlo
+aunque ya hayas aplicado algunas antes.
 
 ## Convenciones para módulos nuevos
 

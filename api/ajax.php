@@ -105,7 +105,7 @@ if($action==='dashboard_stats'){
 // ════ MATERIAS ═════════════════════════════════════════════════
 if($action==='materia_list'){
     $r=mysqli_query($con,"
-        SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado,m.activo,
+        SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado,m.activo,m.inscripcion_abierta,
                COUNT(DISTINCT md.docente_id) nd,
                COUNT(DISTINCT ma.alumno_id) na,
                SUM(CASE WHEN ma.nota_final IS NOT NULL THEN 1 ELSE 0 END) notas_cargadas
@@ -117,6 +117,7 @@ if($action==='materia_list'){
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
 if($action==='materia_create'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $n=trim($_POST['nombre']??''); $c=trim($_POST['codigo']??'');
     $d=trim($_POST['descripcion']??''); $dias=trim($_POST['dias']??'');
     $hi=trim($_POST['hora_inicio']??'')?:null; $hf=trim($_POST['hora_fin']??'')?:null;
@@ -135,6 +136,7 @@ if($action==='materia_create'){
     exit;
 }
 if($action==='materia_update'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0);
     $n=trim($_POST['nombre']??''); $c=trim($_POST['codigo']??'');
     $d=trim($_POST['descripcion']??''); $dias=trim($_POST['dias']??'');
@@ -144,13 +146,27 @@ if($action==='materia_update'){
     echo json_encode(['ok'=>true,'msg'=>'Actualizada.']); exit;
 }
 if($action==='materia_set_estado'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0); $est=trim($_POST['estado']??'');
     $allowed=['pendiente','en_curso','culminada'];
     if(!in_array($est,$allowed)){echo json_encode(['ok'=>false,'msg'=>'Estado inválido.']);exit;}
     mysqli_query($con,"UPDATE materias SET estado='".esc($con,$est)."' WHERE id=$id");
     echo json_encode(['ok'=>true,'msg'=>'Estado actualizado.']); exit;
 }
+if($action==='materia_toggle_inscripcion'){
+    // "Abrir/cerrar inscripción" es una decisión exclusiva de
+    // administración — controla si los alumnos regulares pueden
+    // autoinscribirse en esta materia (ver materia_autoinscribir).
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $id=(int)($_POST['id']??0);
+    if(!$id){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
+    mysqli_query($con,"UPDATE materias SET inscripcion_abierta=1-inscripcion_abierta WHERE id=$id");
+    $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT inscripcion_abierta FROM materias WHERE id=$id"));
+    log_audit($con,$uid,'MATERIA_INSCRIPCION_TOGGLE',"ID=$id abierta=".($f['inscripcion_abierta']??'?'));
+    echo json_encode(['ok'=>true,'msg'=>$f && (int)$f['inscripcion_abierta']===1 ? 'Inscripción abierta para alumnos regulares.' : 'Inscripción cerrada.','abierta'=>$f?(int)$f['inscripcion_abierta']:0]); exit;
+}
 if($action==='materia_delete'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0);
     mysqli_query($con,"DELETE FROM materias WHERE id=$id");
     log_audit($con,$uid,'MATERIA_DELETE',"ID=$id");
@@ -236,9 +252,10 @@ if($action==='materia_autoinscribir'){
     if(!$al){echo json_encode(['ok'=>false,'msg'=>'No se encontró tu registro de alumno.']);exit;}
     if(!(int)$al['regular']){echo json_encode(['ok'=>false,'msg'=>'Tu inscripción aún no fue marcada como regular. Contacta a la administración para poder autoinscribirte.']);exit;}
     $aid=(int)$al['id'];
-    $mat=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,estado FROM materias WHERE id=$mid AND activo=1 LIMIT 1"));
+    $mat=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,estado,inscripcion_abierta FROM materias WHERE id=$mid AND activo=1 LIMIT 1"));
     if(!$mat){echo json_encode(['ok'=>false,'msg'=>'Materia no disponible.']);exit;}
     if($mat['estado']==='culminada'){echo json_encode(['ok'=>false,'msg'=>'Esta materia ya culminó y no admite inscripciones.']);exit;}
+    if(!(int)$mat['inscripcion_abierta']){echo json_encode(['ok'=>false,'msg'=>'La administración todavía no abrió la inscripción para esta materia.']);exit;}
     $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
     if($ex){echo json_encode(['ok'=>false,'msg'=>'Ya estás inscrito en esta materia.']);exit;}
     $st=mysqli_prepare($con,"INSERT INTO materia_alumno(materia_id,alumno_id,auto_inscrito) VALUES(?,?,1)");

@@ -46,7 +46,7 @@ $materias_disponibles = [];
 if ($alumno && !empty($alumno['regular'])) {
     $ids_inscritas = array_column($materias, 'id');
     $excluir = count($ids_inscritas) ? implode(',', array_map('intval', $ids_inscritas)) : '0';
-    $rd = mysqli_query($con, "SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 AND estado!='culminada' AND id NOT IN ($excluir) ORDER BY nombre");
+    $rd = mysqli_query($con, "SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 AND estado!='culminada' AND inscripcion_abierta=1 AND id NOT IN ($excluir) ORDER BY nombre");
     while ($row = mysqli_fetch_assoc($rd)) $materias_disponibles[] = $row;
 }
 
@@ -358,7 +358,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             Sos alumno(a) regular: podés inscribirte directamente. Una vez inscrito(a), solo la administración puede quitarte de la materia.
                         </p>
                         <?php if (empty($materias_disponibles)): ?>
-                        <p class="text-sm text-ibbs-muted italic">No hay materias disponibles para inscripción en este momento.</p>
+                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a) en todas las disponibles.</p>
                         <?php else: ?>
                         <div class="flex flex-col sm:flex-row gap-3">
                             <select id="selAutoInsc" class="flex-1 border border-ibbs-border rounded-lg px-3 py-2 text-sm bg-white">
@@ -712,6 +712,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             
             <!-- Body Modal -->
             <form id="form-entrega" onsubmit="submitFormulario(event)" class="p-6 space-y-5" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
                 <input type="hidden" name="tarea_id" id="modal-tarea-id">
                 
                 <div>

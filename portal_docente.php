@@ -647,6 +647,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             </div>
             <div class="modal-body">
                 <form id="form-calificar" onsubmit="submitCalificacion(event)">
+                    <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
                     <input type="hidden" name="entrega_id" id="modal-cal-id">
                     
                     <div style="background: var(--cream); border: 1px solid var(--border); padding: 1rem; border-radius: 8px; margin-bottom: 1.2rem;">
@@ -682,6 +683,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <div class="modal-body">
                 <!-- Se agregó enctype="multipart/form-data" para permitir subida de archivos -->
                 <form id="form-nueva-tarea" onsubmit="submitNuevaTarea(event)" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
                     <div class="form-grid" style="margin-bottom: 1.5rem;">
                         <div class="field field-full">
                             <label>Materia Asignada</label>
@@ -736,6 +738,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             </div>
             <div class="modal-body">
                 <form id="form-asignar-materia" onsubmit="submitAsignarMateria(event)">
+                    <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
                     <div class="form-grid" style="margin-bottom: 1.5rem;">
                         <div class="field field-full">
                             <label>Seleccionar Docente</label>
