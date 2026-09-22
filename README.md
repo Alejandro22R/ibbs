@@ -223,6 +223,15 @@ también listaba todas las materias del sistema en vez de
 registró cada nota y cuándo (columnas `nota_registrada_por` /
 `nota_actualizada_en`, que ya existían pero no se mostraban).
 
+**Pulido profesional — Calificaciones y Alumnos:** `modulo_notas.php`
+suma buscador por nombre/cédula sobre la tabla ya cargada, una card de
+promedio general y una barra de aprobación de la materia, y avatar con
+inicial por alumno (mismo lenguaje visual que el resto del sistema).
+`modulo_alumnos.php` suma columna/badge "Regular" y dos accesos
+directos por fila (📄 Estudio / 📄 Notas) a `api/export_constancia.php`
+— antes había que ir hasta Herramientas → Certificados para generar la
+constancia de un alumno puntual.
+
 **Asignación de materias — permisos y autoinscripción:**
 `materia_add_docente`, `materia_remove_docente`, `materia_add_alumno`,
 `materia_remove_alumno` y `cert_datos` (`api/ajax.php`) no verificaban
@@ -257,6 +266,47 @@ de `modulo_herramientas.php` — pero como página propia, servida
 directamente: un alumno la pide sin `alumno_id` (se resuelve solo su
 propio registro) y un admin/superadmin puede seguir pidiéndola para
 cualquiera con `&alumno_id=X`, igual que antes.
+
+## WebSocket en vivo (`ws-server/`, opcional — necesita un VPS)
+
+Todo lo de arriba (SSE, polling cada 5s) corre sobre HTTP normal
+porque está pensado para un XAMPP/Apache compartido, sin un proceso
+aparte. Con un VPS de por medio, se puede sumar un servidor de
+WebSocket de verdad — **de forma aditiva**: si no está configurado, el
+sistema sigue exactamente igual que antes (SSE + polling); nada se
+rompe ni cambia de comportamiento por default.
+
+- **`ws-server/`** — un proceso Node.js chico (sin dependencia de MySQL
+  ni de las sesiones de PHP) que corre en el VPS. Ver
+  `ws-server/README.md` para la instalación completa (systemd, nginx
+  con `wss://`, variables de entorno) — es autocontenido y no requiere
+  tocar nada más del VPS salvo abrir el proceso y el reverse proxy.
+- **Autenticación sin compartir base de datos**: PHP firma un token
+  (HMAC-SHA256, `config/ws_token.php`) con quién es el usuario y a qué
+  canales tiene permiso de unirse — esos permisos ya se validaron con
+  `materia_puede_ver()` de siempre, antes de firmar. El servidor Node
+  solo verifica la firma; nunca vuelve a preguntarle nada a PHP ni a la
+  BD por cada conexión.
+- **PHP nunca depende de que el VPS esté vivo**: `config/ws_broadcast.php`
+  le avisa a Node por un POST interno con timeout de 300ms — si el VPS
+  está caído, lento o no configurado, el request de PHP sigue su curso
+  normal (el dato real ya se guardó en MySQL antes de intentar avisar).
+- **Activarlo**: definir `IBBS_WS_URL`, `IBBS_WS_INTERNAL_URL` e
+  `IBBS_WS_SECRET` como variables de entorno del lado de PHP (mismo
+  mecanismo que `IBBS_DB_HOST` etc.) — ver `ws-server/README.md` para
+  el detalle completo. Sin esas tres, `ws_enabled()` da `false` y
+  ningún código nuevo se activa.
+- **Ya conectado**: foro/chat (`api/foro.php`, `modulo_aula.php`,
+  `portal_alumno.php`, `portal_docente.php`) y la campana de
+  notificaciones (`layout/foot.php`) — con WebSocket disponible, usan
+  ese canal como principal (más rápido, no ocupa un worker de Apache
+  por pestaña); sin él, seguimos con SSE/polling exactamente como
+  antes. El polling de 5s del foro se deja además como red de
+  seguridad aunque el WebSocket esté activo.
+- Probado de punta a punta en este pase: servidor Node arriba, cliente
+  conectándose y autenticándose con un token firmado igual que lo haría
+  PHP, `/broadcast` entregando tanto a un canal de materia como
+  directo a un usuario, y rechazo correcto de secreto/token inválidos.
 
 ## Alta de alumno nuevo (autoregistro)
 

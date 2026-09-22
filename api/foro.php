@@ -77,6 +77,10 @@ if ($action === 'post_mensaje' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     log_audit($con, $uid, 'FORO_MENSAJE', "materia=$materia_id");
     $resumen = mb_strlen($mensaje) > 80 ? mb_substr($mensaje, 0, 80).'…' : $mensaje;
     notificar_materia($con, $materia_id, 'foro', "Nuevo mensaje en el foro de $usuarioNombre", $resumen, $uid);
+    // Aviso en vivo para quien tenga el chat de esta materia abierto con
+    // WebSocket activo — el mensaje real siempre se lee de la BD
+    // (get_mensajes); esto solo dispara el refresco al instante.
+    ws_broadcast_channel('materia:'.$materia_id, 'foro_mensaje', ['materia_id' => $materia_id]);
     echo json_encode(['success' => true, 'id' => mysqli_insert_id($con)]); exit;
 }
 
@@ -112,6 +116,7 @@ if ($action === 'delete_mensaje' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!mysqli_stmt_execute($stD)) { echo json_encode(['success' => false, 'error' => 'No se pudo borrar el mensaje.']); exit; }
 
     log_audit($con, $uid, 'FORO_MENSAJE_BORRAR', "materia=$materia_id msg=$msgId".($esAutor?'':' (moderación)'));
+    ws_broadcast_channel('materia:'.$materia_id, 'foro_mensaje', ['materia_id' => $materia_id]);
     echo json_encode(['success' => true]); exit;
 }
 

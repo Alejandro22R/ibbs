@@ -26,6 +26,24 @@ function can($perm){
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
+<?php if (ws_enabled()):
+    // Si la página fijó $ws_materia_id ANTES de este include (ej.
+    // modulo_aula.php con el foro de una materia puntual), el token
+    // incluye ese canal — solo si materia_puede_ver() lo permite de
+    // verdad (ws_token_for_materia lo valida). El resto de las
+    // páginas solo necesita el canal implícito de su propio usuario
+    // (notificaciones), que el servidor Node ya arma con el uid.
+    if (!empty($ws_materia_id)) {
+        $_wsCon = db();
+        $_wsToken = $_wsCon ? ws_token_for_materia($_wsCon, $_uid, $_rol, $_u, (int)$ws_materia_id) : ws_token_mint($_uid, $_rol, $_u);
+        if ($_wsCon) mysqli_close($_wsCon);
+    } else {
+        $_wsToken = ws_token_mint($_uid, $_rol, $_u);
+    }
+?>
+<meta name="ibbs-ws-url" content="<?=htmlspecialchars(ws_public_url())?>">
+<meta name="ibbs-ws-token" content="<?=htmlspecialchars($_wsToken)?>">
+<?php endif; ?>
 <title><?=htmlspecialchars($page_title)?> — IBBS</title>
 <link rel="stylesheet" href="assets/ibbs.css">
 <link rel="stylesheet" href="assets/libs/boxicons/boxicons.min.css">

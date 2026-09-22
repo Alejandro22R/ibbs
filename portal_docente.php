@@ -65,6 +65,12 @@ $res_materias = mysqli_stmt_get_result($stmt_m);
 $materias = [];
 while($row = mysqli_fetch_assoc($res_materias)) $materias[] = $row;
 
+// Token de WebSocket (opcional — ver config/ws_config.php) con un
+// canal por cada materia que este profesor/admin puede tener abierta
+// en el chat, para que el foro se actualice al instante si hay un VPS
+// con ws-server/ configurado.
+$ws_token = ws_enabled() ? ws_token_for_materias($con, $user_id, $_SESSION['rol'], $_SESSION['usuario'], array_column($materias, 'id')) : null;
+
 // Obtener entregas
 if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     $query_entregas = "SELECT e.*, t.titulo as tarea_titulo, t.nota_maxima, a.nombre as alumno_nombre, a.apellido as alumno_apellido, m.nombre as materia_nombre 
@@ -100,6 +106,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
+    <?php if ($ws_token): ?>
+    <meta name="ibbs-ws-url" content="<?=htmlspecialchars(ws_public_url())?>">
+    <meta name="ibbs-ws-token" content="<?=htmlspecialchars($ws_token)?>">
+    <?php endif; ?>
     <title>Portal Docente | IBBS</title>
     
     <!-- CSS Maestro del Sistema IBBS -->
@@ -769,6 +779,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     </div>
     <?php endif; ?>
 
+    <!-- WebSocket en vivo (opcional — no-op si no hay VPS configurado) -->
+    <script src="assets/ibbs-realtime.js"></script>
+
     <!-- 4. SCRIPTS LÓGICA FRONTEND -->
     <script>
         // Funciones básicas Modal
@@ -1083,7 +1096,16 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         chatInterval = setInterval(() => {
             const viewChat = document.getElementById('view-chat');
             if(viewChat.classList.contains('active') && materiaActivaChatId > 0) cargarMensajesForo();
-        }, 5000); 
+        }, 5000);
+
+        // Con WebSocket (VPS configurado) el chat se refresca casi al
+        // instante en vez de esperar hasta 5s — el setInterval de
+        // arriba queda como red de seguridad si el WebSocket se cae.
+        if (window.IbbsRT && window.IbbsRT.hasWs) {
+            window.IbbsRT.on('foro_mensaje', (data) => {
+                if (data && parseInt(data.materia_id) === parseInt(materiaActivaChatId)) cargarMensajesForo();
+            });
+        }
     </script>
 </body>
 </html>

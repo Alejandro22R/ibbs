@@ -15,6 +15,15 @@ if (!function_exists('notificar_usuario')) {
         $st = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,usuario_id,materia_id) VALUES(?,?,?,?,?)");
         mysqli_stmt_bind_param($st, 'sssii', $tipo, $titulo, $mensaje, $usuario_id, $materia_id);
         mysqli_stmt_execute($st);
+        // La fila en BD es la fuente de verdad (así la ve quien no
+        // tenga el WebSocket activo); esto solo evita la espera del
+        // próximo sondeo de SSE/polling si hay un VPS con Node conectado.
+        if (function_exists('ws_broadcast_user')) {
+            ws_broadcast_user($usuario_id, 'notificacion', [
+                'id' => mysqli_insert_id($con), 'tipo' => $tipo, 'titulo' => $titulo,
+                'mensaje' => $mensaje, 'materia_id' => $materia_id, 'creado_en' => date('Y-m-d H:i:s'),
+            ]);
+        }
     }
 }
 

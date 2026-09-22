@@ -1,0 +1,17 @@
+{
+  "name": "ibbs-ws-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servidor de WebSocket para IBBS (foro/chat y notificaciones en tiempo real) — corre en el VPS, separado de Apache/PHP.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ws": "^8.17.0"
+  }
+}

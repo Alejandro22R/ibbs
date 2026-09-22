@@ -2,12 +2,15 @@
 $page_title = 'Aula Virtual';
 $page_sub   = 'Anuncios, materiales, actividades, tareas y foro de la materia';
 $active_link = 'materias';
+// Se calcula ANTES del include para que layout/head.php pueda armar el
+// token de WebSocket ya con el canal de esta materia (ver $ws_materia_id).
+$materia_id = (int)($_GET['materia_id'] ?? 0);
+$ws_materia_id = $materia_id;
 include __DIR__.'/layout/head.php';
 // Acceso: admin, superadmin, profesor y alumno.
 if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
-$materia_id = (int)($_GET['materia_id'] ?? 0);
 ?>
 
 <?php if(in_array($_rol,['superadmin','admin'])): ?>
@@ -375,7 +378,16 @@ async function iniciarAula() {
   // Iniciar el foro y el auto-refresco
   loadForo();
   if(foroInterval) clearInterval(foroInterval);
-  foroInterval = setInterval(loadForo, 5000); 
+  foroInterval = setInterval(loadForo, 5000);
+
+  // Con WebSocket (VPS configurado) el refresco es casi instantáneo en
+  // vez de esperar hasta 5s — el setInterval de arriba se deja igual
+  // como red de seguridad si el WebSocket se cae.
+  if (window.IbbsRT && window.IbbsRT.hasWs) {
+    window.IbbsRT.on('foro_mensaje', (data) => {
+      if (!data || parseInt(data.materia_id) === parseInt(MATERIA_ID)) { lastMessageCount = -1; loadForo(); }
+    });
+  }
 }
 
 /* ══ ANUNCIOS ══ */

@@ -113,7 +113,12 @@ async function loadAlumnos(){
   if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="8">Sin alumnos.</td></tr>';return;}
   tb.innerHTML=d.data.map(r=>`<tr>
     <td><strong>${r.cedula}</strong></td>
-    <td>${r.apellido}, ${r.nombre}</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:.6rem;">
+        <div style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.9rem;">${(r.nombre||'?').charAt(0).toUpperCase()}</div>
+        <span>${r.apellido}, ${r.nombre}</span>
+      </div>
+    </td>
     <td style="font-size:.82rem;">${r.correo}</td>
     <td style="font-size:.82rem;">${r.ciudad||'—'}</td>
     <td><span class="badge b-alumno">${r.nm}</span></td>
@@ -122,6 +127,8 @@ async function loadAlumnos(){
     <td class="td-actions">
       <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
       <button class="btn btn-sm btn-primary" onclick="editA(${r.id})">Editar</button>
+      <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=estudio&alumno_id=${r.id}" target="_blank" title="Constancia de Estudio">📄 Estudio</a>
+      <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=notas&alumno_id=${r.id}" target="_blank" title="Constancia de Notas">📄 Notas</a>
       <button class="btn btn-sm btn-danger" onclick="delA(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')">Eliminar</button>
     </td></tr>`).join('');
 }

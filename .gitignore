@@ -18,3 +18,7 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+
+# Servidor de WebSocket (ws-server/) — dependencias de Node, nunca al repo
+ws-server/node_modules/
+ws-server/npm-debug.log*

@@ -41,6 +41,12 @@ $res_materias = mysqli_stmt_get_result($stmt_m);
 $materias = [];
 while($row = mysqli_fetch_assoc($res_materias)) $materias[] = $row;
 
+// Token de WebSocket (opcional — ver config/ws_config.php) con un
+// canal por cada materia en la que este alumno puede tener el chat
+// abierto, para que el foro se actualice al instante si hay un VPS
+// con ws-server/ configurado.
+$ws_token = ws_enabled() ? ws_token_for_materias($con, $user_id, $_SESSION['rol'], $_SESSION['usuario'], array_column($materias, 'id')) : null;
+
 // Materias disponibles para autoinscripción (solo si el alumno es "regular")
 $materias_disponibles = [];
 if ($alumno && !empty($alumno['regular'])) {
@@ -92,6 +98,10 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
+    <?php if ($ws_token): ?>
+    <meta name="ibbs-ws-url" content="<?=htmlspecialchars(ws_public_url())?>">
+    <meta name="ibbs-ws-token" content="<?=htmlspecialchars($ws_token)?>">
+    <?php endif; ?>
     <title>Portal del Alumno | IBBS</title>
     
     <!-- Google Fonts (Nunito y Playfair Display) -->
@@ -750,6 +760,8 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         </div>
     </div>
 
+    <!-- WebSocket en vivo (opcional — no-op si no hay VPS configurado) -->
+    <script src="assets/ibbs-realtime.js"></script>
     <script>
         // Lógica de vistas y modal conservada pero con colores ajustados
         function switchView(viewId, btnElement = null) {
@@ -1063,7 +1075,16 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             if(!viewChat.classList.contains('hidden') && materiaActivaChatId > 0) {
                 cargarMensajesForo();
             }
-        }, 5000); 
+        }, 5000);
+
+        // Con WebSocket (VPS configurado) el chat se refresca casi al
+        // instante en vez de esperar hasta 5s — el setInterval de
+        // arriba queda como red de seguridad si el WebSocket se cae.
+        if (window.IbbsRT && window.IbbsRT.hasWs) {
+            window.IbbsRT.on('foro_mensaje', (data) => {
+                if (data && parseInt(data.materia_id) === parseInt(materiaActivaChatId)) cargarMensajesForo();
+            });
+        }
     </script>
 </body>
 </html>

@@ -3,6 +3,8 @@
 
 <!-- SweetAlert2 -->
 <script src="assets/libs/sweetalert2.all.min.js"></script>
+<!-- WebSocket en vivo (opcional — no-op si no hay VPS configurado, ver config/ws_config.php) -->
+<script src="assets/ibbs-realtime.js"></script>
 
 <script>
 // ── Sidebar toggle ──────────────────────────────────────────
@@ -358,17 +360,29 @@ function _notifSetBadge(n){
 let _notifUltimoId = 0;
 let _notifEs = null;
 
+function _notifRecibida(n) {
+  _notifUltimoId = Math.max(_notifUltimoId, parseInt(n.id) || 0);
+  _notifSetBadge(_notifUnread + 1);
+  const icono = NOTIF_ICONS[n.tipo] || 'ℹ️';
+  toast(icono + ' ' + (n.titulo || 'Nueva notificación'));
+}
+
+// Si esta página tiene WebSocket configurado (VPS con ws-server/, ver
+// config/ws_config.php), lo usamos como canal PRINCIPAL — más rápido y
+// no ocupa un worker de Apache por pestaña abierta. Sin WebSocket
+// (XAMPP normal, o el VPS caído), seguimos con SSE exactamente como
+// antes: ningún comportamiento cambia si no configuraste el VPS.
+const _usaWebSocket = !!(window.IbbsRT && window.IbbsRT.hasWs);
+
 function _notifAbrirStream() {
+  if (_usaWebSocket) return; // el WebSocket ya está conectado por su cuenta
   if (typeof EventSource === 'undefined') return; // navegador muy viejo: se queda con el chequeo inicial
   if (_notifEs) return; // ya hay una conexión abierta
   try {
     _notifEs = new EventSource('api/notificaciones_stream.php?since=' + _notifUltimoId);
     _notifEs.onmessage = (ev) => {
       let n; try { n = JSON.parse(ev.data); } catch(e) { return; }
-      _notifUltimoId = Math.max(_notifUltimoId, parseInt(n.id) || 0);
-      _notifSetBadge(_notifUnread + 1);
-      const icono = NOTIF_ICONS[n.tipo] || 'ℹ️';
-      toast(icono + ' ' + (n.titulo || 'Nueva notificación'));
+      _notifRecibida(n);
     };
     // Si el servidor o la red fallan, EventSource reintenta solo —
     // no hace nada acá salvo dejar que el navegador reconecte.
@@ -379,12 +393,18 @@ function _notifCerrarStream() {
   if (_notifEs) { _notifEs.close(); _notifEs = null; }
 }
 
+if (_usaWebSocket) {
+  window.IbbsRT.on('notificacion', _notifRecibida);
+}
+
 // La pestaña en segundo plano no necesita mantener el worker del
 // servidor ocupado — se cierra la conexión y se reabre al volver
 // (retoma desde _notifUltimoId, no se pierde nada). Con miles de
 // usuarios esto es lo que realmente baja cuántas conexiones
-// simultáneas tiene que sostener el servidor en producción.
+// simultáneas tiene que sostener el servidor en producción. El
+// WebSocket ya maneja esto solo (ver assets/ibbs-realtime.js).
 document.addEventListener('visibilitychange', () => {
+  if (_usaWebSocket) return;
   if (document.hidden) _notifCerrarStream();
   else _notifAbrirStream();
 });

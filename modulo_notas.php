@@ -45,15 +45,30 @@ mysqli_close($con);
     <div class="scard c3"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/></svg></div><div><div class="scard-val" id="sApro">—</div><div class="scard-key">Aprobados</div></div></div>
     <div class="scard c4" style="--after-bg:var(--red)"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div><div><div class="scard-val" id="sRepro">—</div><div class="scard-key">Reprobados</div></div></div>
     <div class="scard c2"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="scard-val" id="sSin">—</div><div class="scard-key">Sin nota</div></div></div>
+    <div class="scard c1" style="--after-bg:#6366f1"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></div><div><div class="scard-val" id="sProm">—</div><div class="scard-key">Promedio</div></div></div>
+  </div>
+  <!-- Barra de aprobación general de la materia -->
+  <div style="margin-top:.9rem;background:var(--paper);border:1.5px solid var(--border);border-radius:10px;padding:.7rem 1rem;">
+    <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);margin-bottom:.35rem;">
+      <span>Aprobación de la materia</span>
+      <span id="sPctApro">—</span>
+    </div>
+    <div style="height:8px;background:var(--cream);border-radius:4px;overflow:hidden;">
+      <div id="pctAproBar" style="height:100%;width:0%;border-radius:4px;background:#16a34a;transition:width .4s;"></div>
+    </div>
   </div>
 </div>
 
 <!-- Tabla de notas -->
 <div id="areaTablaNota" style="display:none;">
   <div class="card">
-    <div class="card-head">
-      <h3 id="tablaTitle">Calificaciones</h3>
-      <span id="docenteChip" style="font-size:.82rem;color:var(--muted);"></span>
+    <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
+      <div>
+        <h3 id="tablaTitle">Calificaciones</h3>
+        <span id="docenteChip" style="font-size:.82rem;color:var(--muted);"></span>
+      </div>
+      <input type="text" id="fBuscarAlumno" placeholder="Buscar por nombre o cédula…" oninput="filtrarTablaNotas()"
+        style="padding:.5rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.83rem;outline:none;background:var(--cream);min-width:220px;">
     </div>
     <div class="tbl-wrap" id="tablaWrap"></div>
   </div>
@@ -132,12 +147,24 @@ async function loadTabla() {
   if (!d?.ok) { toast(d?.msg || 'Error', 'err'); return; }
 
   const {mat, docentes, alumnos, aprobados, reprobados, sin} = d.data;
+  const conNota = alumnos.filter(a => a.nota_final !== null);
+  const promedio = conNota.length
+    ? conNota.reduce((s, a) => s + parseFloat(a.nota_final), 0) / conNota.length
+    : null;
+  const pctApro = conNota.length ? Math.round(aprobados / conNota.length * 100) : 0;
 
   // Resumen
   document.getElementById('sTotal').textContent  = alumnos.length;
   document.getElementById('sApro').textContent   = aprobados;
   document.getElementById('sRepro').textContent  = reprobados;
   document.getElementById('sSin').textContent    = sin;
+  document.getElementById('sProm').textContent   = promedio !== null ? promedio.toFixed(1) : '—';
+  document.getElementById('sPctApro').textContent = conNota.length ? `${pctApro}% (${aprobados} de ${conNota.length} evaluados)` : 'Sin notas registradas aún';
+  const bar = document.getElementById('pctAproBar');
+  bar.style.width = pctApro + '%';
+  bar.style.background = pctApro >= 70 ? '#16a34a' : pctApro >= 40 ? '#ca8a04' : '#dc2626';
+
+  document.getElementById('fBuscarAlumno').value = '';
 
   // Título
   document.getElementById('tablaTitle').textContent = mat.nombre + ' — ' + mat.codigo;
@@ -167,9 +194,16 @@ async function loadTabla() {
         ? `<div style="font-size:.72rem;color:var(--muted);">Por ${h(al.nota_registrada_por_nombre)}${al.nota_actualizada_en ? ' · '+al.nota_actualizada_en.replace('T',' ').slice(0,16) : ''}</div>`
         : '';
 
+      const inicial = (al.nombre || '?').charAt(0).toUpperCase();
+
       rows += `<tr>
         <td>${i+1}</td>
-        <td style="text-align:left;"><strong>${h(al.apellido)}</strong>, ${h(al.nombre)}</td>
+        <td style="text-align:left;">
+          <div style="display:flex;align-items:center;gap:.6rem;">
+            <div style="width:32px;height:32px;flex-shrink:0;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.95rem;">${inicial}</div>
+            <div><strong>${h(al.apellido)}</strong>, ${h(al.nombre)}</div>
+          </div>
+        </td>
         <td style="text-align:left;font-size:.8rem;color:var(--muted);">${h(al.cedula)}</td>
         <td style="text-align:center;">
           <button onclick="openNota(${al.id},${_mid},'${h(al.nombre+' '+al.apellido)}',${nv !== null ? nv : 'null'})"
@@ -278,6 +312,13 @@ async function borrarNota() {
 function abrirPDF(e) {
   e.preventDefault();
   window.open('api/export_pdf.php?materia_id=' + _mid, '_blank');
+}
+
+function filtrarTablaNotas() {
+  const q = document.getElementById('fBuscarAlumno').value.trim().toLowerCase();
+  document.querySelectorAll('#tablaWrap tbody tr:not(.empty-row)').forEach(tr => {
+    tr.style.display = !q || tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
 }
 
 function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }

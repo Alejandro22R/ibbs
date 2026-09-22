@@ -19,3 +19,6 @@ require_once __DIR__ . '/audit.php';
 require_once __DIR__ . '/materia_permisos.php';
 require_once __DIR__ . '/url_validacion.php';
 require_once __DIR__ . '/notificaciones.php';
+require_once __DIR__ . '/ws_config.php';
+require_once __DIR__ . '/ws_token.php';
+require_once __DIR__ . '/ws_broadcast.php';

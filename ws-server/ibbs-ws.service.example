@@ -1,0 +1,33 @@
+; IBBS — unidad de systemd para mantener el servidor de WebSocket vivo
+; en el VPS (arranca solo, se reinicia solo si se cae).
+;
+; Instalación (como root o con sudo):
+;   1. sudo cp ibbs-ws.service.example /etc/systemd/system/ibbs-ws.service
+;   2. Editar /etc/systemd/system/ibbs-ws.service y ajustar
+;      WorkingDirectory/ExecStart/User a tu instalación real.
+;   3. sudo systemctl daemon-reload
+;   4. sudo systemctl enable --now ibbs-ws
+;   5. sudo systemctl status ibbs-ws     (verificar que quedó "active (running)")
+;   6. journalctl -u ibbs-ws -f          (ver logs en vivo)
+
+[Unit]
+Description=IBBS - Servidor de WebSocket (foro/chat y notificaciones)
+After=network.target
+
+[Service]
+Type=simple
+; Cambiar por el usuario/carpeta reales del VPS — NUNCA correr como root.
+User=ibbs
+WorkingDirectory=/var/www/ibbs/ws-server
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+; El .env de esta carpeta ya trae WS_PORT/WS_SECRET — Node lo lee con dotenv.
+EnvironmentFile=/var/www/ibbs/ws-server/.env
+
+; Endurecimiento básico — el proceso no necesita más que esto.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
