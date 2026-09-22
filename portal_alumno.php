@@ -229,13 +229,13 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto relative z-10">
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mb-3 px-3">Menú Principal</p>
             
-            <button onclick="switchView('dashboard', this)" class="nav-btn active w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button id="navBtnDashboard" onclick="switchView('dashboard', this)" class="nav-btn active w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-home w-5 text-center"></i> <span class="font-medium text-sm">Inicio</span>
             </button>
             <button onclick="switchView('aula', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-desktop w-5 text-center"></i> <span class="font-medium text-sm">Aula Virtual</span>
             </button>
-            <button onclick="switchView('materias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button id="navBtnMaterias" onclick="switchView('materias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-book w-5 text-center"></i> <span class="font-medium text-sm">Mis Materias</span>
             </button>
             <button onclick="switchView('tareas', this)" class="nav-btn w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
@@ -880,10 +880,26 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 fd.append('csrf_token', _csrfMeta ? _csrfMeta.content : '');
                 const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
                 const d = await r.json();
-                if (d.ok) { alert(d.msg); location.reload(); }
-                else alert(d.msg || 'No se pudo completar la inscripción.');
+                if (d.ok) {
+                    const w = window.open('api/export_constancia.php?tipo=estudio', '_blank');
+                    if (w) {
+                        alert(d.msg + ' Se abrió tu constancia de estudio en una pestaña nueva.');
+                    } else if (confirm(d.msg + '\n\n¿Descargar tu constancia de estudio ahora?')) {
+                        window.location.href = 'api/export_constancia.php?tipo=estudio';
+                        return;
+                    }
+                    location.reload();
+                } else {
+                    alert(d.msg || 'No se pudo completar la inscripción.');
+                }
             } catch (e) { console.error(e); alert('Error de conexión.'); }
         }
+
+        <?php if (empty($materias)): ?>
+        // Primer ingreso sin materias: lo primero que ve el alumno es la
+        // pantalla para inscribirse, no el dashboard vacío.
+        switchView('materias', document.getElementById('navBtnMaterias'));
+        <?php endif; ?>
 
         function prepararRespuesta(nombreUsuario, idMensaje) {
             document.getElementById('chat-reply-to-id').value = idMensaje;

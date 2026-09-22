@@ -65,12 +65,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     if ($action==='reg_check') {
         $con = db();
         if (!$con) { echo json_encode(['ok'=>false,'msg'=>'Error de BD.']); exit; }
+        $nom  = trim($_POST['nombre']??'');
+        $ape  = trim($_POST['apellido']??'');
         $u    = trim($_POST['usuario']??'');
         $mail = trim($_POST['correo']??'');
         $ced  = trim($_POST['cedula']??'');
         $pwd  = trim($_POST['password']??'');
         $rep  = trim($_POST['repetir']??'');
-        if (!$u||!$mail||!$ced||!$pwd) { echo json_encode(['ok'=>false,'msg'=>'Completa todos los campos.']); exit; }
+        if (!$nom||!$ape||!$u||!$mail||!$ced||!$pwd) { echo json_encode(['ok'=>false,'msg'=>'Completa todos los campos.']); exit; }
         $pwdErr = ibbs_validar_password($pwd);
         if ($pwdErr)                   { echo json_encode(['ok'=>false,'msg'=>$pwdErr]); exit; }
         if ($pwd!==$rep)               { echo json_encode(['ok'=>false,'msg'=>'Las contraseñas no coinciden.']); exit; }
@@ -78,8 +80,12 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         mysqli_stmt_bind_param($st,'sss',$u,$mail,$ced);
         mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
         if (mysqli_stmt_num_rows($st)>0) { echo json_encode(['ok'=>false,'msg'=>'Usuario, correo o cédula ya registrado.']); exit; }
+        $stA = mysqli_prepare($con,"SELECT id FROM alumnos WHERE cedula=? OR correo=?");
+        mysqli_stmt_bind_param($stA,'ss',$ced,$mail);
+        mysqli_stmt_execute($stA); mysqli_stmt_store_result($stA);
+        if (mysqli_stmt_num_rows($stA)>0) { echo json_encode(['ok'=>false,'msg'=>'Ya existe un alumno registrado con esa cédula o correo.']); exit; }
         // Store in session temp
-        $_SESSION['reg_tmp'] = ['u'=>$u,'mail'=>$mail,'ced'=>$ced,'pwd'=>$pwd];
+        $_SESSION['reg_tmp'] = ['nom'=>$nom,'ape'=>$ape,'u'=>$u,'mail'=>$mail,'ced'=>$ced,'pwd'=>$pwd];
         echo json_encode(['ok'=>true]); exit;
     }
 
@@ -112,14 +118,29 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $hash = password_hash($pwd2, PASSWORD_BCRYPT);
         $rh1  = password_hash($tmp['r1'], PASSWORD_BCRYPT);
         $rh2  = password_hash($tmp['r2'], PASSWORD_BCRYPT);
-        $st = mysqli_prepare($con,"INSERT INTO usuarios(usuario,correo,cedula,password_hash,rol,preg1,resp1_hash,preg2,resp2_hash) VALUES(?,?,?,?,'profesor',?,?,?,?)");
+        // El registro público siempre crea una cuenta de alumno — nunca
+        // profesor/admin, esos los crea el staff desde el panel interno.
+        $st = mysqli_prepare($con,"INSERT INTO usuarios(usuario,correo,cedula,password_hash,rol,preg1,resp1_hash,preg2,resp2_hash) VALUES(?,?,?,?,'alumno',?,?,?,?)");
         mysqli_stmt_bind_param($st,'ssssssss',$tmp['u'],$tmp['mail'],$tmp['ced'],$hash,$tmp['p1'],$rh1,$tmp['p2'],$rh2);
-        if (mysqli_stmt_execute($st)) {
-            unset($_SESSION['reg_tmp']);
-            echo json_encode(['ok'=>true,'msg'=>'¡Cuenta creada exitosamente! Ya puedes iniciar sesión.']);
-        } else {
-            echo json_encode(['ok'=>false,'msg'=>mysqli_error($con)]);
+        if (!mysqli_stmt_execute($st)) {
+            echo json_encode(['ok'=>false,'msg'=>mysqli_error($con)]); exit;
         }
+        $nuevoUid = mysqli_insert_id($con);
+
+        // Ficha de alumno vinculada — "regular" desde ya, porque es una
+        // cuenta autoservicio: no hay staff que la valide antes, así que
+        // puede autoinscribirse en materias apenas entra.
+        $stA = mysqli_prepare($con,"INSERT INTO alumnos(nombre,apellido,cedula,correo,usuario_id,regular) VALUES(?,?,?,?,?,1)");
+        mysqli_stmt_bind_param($stA,'ssssi',$tmp['nom'],$tmp['ape'],$tmp['ced'],$tmp['mail'],$nuevoUid);
+        if (!mysqli_stmt_execute($stA)) {
+            // No dejamos a medio crear una cuenta de alumno sin ficha de alumno.
+            mysqli_query($con, "DELETE FROM usuarios WHERE id=$nuevoUid");
+            echo json_encode(['ok'=>false,'msg'=>'No se pudo completar el registro: '.mysqli_error($con)]); exit;
+        }
+
+        log_audit($con, $nuevoUid, 'ALUMNO_AUTOREGISTRO', "usuario={$tmp['u']}");
+        unset($_SESSION['reg_tmp']);
+        echo json_encode(['ok'=>true,'msg'=>'¡Cuenta creada! Ya puedes iniciar sesión e inscribirte en tus materias.']);
         exit;
     }
 
@@ -308,13 +329,17 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
     <!-- ══ REGISTRO — PASO 1: Datos básicos ══════════════ -->
     <div id="pReg1" class="pane">
       <h2>Crear cuenta</h2>
-      <p class="sub">Paso 1 de 3 — Datos de acceso</p>
+      <p class="sub">Registro de alumnos · Paso 1 de 3 — Datos de acceso</p>
       <div class="steps-wrap">
         <div class="step-item active"><div class="step-circle">1</div><div class="step-lbl">Datos</div></div>
         <div class="step-item"><div class="step-circle">2</div><div class="step-lbl">Seguridad</div></div>
         <div class="step-item"><div class="step-circle">3</div><div class="step-lbl">Confirmar</div></div>
       </div>
       <div id="errReg1" class="err"></div>
+      <div class="field-row">
+        <div class="field"><label>Nombre *</label><input id="rNom" data-only="letters" placeholder="María" autocomplete="off"></div>
+        <div class="field"><label>Apellido *</label><input id="rApe" data-only="letters" placeholder="López" autocomplete="off"></div>
+      </div>
       <div class="field-row">
         <div class="field"><label>Usuario *</label><input id="rU" data-only="username" placeholder="ej. jperez" autocomplete="off"></div>
         <div class="field"><label>Cédula *</label><input id="rCed" data-only="cedula" placeholder="12345678" autocomplete="off"></div>
@@ -511,7 +536,7 @@ async function doReg1(){
   btn.textContent='Verificando…';
   const pwdErr = validarPassword(document.getElementById('rP').value);
   if (pwdErr) { setErr('errReg1', pwdErr); btn.disabled=false; btn.textContent='Continuar →'; return; }
-  const d=await post('reg_check',{usuario:document.getElementById('rU').value,cedula:document.getElementById('rCed').value,correo:document.getElementById('rM').value,password:document.getElementById('rP').value,repetir:document.getElementById('rP2').value});
+  const d=await post('reg_check',{nombre:document.getElementById('rNom').value,apellido:document.getElementById('rApe').value,usuario:document.getElementById('rU').value,cedula:document.getElementById('rCed').value,correo:document.getElementById('rM').value,password:document.getElementById('rP').value,repetir:document.getElementById('rP2').value});
   btn.disabled=false;
   btn.textContent='Continuar →';
   if(d.ok){show('pReg2');}else setErr('errReg1',d.msg);

@@ -256,6 +256,36 @@ directamente: un alumno la pide sin `alumno_id` (se resuelve solo su
 propio registro) y un admin/superadmin puede seguir pidiéndola para
 cualquiera con `&alumno_id=X`, igual que antes.
 
+## Alta de alumno nuevo (autoregistro)
+
+`login.php` ya tenía un registro público de 3 pasos (datos → preguntas
+de seguridad → confirmar), pero el paso final tenía un bug serio: el
+`INSERT` a `usuarios` traía **`rol='profesor'` fijo en el código**,
+sin importar quién se registrara — cualquier visitante que se
+registraba terminaba con una cuenta de **profesor**, nunca de alumno.
+Se corrigió a `rol='alumno'` (que además ya era el `DEFAULT` de la
+columna en la tabla) y ahora, al crear el usuario, también se crea su
+ficha en `alumnos` (con los nuevos campos Nombre/Apellido del paso 1)
+marcada **`regular=1`** — al ser una cuenta autoservicio, sin staff que
+la revise antes, entra lista para autoinscribirse.
+
+Flujo completo para un alumno nuevo:
+1. Se registra en `login.php` → entra con rol `alumno` y ficha en
+   `alumnos` ya creada y regular.
+2. Inicia sesión → `portal_alumno.php` lo lleva directo a **Mis
+   Materias** en vez del dashboard vacío (`empty($materias)` fuerza esa
+   vista al cargar) para que lo primero que vea sea el selector de
+   materias disponibles.
+3. Se inscribe él mismo (`materia_autoinscribir`) en cualquier materia
+   activa que el superadmin/admin haya cargado — al confirmar, se le
+   abre automáticamente su constancia de estudio
+   (`api/export_constancia.php?tipo=estudio`).
+4. Desde ahí, "Tareas y Asignaciones" (ya existente en el portal) muestra
+   automáticamente las tareas que el profesor cargue para esa materia
+   — no hizo falta un módulo nuevo: la consulta ya filtra por
+   `materia_alumno.alumno_id`, así que en cuanto se inscribe empieza a
+   ver contenido real.
+
 **Pendiente, no corregido en este pase**: `crear_tarea.php`,
 `procesar_entrega.php`, `calificar_entrega.php` y
 `asignar_materia.php` (formularios de `portal_alumno.php` /
