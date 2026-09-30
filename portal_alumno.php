@@ -118,6 +118,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <script src="assets/ibbs-alerts.js"></script>
     <script src="assets/ibbs-tour.js"></script>
     <script src="assets/ibbs-password-toggle.js"></script>
+    <script src="assets/ibbs-shortcuts.js"></script>
 
     <!-- Tailwind CSS con Configuración de Tema IBBS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -279,8 +280,12 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             <button id="navBtnPerfil" data-tour="nav-perfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-user-cog w-5 text-center"></i> <span class="font-medium text-sm">Mi Perfil</span>
             </button>
-            <button type="button" data-tour="nav-replay" onclick="IbbsTour.replay(window.IBBS_TOUR_ALUMNO)" class="ibbstour-replay nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button type="button" data-tour="nav-replay" data-palette-skip="1" onclick="IbbsTour.replay(window.IBBS_TOUR_ALUMNO)" class="ibbstour-replay nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-circle-question w-5 text-center"></i> <span class="font-medium text-sm">Ver Tutorial</span>
+            </button>
+            <button type="button" data-palette-skip="1" onclick="IbbsShortcuts.openPalette()" class="nav-btn w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <span class="flex items-center gap-3"><i class="fas fa-search w-5 text-center"></i> <span class="font-medium text-sm">Buscar</span></span>
+                <kbd class="text-[10px] bg-white/10 px-1.5 py-0.5 rounded">Ctrl K</kbd>
             </button>
         </nav>
 

@@ -59,6 +59,9 @@ if($_rol !== 'superadmin'){
       <span style="font-size:.76rem;color:var(--muted);">Buscar:</span>
       <input id="searchBox" type="text" placeholder="Filtrar resultados…" oninput="filtrarLocal(this.value)"
         style="padding:.4rem .75rem;border:1.5px solid var(--border);border-radius:7px;font-size:.8rem;font-family:'Nunito',sans-serif;background:var(--cream);color:var(--ink);outline:none;width:180px;">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="IbbsExport.table('#tblHist','historial-ibbs')" title="Descargar esta lista como Excel/CSV">
+        <i class="bx bx-download"></i> Exportar
+      </button>
     </div>
   </div>
 

@@ -133,6 +133,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     <script src="assets/ibbs-alerts.js"></script>
     <script src="assets/ibbs-tour.js"></script>
     <script src="assets/ibbs-password-toggle.js"></script>
+    <script src="assets/ibbs-shortcuts.js"></script>
     
     <style>
         /* Animaciones para SPA */
@@ -180,6 +181,26 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         /* ── Modo oscuro — ajustes propios de este portal ── */
         html[data-theme="dark"] .msg-mine { background: #1a4d2e; color: #eafbe8; }
         html[data-theme="dark"] .alert-box { background: rgba(217,119,6,.14); }
+
+        /* ── Móvil — este portal no tenía ningún ajuste propio;
+           el rail de íconos y las grillas ya heredan lo de
+           assets/ibbs.css, pero estos dos bloques son a medida
+           de este archivo y quedaban apretados en un teléfono ── */
+        @media(max-width:768px) {
+            .banner-dash {
+                flex-direction: column; align-items: flex-start; gap: 1rem;
+                padding: 1.4rem 1.2rem;
+            }
+            .banner-dash h3 { font-size: 1.35rem !important; }
+            .banner-dash > div:last-child { width: 100%; }
+            .banner-dash > div:last-child .btn { flex: 1; text-align: center; }
+
+            .chat-layout { flex-direction: column; height: calc(100vh - 130px); }
+            .chat-sidebar {
+                width: 100%; max-height: 130px;
+                border-right: none; border-bottom: 1px solid var(--border);
+            }
+        }
     </style>
 </head>
 <body>
@@ -231,7 +252,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         </nav>
 
         <div class="sb-bottom">
-            <button type="button" data-tour="nav-replay" onclick="IbbsTour.replay(window.IBBS_TOUR_DOCENTE)" class="ibbstour-replay sb-link">
+            <button type="button" data-tour="nav-replay" data-palette-skip="1" onclick="IbbsTour.replay(window.IBBS_TOUR_DOCENTE)" class="ibbstour-replay sb-link">
                 <i class="fas fa-circle-question"></i> <span class="sb-lbl">Ver Tutorial</span>
             </button>
             <button data-tour="nav-perfil" onclick="switchView('perfil', this)" class="sb-link">
@@ -252,6 +273,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <h2 class="page-title">Panel de Control <em>Resumen de gestión docente</em></h2>
             </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
+                <button type="button" class="ibbs-cmdk-btn" onclick="IbbsShortcuts.openPalette()" title="Buscar sección (Ctrl+K)">
+                    <i class="fas fa-search"></i> <kbd>Ctrl K</kbd>
+                </button>
                 <button id="themeToggle" onclick="toggleTheme()" title="Modo claro / oscuro" aria-label="Cambiar tema">
                     <svg class="t-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                     <svg class="t-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>

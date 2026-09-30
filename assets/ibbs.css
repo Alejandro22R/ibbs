@@ -237,6 +237,54 @@ body {
   display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
 }
 
+/* ── Botón discreto para abrir la paleta de comandos ── */
+.ibbs-cmdk-btn {
+  display:flex; align-items:center; gap:.4rem;
+  padding:.4rem .7rem; border-radius:8px; border:1.5px solid var(--border);
+  background:var(--paper); color:var(--muted); font-size:.76rem; cursor:pointer;
+  font-family:'Nunito',sans-serif; white-space:nowrap;
+}
+.ibbs-cmdk-btn:hover { border-color:var(--lime2); color:var(--ink); }
+.ibbs-cmdk-btn kbd {
+  background:var(--cream); border:1px solid var(--border); border-radius:4px;
+  padding:.05rem .35rem; font-size:.68rem; font-family:inherit; color:var(--muted);
+}
+/* En el celular no hay teclado físico — el atajo no sirve de nada
+   ahí y solo suma otra cosa más a la barra superior ya apretada. */
+@media(max-width:768px) { .ibbs-cmdk-btn { display:none; } }
+
+/* ── Paleta de comandos / hoja de atajos ── */
+.ibbs-pal-overlay {
+  position:fixed; inset:0; z-index:99998; background:rgba(10,20,15,.55);
+  backdrop-filter:blur(2px); display:flex; align-items:flex-start; justify-content:center;
+  padding-top:12vh; opacity:0; pointer-events:none; transition:opacity .15s ease;
+}
+.ibbs-pal-overlay.on { opacity:1; pointer-events:auto; }
+.ibbs-pal-box {
+  width:92vw; max-width:520px; background:var(--paper); border-radius:14px;
+  box-shadow:0 20px 60px rgba(0,0,0,.35); overflow:hidden;
+  transform:translateY(-8px); transition:transform .15s ease;
+  font-family:'Nunito',sans-serif;
+}
+.ibbs-pal-overlay.on .ibbs-pal-box { transform:translateY(0); }
+.ibbs-pal-search { display:flex; align-items:center; gap:.6rem; padding:1rem 1.1rem; border-bottom:1px solid var(--border); color:var(--muted); }
+.ibbs-pal-search input { flex:1; border:none; outline:none; background:none; font-size:.95rem; color:var(--ink); font-family:inherit; }
+.ibbs-pal-list { max-height:50vh; overflow-y:auto; padding:.4rem; }
+.ibbs-pal-item { display:flex; align-items:center; gap:.7rem; padding:.65rem .8rem; border-radius:8px; cursor:pointer; font-size:.88rem; color:var(--ink); }
+.ibbs-pal-item i { width:18px; text-align:center; color:var(--muted); }
+.ibbs-pal-item.on, .ibbs-pal-item:hover { background:rgba(57,255,20,.1); }
+.ibbs-pal-item.on i, .ibbs-pal-item:hover i { color:var(--lime2); }
+.ibbs-pal-empty { padding:1.5rem; text-align:center; color:var(--muted); font-size:.85rem; }
+
+.ibbs-shortcuts-box { padding:1.3rem 1.4rem; }
+.ibbs-shortcuts-box h3 { font-family:'Playfair Display',serif; font-size:1.15rem; color:var(--ink); margin-bottom:1rem; }
+.ibbs-shortcut-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.85rem; color:var(--ink); gap:1rem; }
+.ibbs-shortcut-row:last-of-type { border-bottom:none; }
+.ibbs-shortcut-row kbd {
+  background:var(--cream); border:1px solid var(--border); border-radius:5px;
+  padding:.15rem .5rem; font-size:.78rem; font-family:inherit; color:var(--ink); font-weight:700;
+}
+
 /* ══ BUTTONS ═════════════════════════════════════════════════ */
 .btn {
   display:inline-flex; align-items:center; gap:.4rem;
@@ -501,6 +549,8 @@ tr:hover td { background:rgba(26,77,46,.018); }
   /* Cards */
   .card          { border-radius: 12px; }
   .card-body     { padding: 1rem; }
+  .card-head     { flex-wrap: wrap; gap: .6rem; align-items: flex-start; }
+  .card-head > div:last-child { width: 100%; }
 
   /* Tablas — scroll horizontal */
   .tbl-wrap      { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -599,6 +649,37 @@ tr:hover td { background:rgba(26,77,46,.018); }
     backdrop-filter: blur(2px);
   }
   #sb.mobile-open ~ #sb-overlay { display: block; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   RED DE SEGURIDAD MÓVIL — para pantallas chicas en general
+   (aplica a todo lo que cargue este archivo: panel admin y
+   ambos portales), sin tener que salir a buscar cada franja
+   "título + botón" escrita a mano en cada módulo.
+══════════════════════════════════════════════════════════ */
+html, body { overflow-x: hidden; }
+
+@media(max-width:600px) {
+  /* Cualquier fila "título a la izquierda, botón a la derecha"
+     escrita como estilo inline (patrón muy repetido en los
+     módulos y en los portales) pasa a apilarse en vez de
+     achicarse hasta ser inusable. No cambia nada del diseño en
+     pantallas más anchas — solo entra a partir de acá. */
+  [style*="justify-content: space-between"],
+  [style*="justify-content:space-between"] {
+    flex-wrap: wrap !important;
+    row-gap: .6rem;
+  }
+
+  /* Mismo criterio para las grillas de 2-3 columnas escritas a mano
+     (buscadores, filtros, pares de campos de formulario): se apilan
+     en una sola columna en vez de quedar cada casilla angosta. */
+  [style*="grid-template-columns:1fr 1fr"],
+  [style*="grid-template-columns:2fr 1fr"],
+  [style*="grid-template-columns: 1fr 1fr"],
+  [style*="grid-template-columns: 2fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* ── Role badges v6 ─────────────────────────────────────── */

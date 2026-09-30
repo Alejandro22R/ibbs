@@ -326,6 +326,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 .step-dot.active{background:#1a4d2e;}
 
 @media(max-width:760px){.left{display:none;}.right{width:100%;}.card{padding:2rem 1.6rem;}}
+@media(max-width:480px){.card{padding:1.6rem 1.1rem;}.field-row{grid-template-columns:1fr;gap:0;}.field-row .field{margin-bottom:1.1rem;}.field-row .field:last-child{margin-bottom:0;}}
 </style>
 </head>
 <body>

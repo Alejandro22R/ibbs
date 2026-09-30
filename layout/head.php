@@ -164,6 +164,11 @@ function can($perm){
       </svg>
     </button>
 
+    <!-- Paleta de comandos: buscar y saltar a cualquier sección -->
+    <button type="button" class="ibbs-cmdk-btn" onclick="IbbsShortcuts.openPalette()" title="Buscar sección (Ctrl+K)">
+      <i class="bx bx-search"></i><span class="search-hint-text">Buscar</span> <kbd>Ctrl K</kbd>
+    </button>
+
     <!-- Dark mode pill toggle -->
     <button id="themeToggle" onclick="toggleTheme()" title="Modo claro / oscuro" aria-label="Cambiar tema">
       <!-- luna (visible en modo claro) -->

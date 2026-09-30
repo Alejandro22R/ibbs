@@ -24,6 +24,9 @@ if($_rol !== 'superadmin'){
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:190px;">
       <input type="text" id="fUsuCedula" data-only="cedula" placeholder="Buscar por cédula…" oninput="filtrarUsuarios()"
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:180px;">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="IbbsExport.table('#tblU','usuarios-ibbs')" title="Descargar esta lista como Excel/CSV">
+        <i class="bx bx-download"></i> Exportar
+      </button>
     </div>
   </div>
   <div class="tbl-wrap">

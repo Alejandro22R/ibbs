@@ -1028,6 +1028,89 @@ ya existía para el panel de administración (`layout/head.php` +
   clases con variantes `dark:` de Tailwind — no se hizo en esta pasada
   para no tocar de más; si se quiere, es un trabajo aparte.
 
+## Responsive en celular: red de seguridad en vez de parchar módulo por módulo
+
+El reclamo era que en el teléfono la app se sentía "sobrecargada" —
+filas de título+botón que no entraban, grillas de 2-3 columnas
+apretadísimas — para gente que no necesariamente es cómoda con la
+tecnología. Auditar los ~30 módulos uno por uno hubiera sido enorme (y
+fácil de dejar algo afuera), así que en vez de eso se agregaron reglas
+de CSS en `assets/ibbs.css` que enganchan el patrón por cómo está
+escrito, no por archivo — así cubren TODO lo que ya existe y también lo
+que se agregue después, sin tener que acordarse de nada:
+
+- Cualquier `style="...justify-content:space-between..."` (el patrón de
+  "título a la izquierda, botón a la derecha" repetido en decenas de
+  vistas) pasa a apilarse en el celular (`flex-wrap:wrap`) en vez de
+  achicarse hasta ser inusable. En pantallas normales no cambia nada.
+- Lo mismo para las grillas escritas a mano como
+  `grid-template-columns:1fr 1fr` o `2fr 1fr auto` (buscadores, pares de
+  campos de formulario): se apilan en una columna en el celular.
+- `.card-head` (el encabezado de cualquier tarjeta — título + buscador o
+  botón de acción) ahora tiene `flex-wrap` en móvil, que era el hueco
+  más repetido de todos porque es una clase que usa prácticamente cada
+  módulo del panel de administración.
+- `html, body { overflow-x: hidden; }` como red de seguridad extra
+  contra cualquier elemento suelto que empuje el ancho de la página.
+
+Aparte de eso, `portal_docente.php` no tenía **ningún** ajuste propio
+para celular (ni una sola media query) a pesar de compartir el mismo
+`assets/ibbs.css` que el panel de administración — se le agregaron dos
+arreglos puntuales que sí necesitaba: el banner de bienvenida (pasa a
+apilarse en vez de encimar el saludo con los botones) y el layout de
+dos columnas del Foro de Clase (`.chat-layout`, tenía un panel fijo de
+260px que en un teléfono de 360-375px de ancho no dejaba casi nada para
+leer los mensajes — ahora se apila, lista de salas arriba y chat abajo).
+
+Nada de esto cambia el diseño en pantallas normales ni saca ninguna
+función: todo lo que se veía en desktop se sigue viendo igual, solo que
+en una pantalla chica se reordena en vez de aplastarse.
+
+## Extras opcionales para la versión de escritorio ("Easter eggs" útiles)
+
+Pedido explícito: algo más para la versión normal, que no sea un juego
+sino algo genuinamente útil y opcional (nadie está obligado a usarlo).
+Se agregaron tres:
+
+**1. Paleta de comandos — `Ctrl`/`Cmd` + `K`** (`assets/ibbs-shortcuts.js`)
+
+Abre un buscador flotante para saltar a cualquier sección sin tocar el
+mouse: escribís parte del nombre ("notas", "biblioteca"...) y con
+flechas + Enter llegás. Los ítems se arman leyendo el propio menú
+lateral de la página en el momento (`#sb .sb-link` en el panel de
+administración y en `portal_docente.php`, `.nav-btn` en
+`portal_alumno.php`), así que **no hay ninguna lista para mantener a
+mano** — un módulo nuevo aparece solo en la paleta con solo estar en el
+menú. También suma "Cambiar a modo claro/oscuro" y "Repasar el
+tutorial" cuando la página los tiene. Un botón discreto con la pista
+`Ctrl K` aparece en la barra superior (se oculta en celular — ahí no
+hay teclado físico, así que no suma nada, solo ocuparía espacio).
+
+**2. Hoja de atajos — tecla `?`** (mismo archivo)
+
+Muestra una tarjeta con los atajos disponibles (`Ctrl/Cmd+K`, `?`,
+`Esc`). Se ignora si el foco está sobre un campo de texto, para no
+interferir con quien esté escribiendo un mensaje o una nota que
+contenga un signo de pregunta.
+
+**3. Exportar tablas a Excel/CSV** (`assets/ibbs-export.js`)
+
+`IbbsExport.table('#idDeLaTabla', 'nombre-archivo')` lee lo que está en
+pantalla en ese `<table>` y descarga un `.csv` (se abre bien en Excel,
+con BOM UTF-8 para que las tildes no se rompan). Salta automáticamente
+cualquier columna cuyo encabezado venga vacío (una casilla de
+selección) o diga "Acciones"/"Acción" (los botones de editar/eliminar
+no tienen sentido en una planilla). Ya está conectado en la lista de
+**Usuarios** (`modulo_usuarios.php`, botón "Exportar" junto al
+buscador) y en **Historial** (`modulo_historial.php`). Para sumarlo a
+cualquier otra tabla del panel: un botón con
+`onclick="IbbsExport.table('#idDeLaTabla','nombre-archivo')"` alcanza —
+el script ya está cargado globalmente vía `layout/foot.php`.
+
+Los tres viven solo en `layout/foot.php` (panel de administración) y en
+ambos portales (`ibbs-shortcuts.js`; `ibbs-export.js` no se cargó en los
+portales porque todavía no tienen ninguna `<table>` para exportar).
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

@@ -7,6 +7,10 @@
 <script src="assets/ibbs-realtime.js"></script>
 <!-- Ícono de "ojo" para mostrar/ocultar contraseña en cada input type=password -->
 <script src="assets/ibbs-password-toggle.js"></script>
+<!-- Exportar tablas a CSV (opcional, por tabla) -->
+<script src="assets/ibbs-export.js"></script>
+<!-- Paleta de comandos (Ctrl/Cmd+K) y hoja de atajos ("?") -->
+<script src="assets/ibbs-shortcuts.js"></script>
 
 <script>
 // ── Sidebar toggle ──────────────────────────────────────────
