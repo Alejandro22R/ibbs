@@ -267,7 +267,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             </button>
             
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-6 mb-3 px-3">Cuenta</p>
-            <button onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button id="navBtnPerfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-user-cog w-5 text-center"></i> <span class="font-medium text-sm">Mi Perfil</span>
             </button>
         </nav>
@@ -395,9 +395,13 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             <p class="text-sm text-ibbs-muted mb-5 flex items-center gap-2">
                                 <i class="fas fa-chalkboard-teacher text-ibbs-lime2"></i> Prof. <?= htmlspecialchars($m['doc_nombre'] . ' ' . $m['doc_apellido']) ?>
                             </p>
-                            <div class="flex gap-2 mt-auto">
+                            <div class="flex gap-2 mt-auto mb-2">
                                 <button onclick="document.querySelector('#sidebar nav button:nth-child(4)').click()" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors">Ver Tareas</button>
                                 <button onclick="irAlChatMateria(<?= $m['id'] ?>)" class="flex-1 btn-ibbs py-2 rounded-lg text-xs font-bold text-center">Foro de Clase</button>
+                            </div>
+                            <div class="flex gap-2">
+                                <a href="modulo_vivo.php?materia_id=<?= $m['id'] ?>" target="_blank" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🔴 En Vivo</a>
+                                <a href="modulo_grabaciones.php?materia_id=<?= $m['id'] ?>" target="_blank" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🎬 Grabadas</a>
                             </div>
                         </div>
                     </div>
@@ -602,7 +606,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     <p class="text-white/70 max-w-lg mb-8 relative z-10 text-sm md:text-base leading-relaxed">
                         Ingresa a la plataforma del Aula Virtual para participar en clases en vivo, consultar recursos didácticos, ver grabaciones y colaborar en tiempo real con docentes y compañeros.
                     </p>
-                    <a href="aula_virtual.php" target="_blank" class="btn-ibbs px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 relative z-10 hover:scale-105 transition-transform shadow-xl">
+                    <a href="modulo_aula.php" target="_blank" class="btn-ibbs px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 relative z-10 hover:scale-105 transition-transform shadow-xl">
                         <i class="fas fa-external-link-alt"></i> Ingresar al Aula Virtual
                     </a>
                 </div>
@@ -649,13 +653,14 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 
                 <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border p-6 md:p-8">
                     <form action="actualizar_perfil.php" method="POST" enctype="multipart/form-data" class="max-w-2xl mx-auto space-y-6">
-                        
+                        <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
+
                         <!-- Foto de Perfil -->
                         <div class="flex flex-col items-center gap-4 mb-8">
                             <div class="relative group cursor-pointer">
                                 <div class="w-32 h-32 rounded-full border-4 border-ibbs-cream overflow-hidden shadow-md bg-ibbs-ink flex items-center justify-center text-5xl font-serif text-ibbs-lime transition-transform group-hover:scale-105" id="avatar-preview-container">
-                                    <?php if(!empty($alumno['foto_perfil'])): ?>
-                                        <img src="uploads/perfiles/<?= htmlspecialchars($alumno['foto_perfil']) ?>" alt="Foto" class="w-full h-full object-cover">
+                                    <?php if(!empty($alumno['foto'])): ?>
+                                        <img src="<?= htmlspecialchars($alumno['foto']) ?>" alt="Foto" class="w-full h-full object-cover">
                                     <?php else: ?>
                                         <?= htmlspecialchars($inicial) ?>
                                     <?php endif; ?>
@@ -664,11 +669,11 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                     <i class="fas fa-camera text-2xl mb-1"></i>
                                     <span class="text-[10px] font-bold uppercase tracking-wider">Cambiar</span>
                                 </label>
-                                <input type="file" id="foto_upload" name="foto_perfil" class="hidden" accept="image/*" onchange="previewAvatar(this)">
+                                <input type="file" id="foto_upload" name="foto" class="hidden" accept="image/*" onchange="previewAvatar(this)">
                             </div>
                             <div class="text-center">
                                 <p class="text-sm font-bold text-ibbs-ink">Fotografía de perfil</p>
-                                <p class="text-[10px] text-ibbs-muted uppercase tracking-wider mt-1">Formatos: JPG, PNG. Max: 2MB</p>
+                                <p class="text-[10px] text-ibbs-muted uppercase tracking-wider mt-1">Formatos: JPG, PNG, GIF, WEBP. Max: 3MB</p>
                             </div>
                         </div>
 
@@ -684,7 +689,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             </div>
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Correo Electrónico</label>
-                                <input type="email" name="email" value="<?= htmlspecialchars($alumno['email'] ?? '') ?>" class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all" placeholder="tucorreo@ejemplo.com">
+                                <input type="email" name="correo" value="<?= htmlspecialchars($alumno['correo'] ?? '') ?>" class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all" placeholder="tucorreo@ejemplo.com">
                             </div>
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Teléfono / Celular</label>
@@ -763,6 +768,30 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <!-- WebSocket en vivo (opcional — no-op si no hay VPS configurado) -->
     <script src="assets/ibbs-realtime.js"></script>
     <script>
+        // Mensaje de resultado tras actualizar_perfil.php (redirect con
+        // ?msg=...) — antes quedaba mudo, el alumno no sabía si guardó.
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const msg = params.get('msg');
+            window._ibbsTuvoMsg = !!msg;
+            if (!msg) return;
+            const textos = {
+                perfil_actualizado: '✓ Perfil actualizado correctamente.',
+                correo_duplicado: 'Ese correo ya está en uso por otro alumno.',
+                faltan_campos: 'Completá nombre y apellido.',
+                csrf_invalido: 'La sesión del formulario expiró — probá guardar de nuevo.',
+                error: 'Ocurrió un error al actualizar el perfil.',
+            };
+            if (textos[msg]) alert(textos[msg]);
+            if (msg.startsWith('perfil_') || msg === 'correo_duplicado' || msg === 'faltan_campos') {
+                const btn = document.getElementById('navBtnPerfil');
+                if (btn) switchView('perfil', btn);
+            }
+            params.delete('msg');
+            const nuevaUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            window.history.replaceState({}, '', nuevaUrl);
+        })();
+
         // Lógica de vistas y modal conservada pero con colores ajustados
         function switchView(viewId, btnElement = null) {
             document.querySelectorAll('.view-section').forEach(el => {
@@ -910,8 +939,11 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 
         <?php if (empty($materias)): ?>
         // Primer ingreso sin materias: lo primero que ve el alumno es la
-        // pantalla para inscribirse, no el dashboard vacío.
-        switchView('materias', document.getElementById('navBtnMaterias'));
+        // pantalla para inscribirse, no el dashboard vacío — salvo que
+        // haya vuelto de guardar su perfil (ese mensaje ya decidió la vista).
+        if (!window._ibbsTuvoMsg) {
+            switchView('materias', document.getElementById('navBtnMaterias'));
+        }
         <?php endif; ?>
 
         function prepararRespuesta(nombreUsuario, idMensaje) {

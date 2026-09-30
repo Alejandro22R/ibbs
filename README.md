@@ -401,6 +401,50 @@ junta las migraciones 001–008 en un solo archivo para pegar de una vez
 en phpMyAdmin (pestaña SQL de la base `ibbs`) — es seguro correrlo
 aunque ya hayas aplicado algunas antes.
 
+## Alumno: Clases en Vivo y Grabadas — antes bloqueado, links rotos
+
+Auditoría general de "qué le falta a cada módulo para funcionar" —
+encontré tres enlaces que apuntaban a archivos que **nunca existieron**
+(404 en producción, no solo en teoría):
+
+- **`portal_docente.php` → "Salir"** apuntaba a `logout.php` — el
+  script real siempre fue `cerrar_sesion.php`. Cualquier profesor/admin
+  que usara ese botón se encontraba con un error en vez de cerrar
+  sesión.
+- **`portal_alumno.php` → "Ingresar al Aula Virtual"** apuntaba a
+  `aula_virtual.php` — corregido a `modulo_aula.php` (el real).
+- **`portal_alumno.php` → formulario de "Configuración de Perfil"**
+  apuntaba a `actualizar_perfil.php`, que tampoco existía — un alumno
+  no podía actualizar su perfil de ninguna forma. Se creó el archivo
+  (análogo a `actualizar_perfil_docente.php` pero corrigiendo dos bugs
+  más que tenía el formulario: mandaba `email`/`foto_perfil`, columnas
+  que no existen en `alumnos` — son `correo`/`foto`) con CSRF, validación
+  de tipo MIME real en la foto, y correo sin duplicar entre alumnos.
+
+Además, **un alumno no podía entrar a Clases en Vivo ni a Clases
+Grabadas de ninguna manera** — ambos módulos bloqueaban el rol
+`alumno` directamente en la página (`in_array($_rol,[...])` sin
+`'alumno'`), aunque el backend (`api/clases_vivo.php`,
+`api/clases_grabadas.php`) ya estaba listo para servirle solo lectura
+vía `materia_puede_ver()`. Se abrió el acceso en ambos módulos, se
+extendió `materias_asignadas()` (usada por los tres selectores "elige
+una materia") para incluir las materias del alumno vía
+`materia_alumno`, y se agregaron accesos directos 🔴 En Vivo / 🎬
+Grabadas en las tarjetas de "Mis Materias" de `portal_alumno.php` y en
+`portal_docente.php`. Los botones de gestión (crear/editar/eliminar)
+siguen ocultos para alumno — dependen de `can_manage`, que ya devuelve
+`false` para ese rol.
+
+**Deuda de diseño detectada, no tocada en este pase:** `api/tareas.php`
+(usado por la pestaña "Tareas" de `modulo_aula.php`) y
+`crear_tarea.php`/`procesar_entrega.php`/`calificar_entrega.php`
+(usados por los portales) son dos implementaciones distintas sobre las
+mismas tablas `tareas`/`entregas` — no hay pérdida de datos entre una y
+otra, pero `api/tareas.php` es la más completa (valida el tipo MIME
+real del archivo con `finfo`, no solo la extensión). Unificar ambas
+portales sobre `api/tareas.php`, como ya se hizo con el foro, es buen
+candidato para un próximo pase.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

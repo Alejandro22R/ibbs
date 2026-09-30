@@ -3,9 +3,11 @@ $page_title = 'Clases Grabadas';
 $page_sub   = 'Repositorio de videos por materia';
 $active_link = 'grabaciones';
 include __DIR__.'/layout/head.php';
-// Acceso: admin, superadmin y profesor. El permiso fino (¿es EL docente
-// de esta materia?) lo resuelve api/clases_grabadas.php en cada llamada.
-if(!in_array($_rol,['superadmin','admin','profesor'])){
+// Acceso: admin, superadmin, profesor y alumno (solo lectura). El
+// permiso fino (¿es EL docente de esta materia?, ¿está inscrito?) lo
+// resuelve api/clases_grabadas.php en cada llamada (materia_puede_ver /
+// materia_puede_gestionar).
+if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
 $materia_id = (int)($_GET['materia_id'] ?? 0);

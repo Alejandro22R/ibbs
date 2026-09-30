@@ -209,7 +209,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button onclick="switchView('perfil', this)" class="sb-link">
                 <i class="fas fa-user-circle"></i> <span class="sb-lbl">Mi Perfil</span>
             </button>
-            <a href="logout.php" class="sb-link">
+            <a href="cerrar_sesion.php" class="sb-link">
                 <i class="fas fa-sign-out-alt"></i> <span class="sb-lbl">Salir</span>
             </a>
         </div>
@@ -517,6 +517,14 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         <a href="modulo_aula.php?materia_id=<?= $m['id'] ?>" target="_blank" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: auto;">
                             <i class="fas fa-sign-in-alt"></i> Entrar al Aula
                         </a>
+                        <div style="display:flex;gap:.5rem;width:100%;margin-top:.6rem;">
+                            <a href="modulo_vivo.php?materia_id=<?= $m['id'] ?>" target="_blank" class="btn btn-secondary" style="flex:1;justify-content:center;font-size:.78rem;">
+                                🔴 En Vivo
+                            </a>
+                            <a href="modulo_grabaciones.php?materia_id=<?= $m['id'] ?>" target="_blank" class="btn btn-secondary" style="flex:1;justify-content:center;font-size:.78rem;">
+                                🎬 Grabadas
+                            </a>
+                        </div>
                     </div>
                 </div>
                 <?php endforeach; ?>
