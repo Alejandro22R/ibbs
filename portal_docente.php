@@ -203,9 +203,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button onclick="switchView('chat-staff', this)" class="sb-link">
                 <i class="fas fa-bullhorn"></i> <span class="sb-lbl">Chat del Staff</span>
             </button>
-            <a href="modulo_biblioteca.php" target="_blank" class="sb-link">
+            <button onclick="switchView('biblioteca', this); cargarMisLibrosDocente();" class="sb-link">
                 <i class="fas fa-book"></i> <span class="sb-lbl">Biblioteca</span>
-            </a>
+            </button>
 
             <?php if(in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
             <div class="sb-section" style="margin-top: .5rem;">Administración</div>
@@ -446,6 +446,53 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     </div>
                 </div>
                 <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VISTA: BIBLIOTECA                              -->
+        <!-- ============================================== -->
+        <div id="view-biblioteca" class="view-section">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.8rem;">
+                <h2 style="font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--ink);margin:0;">Mi Biblioteca</h2>
+                <button onclick="abrirNuevoLibroDocente()" class="btn btn-primary"><i class="fas fa-plus"></i> Nuevo Libro</button>
+            </div>
+            <p style="font-size:.82rem;color:var(--muted);margin-bottom:1.2rem;">Los libros que subís acá aparecen en el catálogo que ven los alumnos en su portal. Solo vos podés editar o quitar los tuyos.</p>
+
+            <div id="libDocenteEmpty" style="display:none;text-align:center;padding:3rem 1rem;color:var(--muted);">
+                <i class="fas fa-book" style="font-size:2.2rem;opacity:.3;margin-bottom:.8rem;display:block;"></i>
+                Todavía no subiste ningún libro.
+            </div>
+            <div class="grid-cards" id="libDocenteGrid">
+                <div style="padding:2rem;color:var(--muted);"><span class="spin"></span></div>
+            </div>
+        </div>
+
+        <!-- MODAL: NUEVO/EDITAR LIBRO -->
+        <div id="modal-libro-docente" class="modal-backdrop">
+            <div class="modal">
+                <div class="modal-head">
+                    <h3 id="libDocenteModalTitulo">Nuevo Libro</h3>
+                    <button class="modal-close" onclick="closeModal('modal-libro-docente')"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-libro-docente" onsubmit="guardarLibroDocente(event)">
+                        <input type="hidden" id="libD-id">
+                        <div class="form-grid" style="margin-bottom:1rem;">
+                            <div class="field" style="grid-column:1/-1;"><label>Título *</label><input id="libD-titulo" placeholder="El Peregrino"></div>
+                            <div class="field"><label>Autor</label><input id="libD-autor" placeholder="John Bunyan"></div>
+                            <div class="field"><label>Categoría</label><input id="libD-categoria" placeholder="Teología, Historia…"></div>
+                            <div class="field" style="grid-column:1/-1;"><label>Descripción</label><textarea id="libD-descripcion" rows="3"></textarea></div>
+                            <div class="field"><label>Precio (0 = gratis)</label><input id="libD-precio" type="number" min="0" step="0.01" value="0"></div>
+                            <div class="field"><label>Portada (imagen, opcional)</label><input type="file" id="libD-portada" accept="image/png,image/jpeg,image/webp"></div>
+                            <div class="field" style="grid-column:1/-1;"><label>Archivo del libro (PDF o EPUB) <span id="libD-archivoReq">*</span></label><input type="file" id="libD-archivo" accept=".pdf,.epub"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-foot">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-libro-docente')">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnGuardarLibroDocente" onclick="document.getElementById('form-libro-docente').requestSubmit()">Publicar</button>
+                </div>
             </div>
         </div>
 
@@ -1349,6 +1396,117 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         }, 5000);
         if (window.IbbsRT && window.IbbsRT.hasWs) {
             window.IbbsRT.on('chat_staff_mensaje', () => { lastCountStaffChat = -1; loadChatStaffPortal(); });
+        }
+
+        // ── BIBLIOTECA (vista embebida — antes abría modulo_biblioteca.php
+        // en otra pestaña con el tema de administración, perdiendo el
+        // estilo propio del portal del docente) ──────────────────────
+        function hLibD(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+        async function cargarMisLibrosDocente() {
+            const grid = document.getElementById('libDocenteGrid');
+            const empty = document.getElementById('libDocenteEmpty');
+            grid.innerHTML = '<div style="padding:2rem;color:var(--muted);"><span class="spin"></span></div>';
+            empty.style.display = 'none';
+            let d;
+            try {
+                const fd = new FormData(); fd.append('action', 'libro_list');
+                const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+                const r = await fetch('api/biblioteca.php', {method:'POST', body:fd});
+                d = await r.json();
+            } catch (e) { grid.innerHTML = '<div style="padding:1rem;color:var(--red);">Error de conexión.</div>'; return; }
+            if (!d?.ok) { grid.innerHTML = `<div style="padding:1rem;color:var(--red);">${hLibD(d?.msg||'Error al cargar.')}</div>`; return; }
+            if (!d.data.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+            grid.innerHTML = d.data.map(r => `
+                <div class="card" style="display:flex;flex-direction:column;">
+                    <div style="height:100px;background:var(--ink);display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                        ${r.portada ? `<img src="${r.portada}" style="width:100%;height:100%;object-fit:cover;">` : `<i class="fas fa-book" style="font-size:2.2rem;color:rgba(255,255,255,.2);"></i>`}
+                    </div>
+                    <div class="card-body" style="flex:1;display:flex;flex-direction:column;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem;">
+                            <h3 style="font-weight:700;color:var(--ink);font-size:1rem;line-height:1.2;">${hLibD(r.titulo)}</h3>
+                            <span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Visible':'Oculto'}</span>
+                        </div>
+                        <p style="font-size:.8rem;color:var(--muted);margin-bottom:.3rem;">${hLibD(r.autor||'—')}</p>
+                        <p style="font-size:.85rem;font-weight:700;color:var(--ink);margin-bottom:1rem;">${parseFloat(r.precio)>0?'$'+parseFloat(r.precio).toFixed(2):'Gratis'}</p>
+                        <div style="margin-top:auto;display:flex;gap:.4rem;flex-wrap:wrap;">
+                            <button onclick="window.open('api/biblioteca.php?action=descargar&id=${r.id}','_blank')" class="btn btn-secondary" style="flex:1;font-size:.76rem;">Vista previa</button>
+                            <button onclick="editarLibroDocente(${r.id})" class="btn btn-secondary" style="flex:1;font-size:.76rem;">Editar</button>
+                        </div>
+                        <div style="margin-top:.4rem;display:flex;gap:.4rem;">
+                            <button onclick="toggleLibroDocente(${r.id})" class="btn btn-secondary" style="flex:1;font-size:.76rem;">${r.activo=='1'?'Ocultar':'Mostrar'}</button>
+                            <button onclick="eliminarLibroDocente(${r.id},'${hLibD(r.titulo).replace(/'/g,"\\'")}')" class="btn" style="flex:1;font-size:.76rem;background:#fee2e2;color:var(--red);">Eliminar</button>
+                        </div>
+                    </div>
+                </div>`).join('');
+        }
+
+        function abrirNuevoLibroDocente() {
+            document.getElementById('form-libro-docente').reset();
+            document.getElementById('libD-id').value = '';
+            document.getElementById('libDocenteModalTitulo').textContent = 'Nuevo Libro';
+            document.getElementById('libD-archivoReq').textContent = '*';
+            openModal('modal-libro-docente');
+        }
+        async function editarLibroDocente(id) {
+            const fd = new FormData(); fd.append('action', 'libro_get'); fd.append('id', id);
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            const r = await fetch('api/biblioteca.php', {method:'POST', body:fd});
+            const d = await r.json();
+            if (!d.ok) { Ibbs.error(d.msg || 'No se pudo cargar el libro.'); return; }
+            const lib = d.data;
+            document.getElementById('libD-id').value = lib.id;
+            document.getElementById('libD-titulo').value = lib.titulo;
+            document.getElementById('libD-autor').value = lib.autor || '';
+            document.getElementById('libD-categoria').value = lib.categoria || '';
+            document.getElementById('libD-descripcion').value = lib.descripcion || '';
+            document.getElementById('libD-precio').value = lib.precio;
+            document.getElementById('libD-archivoReq').textContent = '(ya cargado — subí uno nuevo solo si querés reemplazarlo)';
+            document.getElementById('libDocenteModalTitulo').textContent = 'Editar Libro';
+            openModal('modal-libro-docente');
+        }
+        async function guardarLibroDocente(e) {
+            e.preventDefault();
+            const id = document.getElementById('libD-id').value;
+            const archivo = document.getElementById('libD-archivo').files[0];
+            if (!id && !archivo) { Ibbs.warn('Subí el archivo del libro (PDF o EPUB).'); return; }
+            const fd = new FormData();
+            fd.append('action', id ? 'libro_update' : 'libro_create');
+            if (id) fd.append('id', id);
+            fd.append('titulo', document.getElementById('libD-titulo').value);
+            fd.append('autor', document.getElementById('libD-autor').value);
+            fd.append('categoria', document.getElementById('libD-categoria').value);
+            fd.append('descripcion', document.getElementById('libD-descripcion').value);
+            fd.append('precio', document.getElementById('libD-precio').value);
+            const portada = document.getElementById('libD-portada').files[0];
+            if (portada) fd.append('portada', portada);
+            if (archivo) fd.append('archivo', archivo);
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            const btn = document.getElementById('btnGuardarLibroDocente');
+            btn.disabled = true; btn.textContent = 'Guardando…';
+            try {
+                const r = await fetch('api/biblioteca.php', {method:'POST', body:fd});
+                const d = await r.json();
+                if (d.ok) { Ibbs.success(d.msg); closeModal('modal-libro-docente'); cargarMisLibrosDocente(); }
+                else Ibbs.error(d.msg || 'Error');
+            } catch (err) { Ibbs.error('Error de conexión.'); }
+            btn.disabled = false; btn.textContent = 'Publicar';
+        }
+        async function toggleLibroDocente(id) {
+            const fd = new FormData(); fd.append('action', 'libro_toggle'); fd.append('id', id);
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            const r = await fetch('api/biblioteca.php', {method:'POST', body:fd});
+            const d = await r.json();
+            if (d.ok) { Ibbs.success(d.msg); cargarMisLibrosDocente(); } else Ibbs.error(d.msg || 'Error');
+        }
+        async function eliminarLibroDocente(id, titulo) {
+            const rr = await Ibbs.confirm({title:'¿Eliminar libro?', text:`Se eliminará "<b>${titulo}</b>" y su archivo. Esta acción es irreversible.`, confirm:'Sí, eliminar', danger:true});
+            if (!rr.isConfirmed) return;
+            const fd = new FormData(); fd.append('action', 'libro_delete'); fd.append('id', id);
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            const r = await fetch('api/biblioteca.php', {method:'POST', body:fd});
+            const d = await r.json();
+            if (d.ok) { Ibbs.success(d.msg); cargarMisLibrosDocente(); } else Ibbs.error(d.msg || 'Error');
         }
     </script>
 </body>
