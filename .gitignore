@@ -3,6 +3,8 @@ uploads/fotos/*
 !uploads/fotos/.gitkeep
 uploads/materiales/*
 !uploads/materiales/.gitkeep
+uploads/comprobantes/*
+!uploads/comprobantes/.gitkeep
 
 # Datos locales de runtime (freno de fuerza bruta del login, etc.)
 storage/*

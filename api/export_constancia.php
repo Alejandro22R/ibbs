@@ -1,15 +1,20 @@
 <?php
 /**
- * IBBS — Constancia de Notas / Constancia de Estudios (PDF vía impresión)
+ * IBBS — Constancia de Notas / Estudios (alumno) y Constancia de
+ * Trabajo (docente) — PDF vía impresión.
  *
- * Mismo diseño oficial que ya usa el superadmin desde
- * modulo_herramientas.php (pestaña "Certificados"), pero servido como
- * página imprimible propia para que:
- *   - un alumno pueda descargar la suya propia sin pasar por el panel
- *     de administración (api/export_constancia.php?tipo=notas)
- *   - admin/superadmin sigan pudiendo generarla para cualquier alumno
- *     (api/export_constancia.php?tipo=notas&alumno_id=X), igual que
- *     antes.
+ * Estos documentos son un trámite pago del instituto: el alumno NUNCA
+ * las genera por sí mismo (antes sí podía, self-service, con
+ * ?tipo=notas sin alumno_id) — ahora solo admin/superadmin puede
+ * emitirlas, y se asume que lo hace después de confirmar el pago en
+ * persona (no hay pasarela de pago en el sistema; queda igual que
+ * cualquier otro trámite administrativo presencial). Queda un registro
+ * en la auditoría de quién emitió cada una y para quién.
+ *
+ * tipo=trabajo es distinto: la genera el propio docente para sí mismo
+ * (constancia de que presta servicios en la institución, no es un
+ * trámite pago) — admin/superadmin también puede emitirla para
+ * cualquier docente.
  */
 require_once __DIR__.'/../config/bootstrap.php';
 if (empty($_SESSION['loggedin'])) { header('Location: ../login.php'); exit; }
@@ -19,30 +24,38 @@ if (!$con) die('Error de conexión a la base de datos.');
 
 $rol  = $_SESSION['rol'] ?? 'alumno';
 $uid  = (int)($_SESSION['user_id'] ?? 0);
-$tipo = ($_GET['tipo'] ?? 'estudio') === 'notas' ? 'notas' : 'estudio';
+$tiposValidos = ['estudio', 'notas', 'trabajo'];
+$tipo = in_array($_GET['tipo'] ?? '', $tiposValidos) ? $_GET['tipo'] : 'estudio';
 
-if ($rol === 'alumno') {
-    // Un alumno solo puede generar la suya propia — nunca por alumno_id.
-    $al  = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
-    $aid = $al ? (int)$al['id'] : 0;
-} elseif (in_array($rol, ['superadmin', 'admin'])) {
-    $aid = (int)($_GET['alumno_id'] ?? 0);
+if ($tipo === 'trabajo') {
+    // ── Constancia de Trabajo (docente) ──────────────────────────
+    if ($rol === 'profesor') {
+        $doc = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM docentes WHERE usuario_id=$uid LIMIT 1"));
+        $did = $doc ? (int)$doc['id'] : 0;
+    } elseif (in_array($rol, ['superadmin', 'admin'])) {
+        $did = (int)($_GET['docente_id'] ?? 0);
+    } else {
+        die('No tenés permiso para generar este documento.');
+    }
+    if (!$did) die('Docente no encontrado.');
+    $docente = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM docentes WHERE id=$did LIMIT 1"));
+    if (!$docente) die('Docente no encontrado.');
+    log_audit($con, $uid, 'CONSTANCIA_TRABAJO_GENERAR', "docente=$did");
 } else {
-    die('No tenés permiso para generar este documento.');
+    // ── Constancia de Estudio / Notas (alumno) — SOLO admin/superadmin ──
+    if (!in_array($rol, ['superadmin', 'admin'])) {
+        die('Esta constancia es un trámite administrativo pago — solicitala en la administración del instituto. Un administrador la emitirá una vez confirmado el pago.');
+    }
+    $aid = (int)($_GET['alumno_id'] ?? 0);
+    if (!$aid) die('Alumno no encontrado.');
+    $alumno = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM alumnos WHERE id=$aid LIMIT 1"));
+    if (!$alumno) die('Alumno no encontrado.');
+    log_audit($con, $uid, 'CONSTANCIA_'.strtoupper($tipo).'_GENERAR', "alumno=$aid");
+
+    $materias = [];
+    $r = mysqli_query($con, "SELECT ma.nota_final,m.nombre mn,m.codigo mc FROM materia_alumno ma JOIN materias m ON m.id=ma.materia_id WHERE ma.alumno_id=$aid ORDER BY m.nombre");
+    while ($f = mysqli_fetch_assoc($r)) $materias[] = $f;
 }
-if (!$aid) die('Alumno no encontrado.');
-
-$alumno = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM alumnos WHERE id=$aid LIMIT 1"));
-if (!$alumno) die('Alumno no encontrado.');
-
-$materias = [];
-$r = mysqli_query($con, "SELECT ma.nota_final,m.nombre mn,m.codigo mc FROM materia_alumno ma JOIN materias m ON m.id=ma.materia_id WHERE ma.alumno_id=$aid ORDER BY m.nombre");
-while ($f = mysqli_fetch_assoc($r)) $materias[] = $f;
-
-$conNota    = array_filter($materias, fn($m) => $m['nota_final'] !== null);
-$aprobadas  = count(array_filter($conNota, fn($m) => (float)$m['nota_final'] >= 15));
-$registradas = count($materias);
-$promedio   = count($conNota) ? array_sum(array_map(fn($m) => (float)$m['nota_final'], $conNota)) / count($conNota) : null;
 
 function ibbs_nota_a_letras($n) {
     $escala = ["CERO","UNO","DOS","TRES","CUATRO","CINCO","SEIS","SIETE","OCHO","NUEVE","DIEZ",
@@ -58,19 +71,34 @@ $meses     = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto',
 $diaLetra  = (int)$hoy->format('j');
 $mesLetra  = $meses[(int)$hoy->format('n') - 1];
 $anioLetra = $hoy->format('Y');
-$codVerif  = "IBBS-CERT-{$aid}-{$anioLetra}-" . random_int(10000, 99999);
+$firma     = 'Director Académico';
 
-$titulo      = $tipo === 'notas' ? 'Constancia de Calificaciones y Rendimiento' : 'Constancia de Estudios';
-$nombreUp    = htmlspecialchars(mb_strtoupper($alumno['apellido'].', '.$alumno['nombre']));
-$cedulaDig   = preg_replace('/\D/', '', $alumno['cedula'] ?? '');
-$cedulaFmt   = 'V-'.number_format((int)$cedulaDig, 0, ',', '.');
-$ciudadUp    = htmlspecialchars(mb_strtoupper($alumno['ciudad'] ?? '—'));
+if ($tipo === 'trabajo') {
+    $codVerif   = "IBBS-CERT-D{$did}-{$anioLetra}-" . random_int(10000, 99999);
+    $titulo     = 'Constancia de Trabajo';
+    $nombreUp   = htmlspecialchars(mb_strtoupper($docente['apellido'].', '.$docente['nombre']));
+    $cedulaDig  = preg_replace('/\D/', '', $docente['cedula'] ?? '');
+    $cedulaFmt  = 'V-'.number_format((int)$cedulaDig, 0, ',', '.');
+    $especialidadUp = htmlspecialchars(mb_strtoupper($docente['especialidad'] ?? 'Docente'));
+    $desdeFecha = $docente['creado_en'] ? (new DateTime($docente['creado_en']))->format('d/m/Y') : '—';
+    $cuerpoTexto = "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que el Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la cédula de identidad N°: <strong>$cedulaFmt</strong>, presta sus servicios como <strong>Docente</strong> en esta Casa de Estudios Teológicos desde el <strong>$desdeFecha</strong>, desempeñándose en el área de <strong>$especialidadUp</strong>, encontrándose activo a la fecha de expedición de la presente constancia.";
+} else {
+    $conNota    = array_filter($materias, fn($m) => $m['nota_final'] !== null);
+    $aprobadas  = count(array_filter($conNota, fn($m) => (float)$m['nota_final'] >= 15));
+    $registradas = count($materias);
+    $promedio   = count($conNota) ? array_sum(array_map(fn($m) => (float)$m['nota_final'], $conNota)) / count($conNota) : null;
 
-$cuerpoTexto = $tipo === 'estudio'
-    ? "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la cédula de identidad N°: <strong>$cedulaFmt</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes."
-    : "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la cédula de identidad N°: <strong>$cedulaFmt</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:";
+    $codVerif  = "IBBS-CERT-{$aid}-{$anioLetra}-" . random_int(10000, 99999);
+    $titulo    = $tipo === 'notas' ? 'Constancia de Calificaciones y Rendimiento' : 'Constancia de Estudios';
+    $nombreUp  = htmlspecialchars(mb_strtoupper($alumno['apellido'].', '.$alumno['nombre']));
+    $cedulaDig = preg_replace('/\D/', '', $alumno['cedula'] ?? '');
+    $cedulaFmt = 'V-'.number_format((int)$cedulaDig, 0, ',', '.');
+    $ciudadUp  = htmlspecialchars(mb_strtoupper($alumno['ciudad'] ?? '—'));
 
-$firma = 'Director Académico';
+    $cuerpoTexto = $tipo === 'estudio'
+        ? "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la cédula de identidad N°: <strong>$cedulaFmt</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes."
+        : "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la cédula de identidad N°: <strong>$cedulaFmt</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:";
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -117,7 +145,7 @@ body{
 <body>
 
 <div class="no-print">
-  <a class="btn-bk" href="../<?= $rol==='alumno' ? 'portal_alumno.php' : 'modulo_herramientas.php' ?>">&#8592; Volver</a>
+  <a class="btn-bk" href="../<?= $rol==='profesor' ? 'portal_docente.php' : 'modulo_herramientas.php' ?>">&#8592; Volver</a>
   <button class="btn-dl" onclick="window.print()">Descargar PDF / Imprimir</button>
 </div>
 
@@ -194,7 +222,7 @@ body{
 <div class="signatures-container">
   <div class="signature-block">
     <div class="signature-line"></div>
-    <p class="signature-title">Firma del Estudiante</p>
+    <p class="signature-title">Firma <?= $tipo === 'trabajo' ? 'del Docente' : 'del Estudiante' ?></p>
     <p class="signature-sub">Titular de la Cédula</p>
   </div>
   <div class="signature-block">

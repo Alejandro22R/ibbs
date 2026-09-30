@@ -578,6 +578,148 @@ según el rol (`layout/head.php` + `layout/foot.php`):
   leída" — reusa las mismas acciones (`notif_list`, `notif_leer`) que
   ya existían, no hizo falta backend nuevo.
 
+## Auditoría de permisos en `api/ajax.php` (varias acciones sin ningún chequeo de rol)
+
+Se revisó **cada** bloque `if($action===...)` de `api/ajax.php` en busca de
+acciones que no verificaran rol/permiso en absoluto (solo exigían estar
+logueado) — apareció una lista larga, y varias eran serias:
+
+- **`usuario_list`/`usuario_create`/`usuario_update`/`usuario_toggle`/
+  `usuario_reset_pwd`/`usuario_delete`** (el módulo de usuarios,
+  `modulo_usuarios.php`, exclusivo de superadmin a nivel de página) **no
+  tenían NINGÚN chequeo de rol en el backend** — cualquier usuario
+  logueado, incluido un alumno, podía llamarlas directo por `fetch()`
+  para: listar todos los usuarios del sistema, crearse una cuenta
+  admin/superadmin para sí mismo, cambiarle el rol a cualquiera
+  (incluso ponerse `superadmin` a sí mismo vía `usuario_update`, que
+  aceptaba el campo `rol` del POST sin validar quién lo mandaba),
+  resetear la contraseña de cualquiera o eliminar cualquier cuenta.
+  Era la escalación de privilegios más grave de todo el sistema. Las
+  seis ahora exigen `$_rol==='superadmin'`. De paso había un
+  `usuario_delete` **duplicado** más abajo en el archivo (una versión
+  vieja, sí blindada, que había quedado inalcanzable porque la primera
+  siempre respondía y hacía `exit` antes de llegar a la segunda) — se
+  eliminó el duplicado muerto.
+- **`inscripcion_alumno_materias`** y **`record_alumno`** devuelven el
+  expediente completo de un alumno (datos personales, notas,
+  asistencias) a partir de un `alumno_id` que llega del cliente, sin
+  validar que quien pregunta tenga derecho a verlo — cualquier alumno
+  podía pedir el expediente de cualquier otro con solo cambiar el id.
+  Ahora exigen admin/superadmin (las únicas páginas que las usan,
+  `modulo_record.php` e `modulo_inscripciones.php`, ya lo eran a nivel
+  de página).
+- **`materia_get`** devolvía el roster completo de una materia —con
+  cédula de cada alumno— para cualquier `id`, sin chequear permiso.
+  Ahora exige admin/superadmin (sus únicos llamantes).
+- **`alumno_all_simple`** y **`buscar_cedula`** exponían nombre/cédula
+  (y en el segundo caso, expediente completo) de cualquier persona sin
+  restricción. Ahora admin/superadmin.
+- **`asistencia_register`** dejaba que cualquiera registrara asistencia
+  (presente/ausente/tardanza) para cualquier persona en cualquier
+  materia, sin verificar que gestionara esa materia — ahora exige
+  `materia_puede_gestionar()`, igual que `nota_guardar`.
+- **`asistencia_list`**, **`asistencia_resumen`**, **`asistencia_resumen_global`**,
+  **`dashboard_stats`**, **`actividad_reciente`**, **`global_search`**
+  quedaron con el chequeo de rol que ya exigía la página que los usa
+  (admin/superadmin, o + profesor donde corresponde).
+- **`historial_actividad`** (el log de auditoría completo del sistema)
+  ahora exige superadmin, igual que `modulo_historial.php`.
+
+Ningún dato dejó de estar disponible para quien ya lo veía por la UI —
+estos chequeos solo cierran el acceso **directo** a la API que nunca
+debió estar abierto.
+
+## Constancias, Boletín y Récord Académico: ahora son un trámite pago, no autoservicio
+
+Hasta esta tanda un alumno regular podía descargar su propia
+Constancia de Estudio, Constancia de Notas y el Boletín de
+Calificaciones (`api/export_constancia.php`, `api/export_boletin.php`)
+sin pasar por nadie. La institución cobra por estos documentos, así
+que ahora:
+
+- **`api/export_constancia.php`** (`?tipo=estudio` / `?tipo=notas`) y
+  **`api/export_boletin.php`** ya **no aceptan que un alumno las genere
+  para sí mismo** — solo admin/superadmin puede emitirlas (para
+  cualquier `alumno_id`), asumiendo que ya confirmó el pago en persona
+  (el sistema no tiene pasarela de pago; sigue siendo un trámite
+  presencial, como cualquier constancia de una institución real). Cada
+  emisión queda en la auditoría (`log_audit`) con quién la generó y
+  para quién.
+- El **Récord Académico** (`modulo_record.php`) ya era admin/superadmin
+  únicamente desde la tanda anterior — se mantiene así; ahora además su
+  export en PDF (`api/export_boletin.php`) respeta la misma regla.
+- `portal_alumno.php` → pestaña "Trámites y Constancias" ya no muestra
+  botones de descarga: explica que es un trámite pago y que hay que
+  solicitarlo en administración. La autoinscripción tampoco vuelve a
+  abrir la constancia automáticamente (antes lo hacía).
+- **Nuevo — Constancia de Trabajo (docente)**: `?tipo=trabajo` en el
+  mismo `api/export_constancia.php`, con el mismo diseño institucional
+  (membrete, párrafo legal, firmas) que las constancias de alumno, pero
+  con su propio texto ("presta sus servicios como Docente... desde
+  el..."). Esta **no** es un trámite pago — el propio docente la genera
+  para sí mismo desde `portal_docente.php` → Configuración de Perfil, y
+  admin/superadmin puede emitirla para cualquier docente desde
+  `modulo_docentes.php` (botón 📄 Trabajo en cada fila).
+
+## Pantalla de espera para el alumno recién registrado
+
+`login.php` tiene un nuevo panel (`pEspera`) que se muestra: (a)
+apenas termina el registro público de 3 pasos, en vez de mandar de
+vuelta al login con un toast, y (b) cada vez que alguien con la cuenta
+todavía pendiente intenta iniciar sesión (el backend ahora devuelve
+`pendiente:true` en la respuesta de `login` cuando `aprobado=0`, y el
+frontend lo detecta y muestra el mismo panel en lugar de un simple
+mensaje de error). Es una carita 😊 y un texto corto explicando que un
+administrador tiene que aprobar el ingreso — nada más que hacer del
+lado del alumno.
+
+## Política de roles: quién puede terminar siendo qué
+
+Quedó reforzado (y documentado acá para que no se repita el bug de
+"me registro y termino de profesor" de una tanda anterior) que solo
+hay tres caminos para que una cuenta tenga un rol distinto de `alumno`:
+1. El autoregistro público (`login.php`) **siempre** crea `rol='alumno'`
+   — está hardcodeado en el `INSERT`, no depende de nada que mande el
+   formulario.
+2. `docente_create` (botón "Nuevo Docente" en `modulo_docentes.php`,
+   exclusivo de admin/superadmin) crea `rol='profesor'` — también
+   hardcodeado.
+3. `modulo_usuarios.php` (exclusivo de superadmin, ver arriba) es el
+   **único** lugar donde un rol se puede cambiar directamente, vía
+   `usuario_update`/`usuario_create` — recién blindado en el backend
+   en esta misma tanda.
+Ningún otro `INSERT INTO usuarios` existe en el código.
+
+## Autoinscripción con comprobante de pago (`materia_solicitudes`)
+
+La autoinscripción directa (`materia_autoinscribir` en `api/ajax.php`)
+quedó **deshabilitada** — dejaba inscrito al alumno al instante, sin
+comprobar que hubiera pagado la materia. En su lugar, nuevo endpoint
+propio **`api/materia_solicitud.php`** (migración
+`012_materia_solicitudes.sql`, tabla `materia_solicitudes`):
+
+- El alumno regular, desde `portal_alumno.php` → Mis Materias, ahora
+  tiene que adjuntar la captura del pago móvil o la transferencia junto
+  con la materia elegida (acción `crear`) — se valida que sea una
+  imagen real (extensión + `getimagesize()`, mismo patrón de
+  `api/upload_foto.php`), se guarda con nombre generado en el servidor
+  bajo `uploads/comprobantes/` (protegida contra ejecución de scripts
+  por el `.htaccess` de `uploads/`) y queda en estado `pendiente` — **no**
+  se toca `materia_alumno` todavía, así que el alumno no tiene acceso
+  real a la materia hasta que la aprueben.
+- Admin/superadmin recibe una notificación (`tipo='solicitud_materia'`)
+  con botones **🧾 Ver comprobante** / **✓ Aceptar** / **✕ Rechazar**
+  directo en el panel de notificaciones (mismo lugar que las
+  solicitudes de ingreso de alumnos). "Ver comprobante" abre la imagen
+  en una pestaña nueva para confirmar que el pago realmente llegó antes
+  de decidir.
+- **Aceptar** (`aprobar`) recién ahí inserta la fila en
+  `materia_alumno` (`auto_inscrito=1`) y notifica al alumno. **Rechazar**
+  marca la solicitud como rechazada y también le avisa — el
+  comprobante rechazado queda guardado por si hay que revisar el caso.
+- `alumno_id`/`materia_id` con una solicitud `pendiente` no pueden
+  volver a mandar otra para la misma materia hasta que la revisen.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

@@ -370,14 +370,21 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         <?php if (empty($materias_disponibles)): ?>
                         <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a) en todas las disponibles.</p>
                         <?php else: ?>
-                        <div class="flex flex-col sm:flex-row gap-3">
-                            <select id="selAutoInsc" class="flex-1 border border-ibbs-border rounded-lg px-3 py-2 text-sm bg-white">
+                        <div class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 mb-3 text-xs text-ibbs-ink flex items-start gap-2">
+                            <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
+                            <div>Para inscribirte tenés que adjuntar la captura de tu pago móvil o transferencia a la institución. La administración la revisa antes de dejarte adentro de la materia.</div>
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            <select id="selAutoInsc" class="border border-ibbs-border rounded-lg px-3 py-2 text-sm bg-white">
                                 <option value="">— Selecciona una materia —</option>
                                 <?php foreach ($materias_disponibles as $md): ?>
                                 <option value="<?= $md['id'] ?>"><?= htmlspecialchars($md['codigo'].' · '.$md['nombre']) ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <button onclick="autoInscribirme()" class="btn-ibbs px-5 py-2 rounded-lg text-sm font-bold">Inscribirme</button>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <input type="file" id="fileComprobante" accept="image/png,image/jpeg,image/webp" class="flex-1 border border-ibbs-border rounded-lg px-3 py-2 text-xs bg-white file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-ibbs-ink file:text-white file:text-xs file:font-bold">
+                                <button onclick="autoInscribirme()" id="btnAutoInsc" class="btn-ibbs px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Enviar solicitud</button>
+                            </div>
                         </div>
                         <?php endif; ?>
                     <?php endif; ?>
@@ -617,30 +624,31 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
                     <h2 class="text-2xl font-serif text-ibbs-ink">Trámites y Constancias</h2>
                 </div>
-                
+
+                <div class="bg-ibbs-cream border border-ibbs-border rounded-[14px] p-5 text-sm text-ibbs-ink flex items-start gap-3">
+                    <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
+                    <div>Estas constancias son un trámite administrativo pago del instituto — no se descargan desde aquí. Acércate a la administración, realiza el pago correspondiente y te la entregarán impresa o en PDF.</div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Constancia de Estudio -->
-                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center hover:shadow-lg transition-all group">
-                        <div class="w-20 h-20 rounded-2xl bg-ibbs-blue/10 text-ibbs-blue flex items-center justify-center text-3xl mb-5 group-hover:bg-ibbs-blue group-hover:text-white transition-colors duration-300">
+                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center group">
+                        <div class="w-20 h-20 rounded-2xl bg-ibbs-blue/10 text-ibbs-blue flex items-center justify-center text-3xl mb-5">
                             <i class="fas fa-user-graduate"></i>
                         </div>
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Estudio</h3>
-                        <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Documento oficial membretado que certifica tu inscripción y condición actual como alumno regular en nuestra institución.</p>
-                        <a href="api/export_constancia.php?tipo=estudio" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-blue transition-colors flex items-center justify-center gap-2 mt-auto">
-                            <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
-                        </a>
+                        <p class="text-sm text-ibbs-muted mb-2 leading-relaxed">Documento oficial membretado que certifica tu inscripción y condición actual como alumno regular en nuestra institución.</p>
+                        <p class="text-xs text-ibbs-muted mt-auto font-semibold uppercase tracking-wide"><i class="fas fa-lock mr-1"></i> Solicítala en administración</p>
                     </div>
 
                     <!-- Constancia de Notas -->
-                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center hover:shadow-lg transition-all group">
-                        <div class="w-20 h-20 rounded-2xl bg-ibbs-green/10 text-ibbs-green flex items-center justify-center text-3xl mb-5 group-hover:bg-ibbs-green group-hover:text-white transition-colors duration-300">
+                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center group">
+                        <div class="w-20 h-20 rounded-2xl bg-ibbs-green/10 text-ibbs-green flex items-center justify-center text-3xl mb-5">
                             <i class="fas fa-list-ol"></i>
                         </div>
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Notas</h3>
-                        <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Reporte académico oficial con el desglose detallado de tus calificaciones finales aprobadas y tu promedio general.</p>
-                        <a href="api/export_constancia.php?tipo=notas" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-green transition-colors flex items-center justify-center gap-2 mt-auto">
-                            <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
-                        </a>
+                        <p class="text-sm text-ibbs-muted mb-2 leading-relaxed">Reporte académico oficial con el desglose detallado de tus calificaciones finales aprobadas y tu promedio general.</p>
+                        <p class="text-xs text-ibbs-muted mt-auto font-semibold uppercase tracking-wide"><i class="fas fa-lock mr-1"></i> Solicítala en administración</p>
                     </div>
                 </div>
             </div>
@@ -914,27 +922,28 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             const sel = document.getElementById('selAutoInsc');
             const mid = sel ? sel.value : '';
             if (!mid) { alert('Selecciona una materia primero.'); return; }
+            const fileInput = document.getElementById('fileComprobante');
+            const file = fileInput && fileInput.files[0];
+            if (!file) { alert('Adjuntá la captura de tu pago móvil o transferencia para poder inscribirte.'); return; }
+            const btn = document.getElementById('btnAutoInsc');
+            btn.disabled = true; btn.textContent = 'Enviando…';
             try {
                 const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
                 const fd = new FormData();
-                fd.append('action', 'materia_autoinscribir');
+                fd.append('action', 'crear');
                 fd.append('materia_id', mid);
+                fd.append('comprobante', file);
                 fd.append('csrf_token', _csrfMeta ? _csrfMeta.content : '');
-                const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
+                const r = await fetch('api/materia_solicitud.php', { method: 'POST', body: fd });
                 const d = await r.json();
                 if (d.ok) {
-                    const w = window.open('api/export_constancia.php?tipo=estudio', '_blank');
-                    if (w) {
-                        alert(d.msg + ' Se abrió tu constancia de estudio en una pestaña nueva.');
-                    } else if (confirm(d.msg + '\n\n¿Descargar tu constancia de estudio ahora?')) {
-                        window.location.href = 'api/export_constancia.php?tipo=estudio';
-                        return;
-                    }
+                    alert(d.msg);
                     location.reload();
                 } else {
-                    alert(d.msg || 'No se pudo completar la inscripción.');
+                    alert(d.msg || 'No se pudo enviar la solicitud.');
+                    btn.disabled = false; btn.textContent = 'Enviar solicitud';
                 }
-            } catch (e) { console.error(e); alert('Error de conexión.'); }
+            } catch (e) { console.error(e); alert('Error de conexión.'); btn.disabled = false; btn.textContent = 'Enviar solicitud'; }
         }
 
         <?php if (empty($materias)): ?>

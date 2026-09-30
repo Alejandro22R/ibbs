@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         if (!$row) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Usuario no encontrado.']); exit; }
         if (!$row['activo']) { echo json_encode(['ok'=>false,'msg'=>'Cuenta desactivada.']); exit; }
         if (!password_verify($p,$row['password_hash'])) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Contraseña incorrecta.']); exit; }
-        if (!$row['aprobado']) { echo json_encode(['ok'=>false,'msg'=>'Tu cuenta todavía no fue aprobada por la administración. Te avisaremos apenas la revisen.']); exit; }
+        if (!$row['aprobado']) { echo json_encode(['ok'=>false,'pendiente'=>true,'msg'=>'Tu cuenta todavía no fue aprobada por la administración. Te avisaremos apenas la revisen.']); exit; }
         
         login_throttle_reset();
         session_regenerate_id(true); // evita fijación de sesión al autenticarse
@@ -442,6 +442,25 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       <button class="btn btn-outline" onclick="show('pReg2')">← Atrás</button>
     </div>
 
+    <!-- ══ ESPERANDO APROBACIÓN ═════════════════════════════ -->
+    <div id="pEspera" class="pane">
+      <div style="text-align:center;padding:1rem 0 .5rem;">
+        <div style="font-size:4.2rem;line-height:1;margin-bottom:1rem;">😊</div>
+        <h2 style="margin-bottom:.5rem;">¡Ya casi estás adentro!</h2>
+        <p class="sub" style="margin-bottom:1.6rem;">
+          Tu cuenta se creó correctamente. Ahora un administrador tiene que
+          aprobar tu ingreso — apenas lo haga, vas a poder iniciar sesión
+          e inscribirte en tus materias.
+        </p>
+        <div class="info-box" style="text-align:left;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          No hace falta que hagas nada más por ahora. Podés cerrar esta
+          página con tranquilidad; te avisaremos cuando esté lista.
+        </div>
+        <button class="btn btn-primary" style="margin-top:1.6rem;" onclick="show('pLogin')">Ir a Iniciar Sesión</button>
+      </div>
+    </div>
+
     <!-- ══ RECUPERAR — Paso 1 ══════════════════════════════ -->
     <div id="pRec1" class="pane">
       <h2>Recuperar contraseña</h2>
@@ -542,6 +561,10 @@ async function doLogin(){
   const d=await post('login',{usuario:document.getElementById('lUser').value,password:document.getElementById('lPwd').value});
   if(d.ok){
     window.location = d.redirect || 'index.php';
+  }else if(d.pendiente){
+    btn.disabled=false;
+    btn.textContent='Iniciar sesión';
+    show('pEspera');
   }else{
     setErr('errLogin',d.msg);
     btn.disabled=false;
@@ -585,7 +608,7 @@ async function doReg3(){
   const d=await post('reg_finish',{password:document.getElementById('rP3').value,repetir:document.getElementById('rP4').value});
   btn.disabled=false;
   btn.textContent='✓ Crear mi cuenta';
-  if(d.ok){setOk('okReg3',d.msg);setTimeout(()=>show('pLogin'),2500);}else setErr('errReg3',d.msg);
+  if(d.ok){show('pEspera');}else setErr('errReg3',d.msg);
 }
 
 async function doRec1(){

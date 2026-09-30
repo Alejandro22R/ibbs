@@ -570,7 +570,17 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         <!-- ============================================== -->
         <div id="view-perfil" class="view-section">
             <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">Configuración de Perfil</h2>
-            
+
+            <div class="card" style="max-width: 700px; margin: 0 auto 1.5rem;">
+                <div class="card-body" style="padding: 1.5rem 2.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+                    <div>
+                        <h3 style="font-size: 1rem; margin-bottom: .3rem;">Constancia de Trabajo</h3>
+                        <p style="font-size: .82rem; color: var(--muted); margin:0;">Documento oficial que certifica que prestás servicios como docente en el instituto.</p>
+                    </div>
+                    <a href="api/export_constancia.php?tipo=trabajo" target="_blank" class="btn btn-secondary" style="white-space:nowrap;"><i class="fas fa-file-pdf"></i> Generar PDF</a>
+                </div>
+            </div>
+
             <div class="card" style="max-width: 700px; margin: 0 auto;">
                 <div class="card-body" style="padding: 2.5rem;">
                     <!-- SECCIÓN: FOTO DE PERFIL -->
