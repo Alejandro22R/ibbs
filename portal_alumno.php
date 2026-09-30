@@ -41,6 +41,21 @@ $res_materias = mysqli_stmt_get_result($stmt_m);
 $materias = [];
 while($row = mysqli_fetch_assoc($res_materias)) $materias[] = $row;
 
+// Token de WebSocket (opcional — ver config/ws_config.php) con un
+// canal por cada materia en la que este alumno puede tener el chat
+// abierto, para que el foro se actualice al instante si hay un VPS
+// con ws-server/ configurado.
+$ws_token = ws_enabled() ? ws_token_for_materias($con, $user_id, $_SESSION['rol'], $_SESSION['usuario'], array_column($materias, 'id')) : null;
+
+// Materias disponibles para autoinscripción (solo si el alumno es "regular")
+$materias_disponibles = [];
+if ($alumno && !empty($alumno['regular'])) {
+    $ids_inscritas = array_column($materias, 'id');
+    $excluir = count($ids_inscritas) ? implode(',', array_map('intval', $ids_inscritas)) : '0';
+    $rd = mysqli_query($con, "SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 AND estado!='culminada' AND inscripcion_abierta=1 AND id NOT IN ($excluir) ORDER BY nombre");
+    while ($row = mysqli_fetch_assoc($rd)) $materias_disponibles[] = $row;
+}
+
 // Obtener tareas y entregas
 $query_tareas = "SELECT t.*, m.nombre as materia_nombre, e.id as entrega_id, e.nota 
                  FROM tareas t 
@@ -82,6 +97,11 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
+    <?php if ($ws_token): ?>
+    <meta name="ibbs-ws-url" content="<?=htmlspecialchars(ws_public_url())?>">
+    <meta name="ibbs-ws-token" content="<?=htmlspecialchars($ws_token)?>">
+    <?php endif; ?>
     <title>Portal del Alumno | IBBS</title>
     
     <!-- Google Fonts (Nunito y Playfair Display) -->
@@ -219,13 +239,13 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto relative z-10">
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mb-3 px-3">Menú Principal</p>
             
-            <button onclick="switchView('dashboard', this)" class="nav-btn active w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button id="navBtnDashboard" onclick="switchView('dashboard', this)" class="nav-btn active w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-home w-5 text-center"></i> <span class="font-medium text-sm">Inicio</span>
             </button>
             <button onclick="switchView('aula', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-desktop w-5 text-center"></i> <span class="font-medium text-sm">Aula Virtual</span>
             </button>
-            <button onclick="switchView('materias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button id="navBtnMaterias" onclick="switchView('materias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-book w-5 text-center"></i> <span class="font-medium text-sm">Mis Materias</span>
             </button>
             <button onclick="switchView('tareas', this)" class="nav-btn w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
@@ -245,9 +265,12 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             <button onclick="switchView('constancias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-file-signature w-5 text-center"></i> <span class="font-medium text-sm">Constancias</span>
             </button>
-            
+            <button onclick="switchView('biblioteca', this); loadBiblioteca();" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <i class="fas fa-book w-5 text-center"></i> <span class="font-medium text-sm">Biblioteca</span>
+            </button>
+
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-6 mb-3 px-3">Cuenta</p>
-            <button onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button id="navBtnPerfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-user-cog w-5 text-center"></i> <span class="font-medium text-sm">Mi Perfil</span>
             </button>
         </nav>
@@ -332,7 +355,44 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
                     <h2 class="text-2xl font-serif text-ibbs-ink">Mis Materias</h2>
                 </div>
-                
+
+                <!-- AUTOINSCRIPCIÓN -->
+                <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border p-5">
+                    <h3 class="text-base font-bold text-ibbs-ink mb-1 flex items-center gap-2">
+                        <i class="fas fa-user-check text-ibbs-lime2"></i> Autoinscripción
+                    </h3>
+                    <?php if (empty($alumno['regular'])): ?>
+                    <p class="text-sm text-ibbs-muted">
+                        Tu inscripción todavía no fue marcada como <strong>regular</strong> por la administración.
+                        Una vez que lo esté, vas a poder inscribirte tú mismo(a) en las materias disponibles desde aquí.
+                    </p>
+                    <?php else: ?>
+                        <p class="text-sm text-ibbs-muted mb-3">
+                            Sos alumno(a) regular: podés inscribirte directamente. Una vez inscrito(a), solo la administración puede quitarte de la materia.
+                        </p>
+                        <?php if (empty($materias_disponibles)): ?>
+                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a) en todas las disponibles.</p>
+                        <?php else: ?>
+                        <div class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 mb-3 text-xs text-ibbs-ink flex items-start gap-2">
+                            <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
+                            <div>Para inscribirte tenés que adjuntar la captura de tu pago móvil o transferencia a la institución. La administración la revisa antes de dejarte adentro de la materia.</div>
+                        </div>
+                        <div class="flex flex-col gap-3">
+                            <select id="selAutoInsc" class="border border-ibbs-border rounded-lg px-3 py-2 text-sm bg-white">
+                                <option value="">— Selecciona una materia —</option>
+                                <?php foreach ($materias_disponibles as $md): ?>
+                                <option value="<?= $md['id'] ?>"><?= htmlspecialchars($md['codigo'].' · '.$md['nombre']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <input type="file" id="fileComprobante" accept="image/png,image/jpeg,image/webp" class="flex-1 border border-ibbs-border rounded-lg px-3 py-2 text-xs bg-white file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-ibbs-ink file:text-white file:text-xs file:font-bold">
+                                <button onclick="autoInscribirme()" id="btnAutoInsc" class="btn-ibbs px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Enviar solicitud</button>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
                     <?php foreach($materias as $m): ?>
                     <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden hover:shadow-[0_4px_24px_rgba(0,0,0,0.06)] transition-shadow group flex flex-col">
@@ -345,9 +405,13 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             <p class="text-sm text-ibbs-muted mb-5 flex items-center gap-2">
                                 <i class="fas fa-chalkboard-teacher text-ibbs-lime2"></i> Prof. <?= htmlspecialchars($m['doc_nombre'] . ' ' . $m['doc_apellido']) ?>
                             </p>
-                            <div class="flex gap-2 mt-auto">
+                            <div class="flex gap-2 mt-auto mb-2">
                                 <button onclick="document.querySelector('#sidebar nav button:nth-child(4)').click()" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors">Ver Tareas</button>
                                 <button onclick="irAlChatMateria(<?= $m['id'] ?>)" class="flex-1 btn-ibbs py-2 rounded-lg text-xs font-bold text-center">Foro de Clase</button>
+                            </div>
+                            <div class="flex gap-2">
+                                <a href="modulo_vivo.php?materia_id=<?= $m['id'] ?>" target="_blank" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🔴 En Vivo</a>
+                                <a href="modulo_grabaciones.php?materia_id=<?= $m['id'] ?>" target="_blank" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🎬 Grabadas</a>
                             </div>
                         </div>
                     </div>
@@ -552,7 +616,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     <p class="text-white/70 max-w-lg mb-8 relative z-10 text-sm md:text-base leading-relaxed">
                         Ingresa a la plataforma del Aula Virtual para participar en clases en vivo, consultar recursos didácticos, ver grabaciones y colaborar en tiempo real con docentes y compañeros.
                     </p>
-                    <a href="aula_virtual.php" target="_blank" class="btn-ibbs px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 relative z-10 hover:scale-105 transition-transform shadow-xl">
+                    <a href="modulo_aula.php" target="_blank" class="btn-ibbs px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 relative z-10 hover:scale-105 transition-transform shadow-xl">
                         <i class="fas fa-external-link-alt"></i> Ingresar al Aula Virtual
                     </a>
                 </div>
@@ -563,31 +627,66 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
                     <h2 class="text-2xl font-serif text-ibbs-ink">Trámites y Constancias</h2>
                 </div>
-                
+
+                <div class="bg-ibbs-cream border border-ibbs-border rounded-[14px] p-5 text-sm text-ibbs-ink flex items-start gap-3">
+                    <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
+                    <div>Estas constancias son un trámite administrativo pago del instituto — no se descargan desde aquí. Acércate a la administración, realiza el pago correspondiente y te la entregarán impresa o en PDF.</div>
+                </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Constancia de Estudio -->
-                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center hover:shadow-lg transition-all group">
-                        <div class="w-20 h-20 rounded-2xl bg-ibbs-blue/10 text-ibbs-blue flex items-center justify-center text-3xl mb-5 group-hover:bg-ibbs-blue group-hover:text-white transition-colors duration-300">
+                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center group">
+                        <div class="w-20 h-20 rounded-2xl bg-ibbs-blue/10 text-ibbs-blue flex items-center justify-center text-3xl mb-5">
                             <i class="fas fa-user-graduate"></i>
                         </div>
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Estudio</h3>
-                        <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Documento oficial membretado que certifica tu inscripción y condición actual como alumno regular en nuestra institución.</p>
-                        <a href="generar_constancia_estudio.php" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-blue transition-colors flex items-center justify-center gap-2 mt-auto">
-                            <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
-                        </a>
+                        <p class="text-sm text-ibbs-muted mb-2 leading-relaxed">Documento oficial membretado que certifica tu inscripción y condición actual como alumno regular en nuestra institución.</p>
+                        <p class="text-xs text-ibbs-muted mt-auto font-semibold uppercase tracking-wide"><i class="fas fa-lock mr-1"></i> Solicítala en administración</p>
                     </div>
 
                     <!-- Constancia de Notas -->
-                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center hover:shadow-lg transition-all group">
-                        <div class="w-20 h-20 rounded-2xl bg-ibbs-green/10 text-ibbs-green flex items-center justify-center text-3xl mb-5 group-hover:bg-ibbs-green group-hover:text-white transition-colors duration-300">
+                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center group">
+                        <div class="w-20 h-20 rounded-2xl bg-ibbs-green/10 text-ibbs-green flex items-center justify-center text-3xl mb-5">
                             <i class="fas fa-list-ol"></i>
                         </div>
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Notas</h3>
-                        <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Reporte académico oficial con el desglose detallado de tus calificaciones finales aprobadas y tu promedio general.</p>
-                        <a href="generar_constancia_notas.php" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-green transition-colors flex items-center justify-center gap-2 mt-auto">
-                            <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
-                        </a>
+                        <p class="text-sm text-ibbs-muted mb-2 leading-relaxed">Reporte académico oficial con el desglose detallado de tus calificaciones finales aprobadas y tu promedio general.</p>
+                        <p class="text-xs text-ibbs-muted mt-auto font-semibold uppercase tracking-wide"><i class="fas fa-lock mr-1"></i> Solicítala en administración</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- VISTA: BIBLIOTECA -->
+            <div id="view-biblioteca" class="view-section hidden space-y-5">
+                <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
+                    <h2 class="text-2xl font-serif text-ibbs-ink">Biblioteca</h2>
+                    <div class="flex gap-2">
+                        <button id="btnBibCatalogo" onclick="mostrarBibTab('catalogo')" class="px-4 py-1.5 rounded-full text-xs font-bold bg-ibbs-ink text-white">Catálogo</button>
+                        <button id="btnBibMios" onclick="mostrarBibTab('mios')" class="px-4 py-1.5 rounded-full text-xs font-bold bg-ibbs-cream text-ibbs-ink border border-ibbs-border">Mi Biblioteca</button>
+                    </div>
+                </div>
+
+                <div id="bibTabCatalogo" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <p class="text-sm text-ibbs-muted italic col-span-full">Cargando catálogo…</p>
+                </div>
+                <div id="bibTabMios" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+            </div>
+
+            <!-- MODAL COMPRAR LIBRO -->
+            <div id="modalComprarLibro" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-serif font-bold text-ibbs-ink">Comprar libro</h3>
+                        <button onclick="cerrarModalComprar()" class="text-ibbs-muted hover:text-ibbs-ink"><i class="fas fa-times"></i></button>
+                    </div>
+                    <p id="comprarLibroTitulo" class="text-sm font-bold"></p>
+                    <div id="datosPagoBox" class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 text-xs text-ibbs-ink space-y-1"></div>
+                    <div>
+                        <label class="text-xs font-bold uppercase tracking-wide text-ibbs-muted">Captura del pago móvil o transferencia</label>
+                        <input type="file" id="comprobanteLibroInput" accept="image/png,image/jpeg,image/webp" class="w-full mt-1 border border-ibbs-border rounded-lg px-3 py-2 text-xs bg-white file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-ibbs-ink file:text-white file:text-xs file:font-bold">
+                    </div>
+                    <input type="hidden" id="comprarLibroId">
+                    <button onclick="confirmarCompraLibro()" id="btnConfirmarCompra" class="w-full btn-ibbs py-2.5 rounded-lg text-sm font-bold">Enviar solicitud de compra</button>
                 </div>
             </div>
 
@@ -599,13 +698,14 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 
                 <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border p-6 md:p-8">
                     <form action="actualizar_perfil.php" method="POST" enctype="multipart/form-data" class="max-w-2xl mx-auto space-y-6">
-                        
+                        <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
+
                         <!-- Foto de Perfil -->
                         <div class="flex flex-col items-center gap-4 mb-8">
                             <div class="relative group cursor-pointer">
                                 <div class="w-32 h-32 rounded-full border-4 border-ibbs-cream overflow-hidden shadow-md bg-ibbs-ink flex items-center justify-center text-5xl font-serif text-ibbs-lime transition-transform group-hover:scale-105" id="avatar-preview-container">
-                                    <?php if(!empty($alumno['foto_perfil'])): ?>
-                                        <img src="uploads/perfiles/<?= htmlspecialchars($alumno['foto_perfil']) ?>" alt="Foto" class="w-full h-full object-cover">
+                                    <?php if(!empty($alumno['foto'])): ?>
+                                        <img src="<?= htmlspecialchars($alumno['foto']) ?>" alt="Foto" class="w-full h-full object-cover">
                                     <?php else: ?>
                                         <?= htmlspecialchars($inicial) ?>
                                     <?php endif; ?>
@@ -614,11 +714,11 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                     <i class="fas fa-camera text-2xl mb-1"></i>
                                     <span class="text-[10px] font-bold uppercase tracking-wider">Cambiar</span>
                                 </label>
-                                <input type="file" id="foto_upload" name="foto_perfil" class="hidden" accept="image/*" onchange="previewAvatar(this)">
+                                <input type="file" id="foto_upload" name="foto" class="hidden" accept="image/*" onchange="previewAvatar(this)">
                             </div>
                             <div class="text-center">
                                 <p class="text-sm font-bold text-ibbs-ink">Fotografía de perfil</p>
-                                <p class="text-[10px] text-ibbs-muted uppercase tracking-wider mt-1">Formatos: JPG, PNG. Max: 2MB</p>
+                                <p class="text-[10px] text-ibbs-muted uppercase tracking-wider mt-1">Formatos: JPG, PNG, GIF, WEBP. Max: 3MB</p>
                             </div>
                         </div>
 
@@ -634,7 +734,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             </div>
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Correo Electrónico</label>
-                                <input type="email" name="email" value="<?= htmlspecialchars($alumno['email'] ?? '') ?>" class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all" placeholder="tucorreo@ejemplo.com">
+                                <input type="email" name="correo" value="<?= htmlspecialchars($alumno['correo'] ?? '') ?>" class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all" placeholder="tucorreo@ejemplo.com">
                             </div>
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Teléfono / Celular</label>
@@ -672,6 +772,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             
             <!-- Body Modal -->
             <form id="form-entrega" onsubmit="submitFormulario(event)" class="p-6 space-y-5" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
                 <input type="hidden" name="tarea_id" id="modal-tarea-id">
                 
                 <div>
@@ -709,7 +810,33 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         </div>
     </div>
 
+    <!-- WebSocket en vivo (opcional — no-op si no hay VPS configurado) -->
+    <script src="assets/ibbs-realtime.js"></script>
     <script>
+        // Mensaje de resultado tras actualizar_perfil.php (redirect con
+        // ?msg=...) — antes quedaba mudo, el alumno no sabía si guardó.
+        (function () {
+            const params = new URLSearchParams(window.location.search);
+            const msg = params.get('msg');
+            window._ibbsTuvoMsg = !!msg;
+            if (!msg) return;
+            const textos = {
+                perfil_actualizado: '✓ Perfil actualizado correctamente.',
+                correo_duplicado: 'Ese correo ya está en uso por otro alumno.',
+                faltan_campos: 'Completá nombre y apellido.',
+                csrf_invalido: 'La sesión del formulario expiró — probá guardar de nuevo.',
+                error: 'Ocurrió un error al actualizar el perfil.',
+            };
+            if (textos[msg]) alert(textos[msg]);
+            if (msg.startsWith('perfil_') || msg === 'correo_duplicado' || msg === 'faltan_campos') {
+                const btn = document.getElementById('navBtnPerfil');
+                if (btn) switchView('perfil', btn);
+            }
+            params.delete('msg');
+            const nuevaUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            window.history.replaceState({}, '', nuevaUrl);
+        })();
+
         // Lógica de vistas y modal conservada pero con colores ajustados
         function switchView(viewId, btnElement = null) {
             document.querySelectorAll('.view-section').forEach(el => {
@@ -825,6 +952,157 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         let materiaActivaChatId = <?= !empty($materias) ? $materias[0]['id'] : 0 ?>;
         let ultimoIdMensaje = 0;
         let chatInterval = null;
+        const MI_USUARIO_ID = <?= (int)$user_id ?>;
+        function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+        async function autoInscribirme() {
+            const sel = document.getElementById('selAutoInsc');
+            const mid = sel ? sel.value : '';
+            if (!mid) { alert('Selecciona una materia primero.'); return; }
+            const fileInput = document.getElementById('fileComprobante');
+            const file = fileInput && fileInput.files[0];
+            if (!file) { alert('Adjuntá la captura de tu pago móvil o transferencia para poder inscribirte.'); return; }
+            const btn = document.getElementById('btnAutoInsc');
+            btn.disabled = true; btn.textContent = 'Enviando…';
+            try {
+                const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const fd = new FormData();
+                fd.append('action', 'crear');
+                fd.append('materia_id', mid);
+                fd.append('comprobante', file);
+                fd.append('csrf_token', _csrfMeta ? _csrfMeta.content : '');
+                const r = await fetch('api/materia_solicitud.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) {
+                    alert(d.msg);
+                    location.reload();
+                } else {
+                    alert(d.msg || 'No se pudo enviar la solicitud.');
+                    btn.disabled = false; btn.textContent = 'Enviar solicitud';
+                }
+            } catch (e) { console.error(e); alert('Error de conexión.'); btn.disabled = false; btn.textContent = 'Enviar solicitud'; }
+        }
+
+        // ── BIBLIOTECA ────────────────────────────────────────────
+        let _bibCatalogo = [];
+        let _bibDatosPago = null;
+        function hBib(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+        function mostrarBibTab(tab) {
+            document.getElementById('bibTabCatalogo').classList.toggle('hidden', tab !== 'catalogo');
+            document.getElementById('bibTabMios').classList.toggle('hidden', tab !== 'mios');
+            document.getElementById('btnBibCatalogo').className = 'px-4 py-1.5 rounded-full text-xs font-bold ' + (tab === 'catalogo' ? 'bg-ibbs-ink text-white' : 'bg-ibbs-cream text-ibbs-ink border border-ibbs-border');
+            document.getElementById('btnBibMios').className = 'px-4 py-1.5 rounded-full text-xs font-bold ' + (tab === 'mios' ? 'bg-ibbs-ink text-white' : 'bg-ibbs-cream text-ibbs-ink border border-ibbs-border');
+            if (tab === 'mios') cargarMisLibros();
+        }
+        async function loadBiblioteca() {
+            const cont = document.getElementById('bibTabCatalogo');
+            const r = await fetch('api/biblioteca.php', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('action', 'libro_list'); const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : ''); return fd; })() });
+            const d = await r.json();
+            if (!d.ok) { cont.innerHTML = `<p class="text-sm text-red-600 col-span-full">${hBib(d.msg||'Error al cargar la biblioteca.')}</p>`; return; }
+            _bibCatalogo = d.data;
+            if (!d.data.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Todavía no hay libros cargados.</p>'; return; }
+            cont.innerHTML = d.data.map(l => {
+                const precioTxt = parseFloat(l.precio) > 0 ? '$' + parseFloat(l.precio).toFixed(2) : 'Gratis';
+                let accion = '';
+                if (l.estado_compra === 'activado') accion = `<a href="api/biblioteca.php?action=descargar&id=${l.id}" class="w-full btn-ibbs py-2 rounded-lg text-xs font-bold text-center block mt-3"><i class="fas fa-download mr-1"></i> Descargar</a>`;
+                else if (l.estado_compra === 'pendiente') accion = `<p class="text-xs text-center mt-3 font-bold text-amber-600"><i class="fas fa-clock mr-1"></i> Solicitud en revisión</p>`;
+                else accion = `<button onclick='abrirModalComprar(${l.id})' class="w-full btn-ibbs py-2 rounded-lg text-xs font-bold mt-3">${parseFloat(l.precio) > 0 ? 'Comprar' : 'Obtener gratis'}</button>`;
+                return `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden flex flex-col">
+                    <div class="h-40 bg-ibbs-ink flex items-center justify-center overflow-hidden">
+                        ${l.portada ? `<img src="${l.portada}" class="w-full h-full object-cover">` : `<i class="fas fa-book text-4xl text-ibbs-lime"></i>`}
+                    </div>
+                    <div class="p-4 flex-1 flex flex-col">
+                        <h3 class="font-bold text-ibbs-ink leading-tight mb-1">${hBib(l.titulo)}</h3>
+                        <p class="text-xs text-ibbs-muted mb-2">${hBib(l.autor || 'Autor desconocido')}</p>
+                        <p class="text-xs text-ibbs-muted mb-3 flex-1">${hBib((l.descripcion || '').substring(0, 90))}</p>
+                        <p class="text-sm font-bold text-ibbs-ink">${precioTxt}</p>
+                        ${accion}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        async function cargarMisLibros() {
+            const cont = document.getElementById('bibTabMios');
+            cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Cargando…</p>';
+            const r = await fetch('api/biblioteca.php', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('action', 'mis_libros'); const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : ''); return fd; })() });
+            const d = await r.json();
+            if (!d.ok || !d.data.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Todavía no tenés libros activados en tu biblioteca.</p>'; return; }
+            cont.innerHTML = d.data.map(l => `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden flex flex-col">
+                <div class="h-40 bg-ibbs-ink flex items-center justify-center overflow-hidden">
+                    ${l.portada ? `<img src="${l.portada}" class="w-full h-full object-cover">` : `<i class="fas fa-book text-4xl text-ibbs-lime"></i>`}
+                </div>
+                <div class="p-4 flex-1 flex flex-col">
+                    <h3 class="font-bold text-ibbs-ink leading-tight mb-1">${hBib(l.titulo)}</h3>
+                    <p class="text-xs text-ibbs-muted mb-3">${hBib(l.autor || '')}</p>
+                    <a href="api/biblioteca.php?action=descargar&id=${l.id}" class="w-full btn-ibbs py-2 rounded-lg text-xs font-bold text-center block mt-auto"><i class="fas fa-download mr-1"></i> Descargar</a>
+                </div>
+            </div>`).join('');
+        }
+        async function abrirModalComprar(id) {
+            const libro = _bibCatalogo.find(l => l.id == id);
+            if (!libro) return;
+            document.getElementById('comprarLibroId').value = id;
+            document.getElementById('comprarLibroTitulo').textContent = libro.titulo + (parseFloat(libro.precio) > 0 ? ' — $' + parseFloat(libro.precio).toFixed(2) : ' — Gratis');
+            document.getElementById('comprobanteLibroInput').closest('div').style.display = parseFloat(libro.precio) > 0 ? '' : 'none';
+            document.getElementById('btnConfirmarCompra').textContent = parseFloat(libro.precio) > 0 ? 'Enviar solicitud de compra' : 'Obtener libro gratis';
+
+            if (!_bibDatosPago) {
+                const r = await fetch('api/biblioteca.php', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('action', 'datos_pago_get'); const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : ''); return fd; })() });
+                const d = await r.json();
+                _bibDatosPago = d.ok ? d.data : {};
+            }
+            const p = _bibDatosPago || {};
+            const box = document.getElementById('datosPagoBox');
+            if (parseFloat(libro.precio) <= 0) {
+                box.innerHTML = 'Este libro es gratuito — se activa apenas confirmes.';
+            } else if (!p.titular && !p.pago_movil_telefono && !p.cuenta) {
+                box.innerHTML = 'La administración todavía no cargó los datos de pago. Consultá directamente en el instituto cómo realizar el pago antes de enviar tu solicitud.';
+            } else {
+                box.innerHTML = [
+                    p.titular ? `<div><strong>Titular:</strong> ${hBib(p.titular)}</div>` : '',
+                    p.banco ? `<div><strong>Banco:</strong> ${hBib(p.banco)}</div>` : '',
+                    p.cuenta ? `<div><strong>Cuenta:</strong> ${hBib(p.cuenta)}</div>` : '',
+                    p.cedula_rif ? `<div><strong>CI/RIF:</strong> ${hBib(p.cedula_rif)}</div>` : '',
+                    p.pago_movil_telefono ? `<div><strong>Pago Móvil:</strong> ${hBib(p.pago_movil_telefono)}</div>` : '',
+                    p.instrucciones ? `<div class="mt-1 italic">${hBib(p.instrucciones)}</div>` : '',
+                ].join('');
+            }
+            document.getElementById('modalComprarLibro').classList.remove('hidden');
+        }
+        function cerrarModalComprar() {
+            document.getElementById('modalComprarLibro').classList.add('hidden');
+            document.getElementById('comprobanteLibroInput').value = '';
+        }
+        async function confirmarCompraLibro() {
+            const id = document.getElementById('comprarLibroId').value;
+            const libro = _bibCatalogo.find(l => l.id == id);
+            const file = document.getElementById('comprobanteLibroInput').files[0];
+            if (libro && parseFloat(libro.precio) > 0 && !file) { alert('Adjuntá la captura de tu pago para poder enviar la solicitud.'); return; }
+            const btn = document.getElementById('btnConfirmarCompra');
+            btn.disabled = true; btn.textContent = 'Enviando…';
+            try {
+                const fd = new FormData();
+                fd.append('action', 'compra_crear');
+                fd.append('libro_id', id);
+                if (file) fd.append('comprobante', file);
+                const m = document.querySelector('meta[name="csrf-token"]');
+                fd.append('csrf_token', m ? m.content : '');
+                const r = await fetch('api/biblioteca.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                alert(d.msg || (d.ok ? 'Listo.' : 'No se pudo procesar la solicitud.'));
+                if (d.ok) { cerrarModalComprar(); loadBiblioteca(); }
+            } catch (e) { console.error(e); alert('Error de conexión.'); }
+            btn.disabled = false; btn.textContent = 'Enviar solicitud de compra';
+        }
+
+        <?php if (empty($materias)): ?>
+        // Primer ingreso sin materias: lo primero que ve el alumno es la
+        // pantalla para inscribirse, no el dashboard vacío — salvo que
+        // haya vuelto de guardar su perfil (ese mensaje ya decidió la vista).
+        if (!window._ibbsTuvoMsg) {
+            switchView('materias', document.getElementById('navBtnMaterias'));
+        }
+        <?php endif; ?>
 
         function prepararRespuesta(nombreUsuario, idMensaje) {
             document.getElementById('chat-reply-to-id').value = idMensaje;
@@ -864,83 +1142,118 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             cargarMensajesForo();
         }
 
+        function roleBadgeChat(rol) {
+            if (rol === 'profesor') return '<span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ibbs-blue/10 text-ibbs-blue ml-1">Profesor</span>';
+            if (rol === 'admin' || rol === 'superadmin') return '<span class="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ibbs-red/10 text-ibbs-red ml-1">Admin</span>';
+            return '';
+        }
+
         function cargarMensajesForo() {
             if (materiaActivaChatId === 0) return;
-            fetch(`obtener_mensajes_foro.php?materia_id=${materiaActivaChatId}&ultimo_id=${ultimoIdMensaje}`)
+            fetch(`api/foro.php?action=get_mensajes&materia_id=${materiaActivaChatId}`)
             .then(res => res.json())
-            .then(data => {
-                if(data.ok && data.mensajes.length > 0) {
-                    const chatBox = document.getElementById('chat-messages-container');
-                    if(ultimoIdMensaje === 0) chatBox.innerHTML = ''; 
-
-                    data.mensajes.forEach(msg => {
-                        let isMe = msg.usuario_nombre === '<?= htmlspecialchars($_SESSION['usuario'] ?? '') ?>';
-                        let replyHtml = '';
-                        if (msg.respuesta_a_nombre) {
-                            let replyBg = isMe ? 'bg-black/20 border-ibbs-lime/50 text-white/80' : 'bg-ibbs-cream border-ibbs-border text-ibbs-muted';
-                            replyHtml = `
-                                <div class="text-[10px] ${replyBg} px-2.5 py-1 rounded mb-2 border-l-2 flex items-center gap-1.5">
-                                    <i class="fas fa-reply text-[9px]"></i> a ${msg.respuesta_a_nombre}
-                                </div>
-                            `;
-                        }
-
-                        let html = '';
-                        if (isMe) {
-                            html = `
-                            <div class="flex flex-col items-end mt-3 animate-fade-in w-full">
-                                <span class="text-[10px] text-ibbs-muted mr-1 mb-1 font-bold">Tú</span>
-                                <div class="chat-bubble-me max-w-[85%] md:max-w-[70%] rounded-2xl p-3 shadow-sm relative group">
-                                    ${replyHtml}
-                                    <p class="text-sm leading-relaxed">${msg.mensaje}</p>
-                                    <div class="flex justify-end items-center mt-1.5 gap-2">
-                                        <span class="text-[9px] text-ibbs-lime/70">${msg.hora}</span>
-                                        <i class="fas fa-check-double text-[9px] text-ibbs-lime"></i>
-                                    </div>
-                                </div>
-                            </div>`;
-                        } else {
-                            let roleColor = msg.rol === 'docente' ? 'text-ibbs-blue' : 'text-ibbs-muted';
-                            let roleBadge = msg.rol === 'docente' ? '<i class="fas fa-chalkboard-teacher ml-1"></i>' : '';
-                            html = `
-                            <div class="flex flex-col items-start mt-3 animate-fade-in w-full">
-                                <span class="text-[10px] ${roleColor} ml-1 mb-1 font-bold">${msg.usuario_nombre} ${roleBadge}</span>
-                                <div class="chat-bubble-other max-w-[85%] md:max-w-[70%] rounded-2xl p-3 shadow-sm relative group">
-                                    ${replyHtml}
-                                    <p class="text-sm leading-relaxed text-ibbs-ink">${msg.mensaje}</p>
-                                    <div class="flex justify-between items-center mt-1.5 gap-4">
-                                        <span class="text-[9px] text-ibbs-muted">${msg.hora}</span>
-                                        <button type="button" onclick="prepararRespuesta('${msg.usuario_nombre}', ${msg.id})" class="text-[10px] text-ibbs-ink font-bold hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Responder
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>`;
-                        }
-                        chatBox.innerHTML += html;
-                        ultimoIdMensaje = Math.max(ultimoIdMensaje, msg.id);
-                    });
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                } else if(ultimoIdMensaje === 0 && (!data.mensajes || data.mensajes.length === 0)) {
-                    document.getElementById('chat-messages-container').innerHTML = `
+            .then(mensajes => {
+                if (mensajes && mensajes.error) { console.error("Error del servidor:", mensajes.error); return; }
+                const chatBox = document.getElementById('chat-messages-container');
+                if (!mensajes || mensajes.length === 0) {
+                    chatBox.innerHTML = `
                         <div class="flex flex-col items-center justify-center h-full text-ibbs-muted space-y-2 opacity-50">
                             <i class="far fa-comments text-4xl"></i>
                             <p class="text-xs font-bold uppercase tracking-wider">No hay mensajes aún.</p>
                         </div>
                     `;
+                    ultimoIdMensaje = 0;
+                    return;
                 }
+
+                chatBox.innerHTML = '';
+                mensajes.forEach(msg => {
+                    let isMe = msg.usuario_id === MI_USUARIO_ID;
+                    let replyHtml = '';
+                    if (msg.respuesta_a_nombre) {
+                        let replyBg = isMe ? 'bg-black/20 border-ibbs-lime/50 text-white/80' : 'bg-ibbs-cream border-ibbs-border text-ibbs-muted';
+                        replyHtml = `
+                            <div class="text-[10px] ${replyBg} px-2.5 py-1 rounded mb-2 border-l-2 flex items-center gap-1.5">
+                                <i class="fas fa-reply text-[9px]"></i> a ${hChat(msg.respuesta_a_nombre)}
+                            </div>
+                        `;
+                    }
+                    const hora = new Date(msg.fecha).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                    const delBtn = msg.puede_borrar
+                        ? `<button type="button" onclick="borrarMensajeForo(${msg.id})" class="text-[10px] text-ibbs-red font-bold hover:underline opacity-0 group-hover:opacity-100 transition-opacity ml-3">Borrar</button>`
+                        : '';
+
+                    let html = '';
+                    if (isMe) {
+                        html = `
+                        <div class="flex flex-col items-end mt-3 animate-fade-in w-full">
+                            <span class="text-[10px] text-ibbs-muted mr-1 mb-1 font-bold">Tú</span>
+                            <div class="chat-bubble-me max-w-[85%] md:max-w-[70%] rounded-2xl p-3 shadow-sm relative group">
+                                ${replyHtml}
+                                <p class="text-sm leading-relaxed">${hChat(msg.mensaje)}</p>
+                                <div class="flex justify-end items-center mt-1.5 gap-2">
+                                    <span class="text-[9px] text-ibbs-lime/70">${hora}</span>
+                                    <i class="fas fa-check-double text-[9px] text-ibbs-lime"></i>
+                                    ${delBtn}
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        html = `
+                        <div class="flex flex-col items-start mt-3 animate-fade-in w-full">
+                            <span class="text-[10px] text-ibbs-muted ml-1 mb-1 font-bold">${hChat(msg.usuario_nombre)} ${roleBadgeChat(msg.rol)}</span>
+                            <div class="chat-bubble-other max-w-[85%] md:max-w-[70%] rounded-2xl p-3 shadow-sm relative group">
+                                ${replyHtml}
+                                <p class="text-sm leading-relaxed text-ibbs-ink">${hChat(msg.mensaje)}</p>
+                                <div class="flex justify-between items-center mt-1.5 gap-4">
+                                    <span class="text-[9px] text-ibbs-muted">${hora}</span>
+                                    <span>
+                                        <button type="button" onclick="prepararRespuesta('${hChat(msg.usuario_nombre)}', ${msg.id})" class="text-[10px] text-ibbs-ink font-bold hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
+                                            Responder
+                                        </button>${delBtn}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                    chatBox.innerHTML += html;
+                    ultimoIdMensaje = Math.max(ultimoIdMensaje, msg.id);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
             }).catch(err => console.error("Error:", err));
+        }
+
+        async function borrarMensajeForo(id) {
+            if (!confirm('¿Borrar este mensaje?')) return;
+            try {
+                const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const r = await fetch(`api/foro.php?action=delete_mensaje&materia_id=${materiaActivaChatId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
+                });
+                const result = await r.json();
+                if (result.success) cargarMensajesForo();
+                else alert(result.error || 'No se pudo borrar el mensaje.');
+            } catch (e) { console.error(e); }
         }
 
         function sendChat(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input-text');
-            if(input.value.trim() === '') return;
-            const formData = new FormData(e.target);
-            input.value = ''; 
+            const mensaje = input.value.trim();
+            if (mensaje === '') return;
+            const respuesta_a = document.getElementById('chat-reply-to-id').value;
+            input.value = '';
             cancelarRespuesta();
-            fetch('guardar_foro_mensaje.php', { method: 'POST', body: formData })
-            .then(res => res.json()).then(data => { if(data.ok) cargarMensajesForo(); })
+            const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            fetch(`api/foro.php?action=post_mensaje&materia_id=${materiaActivaChatId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mensaje, respuesta_a, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
+            })
+            .then(res => res.json())
+            .then(data => { if (data.success) cargarMensajesForo(); else alert(data.error || 'No se pudo enviar el mensaje.'); })
             .catch(err => console.error(err));
         }
 
@@ -952,7 +1265,16 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             if(!viewChat.classList.contains('hidden') && materiaActivaChatId > 0) {
                 cargarMensajesForo();
             }
-        }, 5000); 
+        }, 5000);
+
+        // Con WebSocket (VPS configurado) el chat se refresca casi al
+        // instante en vez de esperar hasta 5s — el setInterval de
+        // arriba queda como red de seguridad si el WebSocket se cae.
+        if (window.IbbsRT && window.IbbsRT.hasWs) {
+            window.IbbsRT.on('foro_mensaje', (data) => {
+                if (data && parseInt(data.materia_id) === parseInt(materiaActivaChatId)) cargarMensajesForo();
+            });
+        }
     </script>
 </body>
 </html>

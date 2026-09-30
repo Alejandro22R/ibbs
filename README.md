@@ -40,7 +40,11 @@ document root.
         ├── 001_aula_virtual.sql
         ├── 002_clases_grabadas.sql
         ├── 003_clases_vivo.sql
-        └── 004_notificaciones_tiempo_real.sql
+        ├── 004_notificaciones_tiempo_real.sql
+        ├── 005_foro_usuario_id.sql
+        ├── 006_alumno_regular_autoinscripcion.sql
+        ├── 007_materia_inscripcion_abierta.sql
+        └── 008_asegurar_rol_alumno.sql
 ```
 
 Además de `modulo_*.php`, el portal reactivó los roles alumno/docente con
@@ -193,15 +197,586 @@ seguridad:
   (ruta inexistente, variable de sesión que no usa el resto del
   sistema).
 
-**Pendiente, no corregido en este pase** (toca ~2000 líneas de UI
-nueva, mejor como tarea aparte): `portal_alumno.php` y
-`portal_docente.php` no mandan token CSRF en ninguno de sus formularios
-ni fetch — sus propios endpoints (`guardar_foro_mensaje.php`,
-`crear_tarea.php`, `procesar_entrega.php`, `calificar_entrega.php`,
-`asignar_materia.php`) tampoco lo exigen todavía. Antes de llevar el
-campus a producción real conviene agregar el `<meta name="csrf-token">`
-a esas dos páginas y sumar `csrf_require_post()` a esos endpoints,
-siguiendo el mismo patrón que ya usa el resto del sistema.
+**Resuelto en un pase posterior — foro/chat unificado:**
+`portal_alumno.php` y `portal_docente.php` tenían su propio chat de
+foro (`guardar_foro_mensaje.php` / `obtener_mensajes_foro.php`), sin
+CSRF y sin validar que el usuario tuviera permiso sobre la materia
+(cualquiera logueado podía leer o escribir en el foro de cualquier
+materia con solo cambiar el `materia_id`). Se eliminaron esos dos
+archivos y ambos portales ahora consumen el mismo `api/foro.php` que ya
+usa `modulo_aula.php` — con `<meta name="csrf-token">` agregado a las
+dos páginas, `materia_puede_ver()` en cada request, y sanitizado del
+mensaje en el cliente (antes se insertaba tal cual en el DOM). También
+se sumó autoría real (columna `usuario_id`, migración
+`005_foro_usuario_id.sql`) y un botón "Borrar": el autor puede borrar su
+propio mensaje, y quien gestiona la materia (admin/superadmin siempre,
+profesor solo si está asignado) puede moderar cualquiera — todo
+revalidado en el backend, nunca solo ocultando el botón.
+
+**Resuelto — permisos en Calificaciones:** `api/ajax.php`
+(`nota_guardar`, `nota_borrar`, `notas_tabla_materia`) y
+`api/export_pdf.php` no verificaban `materia_puede_gestionar()` — un
+profesor podía cargar o borrar notas, y exportar el PDF, de una materia
+que no le pertenece. El selector de materia de `modulo_notas.php`
+también listaba todas las materias del sistema en vez de
+`materias_asignadas()`. Además, la tabla de notas ahora muestra quién
+registró cada nota y cuándo (columnas `nota_registrada_por` /
+`nota_actualizada_en`, que ya existían pero no se mostraban).
+
+**Pulido profesional — Calificaciones y Alumnos:** `modulo_notas.php`
+suma buscador por nombre/cédula sobre la tabla ya cargada, una card de
+promedio general y una barra de aprobación de la materia, y avatar con
+inicial por alumno (mismo lenguaje visual que el resto del sistema).
+`modulo_alumnos.php` suma columna/badge "Regular" y dos accesos
+directos por fila (📄 Estudio / 📄 Notas) a `api/export_constancia.php`
+— antes había que ir hasta Herramientas → Certificados para generar la
+constancia de un alumno puntual.
+
+**Asignación de materias — permisos y autoinscripción:**
+`materia_add_docente`, `materia_remove_docente`, `materia_add_alumno`,
+`materia_remove_alumno` y `cert_datos` (`api/ajax.php`) no verificaban
+rol en absoluto — solo estaban "protegidas" porque las páginas que las
+llaman (`modulo_materias.php`, `modulo_inscripciones.php`,
+`modulo_herramientas.php`) están gateadas a admin/superadmin, pero
+cualquier logueado podía llamarlas directo. Ahora exigen
+admin/superadmin en el backend, no solo en el frontend.
+
+Se suma **autoinscripción para alumnos "regulares"** (migración
+`006_alumno_regular_autoinscripcion.sql`):
+- `alumnos.regular` (0 por defecto) — el **superadmin** (no el admin)
+  marca a un alumno como regular desde "Editar Alumno" en
+  `modulo_alumnos.php`.
+- Un alumno regular ve en su portal (`portal_alumno.php` → Mis
+  Materias) las materias disponibles y puede inscribirse él mismo
+  (`materia_autoinscribir`), sin depender de que el staff lo haga.
+- Esa inscripción queda marcada (`materia_alumno.auto_inscrito=1`) y
+  **no puede ser revocada por un admin ni por un profesor** —
+  `materia_remove_alumno` ahora exige rol `superadmin` exacto para
+  borrar una fila auto-inscrita; las asignadas por el staff siguen
+  pudiendo quitarlas admin o superadmin, como antes. Tanto
+  `modulo_inscripciones.php` como `modulo_materias.php` muestran un
+  badge "Auto-inscrito" 🔒 en vez del botón "Quitar" cuando corresponde.
+
+**Constancias de Estudio y de Notas — autoservicio para el alumno:**
+`portal_alumno.php` enlazaba a `generar_constancia_estudio.php`, un
+archivo que nunca existió. Se creó `api/export_constancia.php?tipo=estudio|notas`
+con el mismo diseño oficial (membrete, párrafo legal, tabla de notas en
+letras, firmas) que ya usaba el superadmin en la pestaña "Certificados"
+de `modulo_herramientas.php` — pero como página propia, servida
+directamente: un alumno la pide sin `alumno_id` (se resuelve solo su
+propio registro) y un admin/superadmin puede seguir pidiéndola para
+cualquiera con `&alumno_id=X`, igual que antes.
+
+## WebSocket en vivo (`ws-server/`, opcional — necesita un VPS)
+
+Todo lo de arriba (SSE, polling cada 5s) corre sobre HTTP normal
+porque está pensado para un XAMPP/Apache compartido, sin un proceso
+aparte. Con un VPS de por medio, se puede sumar un servidor de
+WebSocket de verdad — **de forma aditiva**: si no está configurado, el
+sistema sigue exactamente igual que antes (SSE + polling); nada se
+rompe ni cambia de comportamiento por default.
+
+- **`ws-server/`** — un proceso Node.js chico (sin dependencia de MySQL
+  ni de las sesiones de PHP) que corre en el VPS. Ver
+  `ws-server/README.md` para la instalación completa (systemd, nginx
+  con `wss://`, variables de entorno) — es autocontenido y no requiere
+  tocar nada más del VPS salvo abrir el proceso y el reverse proxy.
+- **Autenticación sin compartir base de datos**: PHP firma un token
+  (HMAC-SHA256, `config/ws_token.php`) con quién es el usuario y a qué
+  canales tiene permiso de unirse — esos permisos ya se validaron con
+  `materia_puede_ver()` de siempre, antes de firmar. El servidor Node
+  solo verifica la firma; nunca vuelve a preguntarle nada a PHP ni a la
+  BD por cada conexión.
+- **PHP nunca depende de que el VPS esté vivo**: `config/ws_broadcast.php`
+  le avisa a Node por un POST interno con timeout de 300ms — si el VPS
+  está caído, lento o no configurado, el request de PHP sigue su curso
+  normal (el dato real ya se guardó en MySQL antes de intentar avisar).
+- **Activarlo**: definir `IBBS_WS_URL`, `IBBS_WS_INTERNAL_URL` e
+  `IBBS_WS_SECRET` como variables de entorno del lado de PHP (mismo
+  mecanismo que `IBBS_DB_HOST` etc.) — ver `ws-server/README.md` para
+  el detalle completo. Sin esas tres, `ws_enabled()` da `false` y
+  ningún código nuevo se activa.
+- **Ya conectado**: foro/chat (`api/foro.php`, `modulo_aula.php`,
+  `portal_alumno.php`, `portal_docente.php`) y la campana de
+  notificaciones (`layout/foot.php`) — con WebSocket disponible, usan
+  ese canal como principal (más rápido, no ocupa un worker de Apache
+  por pestaña); sin él, seguimos con SSE/polling exactamente como
+  antes. El polling de 5s del foro se deja además como red de
+  seguridad aunque el WebSocket esté activo.
+- Probado de punta a punta en este pase: servidor Node arriba, cliente
+  conectándose y autenticándose con un token firmado igual que lo haría
+  PHP, `/broadcast` entregando tanto a un canal de materia como
+  directo a un usuario, y rechazo correcto de secreto/token inválidos.
+
+## Alta de alumno nuevo (autoregistro + aprobación del administrador)
+
+`login.php` ya tenía un registro público de 3 pasos (datos → preguntas
+de seguridad → confirmar), pero el paso final tenía un bug serio: el
+`INSERT` a `usuarios` traía **`rol='profesor'` fijo en el código**,
+sin importar quién se registrara — cualquier visitante que se
+registraba terminaba con una cuenta de **profesor**, nunca de alumno.
+Se corrigió a `rol='alumno'` (que además ya era el `DEFAULT` de la
+columna en la tabla) y ahora, al crear el usuario, también se crea su
+ficha en `alumnos` (con los nuevos campos Nombre/Apellido del paso 1).
+
+**Cambio de esta tanda — el autoregistro ya no entra "listo" solo:**
+la cuenta y la clave las sigue creando el propio alumno (nadie del
+staff tiene que hacerlo por él), pero ahora queda **pendiente de
+aprobación** hasta que un admin/superadmin la revise:
+- `usuarios.aprobado` (migración `009_alumno_aprobacion.sql`, default
+  `1` para no afectar ninguna cuenta existente ni las que crea el
+  staff) queda en `0` solo para el autoregistro de `login.php`, y
+  `alumnos.regular` también nace en `0` (no puede autoinscribirse en
+  materias hasta que lo aprueben).
+- `login.php` (acción `login`) rechaza el inicio de sesión mientras
+  `aprobado=0`, con un mensaje explicando que la cuenta está en
+  revisión — no es un error, es la cuenta esperando al staff.
+- Al completar el registro se crea una notificación `para_rol='admin'`
+  con `tipo='solicitud_alumno'` y `referencia_id` = el `usuario_id`
+  nuevo, y se empuja por WebSocket a todo admin/superadmin conectado
+  (si hay VPS configurado) para que no dependan de refrescar la
+  página.
+- El panel de notificaciones (campanita, ver más abajo) le muestra a
+  cualquier admin/superadmin dos botones **✓ Aceptar** / **✕
+  Rechazar** directo sobre esa notificación — ninguno de los dos
+  necesita ir a buscar al alumno en otro lado. `modulo_alumnos.php`
+  también lista una columna **Solicitud** (Pendiente/Aprobado/
+  Rechazado/Sin cuenta) con los mismos botones, para control manual
+  de quién está adentro y quién no.
+- **Aceptar** (`alumno_aprobar`): `usuarios.aprobado=1` +
+  `alumnos.regular=1` (ya puede iniciar sesión y autoinscribirse) y le
+  llega una notificación de que fue aprobado.
+- **Rechazar** (`alumno_rechazar`): no se borra la cuenta ni la ficha
+  (por si hay que revisar el caso después) — se pone
+  `usuarios.activo=0`, que ya bloquea el login con el mensaje de
+  "cuenta desactivada", y también se le notifica.
+
+Flujo completo para un alumno nuevo:
+1. Se registra en `login.php` (crea su propio usuario y clave) → queda
+   con rol `alumno`, ficha en `alumnos` y **pendiente de aprobación**.
+2. Un admin/superadmin lo acepta desde la campanita de notificaciones o
+   desde `modulo_alumnos.php`.
+3. Recién ahí puede iniciar sesión → `portal_alumno.php` lo lleva
+   directo a **Mis Materias** en vez del dashboard vacío
+   (`empty($materias)` fuerza esa vista al cargar) para que lo primero
+   que vea sea el selector de materias disponibles.
+4. Se inscribe él mismo (`materia_autoinscribir`) en cualquier materia
+   activa que el superadmin/admin haya cargado — al confirmar, se le
+   abre automáticamente su constancia de estudio
+   (`api/export_constancia.php?tipo=estudio`).
+5. Desde ahí, "Tareas y Asignaciones" (ya existente en el portal) muestra
+   automáticamente las tareas que el profesor cargue para esa materia
+   — no hizo falta un módulo nuevo: la consulta ya filtra por
+   `materia_alumno.alumno_id`, así que en cuanto se inscribe empieza a
+   ver contenido real.
+
+**Resuelto — CSRF y permisos en Tareas y asignación docente:**
+`crear_tarea.php`, `procesar_entrega.php`, `calificar_entrega.php` y
+`asignar_materia.php` no mandaban ni exigían token CSRF, y tenían
+huecos de permisos reales:
+- `crear_tarea.php` dejaba a cualquier profesor publicar una tarea en
+  **cualquier** materia, no solo en las suyas — ahora exige
+  `materia_puede_gestionar()`.
+- `procesar_entrega.php` no verificaba que el alumno estuviera inscrito
+  en la materia de la tarea — ahora sí, antes de aceptar la entrega.
+- `calificar_entrega.php` no verificaba que el profesor gestionara la
+  materia de esa entrega — cualquier profesor podía calificar entregas
+  ajenas. Ahora se resuelve la materia de la entrega y se valida.
+- `asignar_materia.php` (asignar una materia a un docente) aceptaba el
+  rol `profesor`/`docente` además de admin/superadmin — un profesor
+  podía asignarse materias a sí mismo o a otros, salteándose a la
+  administración por completo. Ahora exige admin/superadmin, que es lo
+  único que la propia UI de `portal_docente.php` ya mostraba.
+
+Los tres formularios afectados (`portal_alumno.php` → Tareas,
+`portal_docente.php` → Calificar/Nueva Tarea/Asignar Materia) ahora
+llevan `<input type="hidden" name="csrf_token">` con el token de la
+sesión.
+
+## Apertura de inscripción por materia (`materias.inscripcion_abierta`)
+
+Migración `007_materia_inscripcion_abierta.sql`. Que una materia esté
+`activo=1` y no `culminada` no significa que el superadmin quiera que
+los alumnos se autoinscriban en ella — por eso la autoinscripción exige
+además un interruptor aparte, exclusivo de admin/superadmin:
+`modulo_materias.php` muestra un botón 🔓 Abierta / 🔒 Cerrada por cada
+materia (acción `materia_toggle_inscripcion`). `materia_autoinscribir`
+y la lista de "materias disponibles" del portal del alumno solo
+muestran/permiten las que tienen `inscripcion_abierta=1` — asignar la
+materia a mano desde el panel (`materia_add_alumno`) sigue funcionando
+igual, sin depender de este interruptor. De paso, `materia_create`,
+`materia_update`, `materia_set_estado` y `materia_delete` (que no
+verificaban rol en absoluto) ahora exigen admin/superadmin también.
+
+## Si el registro de alumnos "sigue entrando como profesor"
+
+El bug de `login.php` (registro público creaba `rol='profesor'` fijo)
+ya está corregido en el código — si después de actualizar seguís
+viendo el problema, lo más probable es una de estas dos cosas, no un
+bug nuevo:
+
+1. **Estás entrando con una cuenta de prueba creada ANTES del fix.**
+   Esa fila en `usuarios` ya quedó guardada con `rol='profesor'` y
+   corregir el código no cambia datos ya existentes. Solución: registrate
+   con un usuario/cédula/correo nuevo, o editá esa fila a mano (`UPDATE
+   usuarios SET rol='alumno' WHERE usuario='...';`, o desde
+   `modulo_usuarios.php` como superadmin).
+2. **Tu base de datos es de una versión vieja de `ibbs.sql`** y la
+   columna `usuarios.rol` es un `ENUM` que todavía no incluye
+   `'alumno'` — en ese caso ningún registro público podría entrar bien
+   como alumno sin importar el código PHP. La migración
+   `008_asegurar_rol_alumno.sql` redefine ese `ENUM` con las 4 opciones
+   que ya usa el resto del sistema.
+
+Para no tener que aplicar los archivos uno por uno, `database/aplicar_todas_las_migraciones.sql`
+junta las migraciones 001–008 en un solo archivo para pegar de una vez
+en phpMyAdmin (pestaña SQL de la base `ibbs`) — es seguro correrlo
+aunque ya hayas aplicado algunas antes.
+
+## Alumno: Clases en Vivo y Grabadas — antes bloqueado, links rotos
+
+Auditoría general de "qué le falta a cada módulo para funcionar" —
+encontré tres enlaces que apuntaban a archivos que **nunca existieron**
+(404 en producción, no solo en teoría):
+
+- **`portal_docente.php` → "Salir"** apuntaba a `logout.php` — el
+  script real siempre fue `cerrar_sesion.php`. Cualquier profesor/admin
+  que usara ese botón se encontraba con un error en vez de cerrar
+  sesión.
+- **`portal_alumno.php` → "Ingresar al Aula Virtual"** apuntaba a
+  `aula_virtual.php` — corregido a `modulo_aula.php` (el real).
+- **`portal_alumno.php` → formulario de "Configuración de Perfil"**
+  apuntaba a `actualizar_perfil.php`, que tampoco existía — un alumno
+  no podía actualizar su perfil de ninguna forma. Se creó el archivo
+  (análogo a `actualizar_perfil_docente.php` pero corrigiendo dos bugs
+  más que tenía el formulario: mandaba `email`/`foto_perfil`, columnas
+  que no existen en `alumnos` — son `correo`/`foto`) con CSRF, validación
+  de tipo MIME real en la foto, y correo sin duplicar entre alumnos.
+
+Además, **un alumno no podía entrar a Clases en Vivo ni a Clases
+Grabadas de ninguna manera** — ambos módulos bloqueaban el rol
+`alumno` directamente en la página (`in_array($_rol,[...])` sin
+`'alumno'`), aunque el backend (`api/clases_vivo.php`,
+`api/clases_grabadas.php`) ya estaba listo para servirle solo lectura
+vía `materia_puede_ver()`. Se abrió el acceso en ambos módulos, se
+extendió `materias_asignadas()` (usada por los tres selectores "elige
+una materia") para incluir las materias del alumno vía
+`materia_alumno`, y se agregaron accesos directos 🔴 En Vivo / 🎬
+Grabadas en las tarjetas de "Mis Materias" de `portal_alumno.php` y en
+`portal_docente.php`. Los botones de gestión (crear/editar/eliminar)
+siguen ocultos para alumno — dependen de `can_manage`, que ya devuelve
+`false` para ese rol.
+
+**Deuda de diseño detectada, no tocada en este pase:** `api/tareas.php`
+(usado por la pestaña "Tareas" de `modulo_aula.php`) y
+`crear_tarea.php`/`procesar_entrega.php`/`calificar_entrega.php`
+(usados por los portales) son dos implementaciones distintas sobre las
+mismas tablas `tareas`/`entregas` — no hay pérdida de datos entre una y
+otra, pero `api/tareas.php` es la más completa (valida el tipo MIME
+real del archivo con `finfo`, no solo la extensión). Unificar ambas
+portales sobre `api/tareas.php`, como ya se hizo con el foro, es buen
+candidato para un próximo pase.
+
+## Chat del Staff (administración ↔ docentes, sin materia)
+
+`modulo_chat_general.php` + `api/chat_general.php` (migración
+`010_chat_staff.sql`, tabla `chat_staff`). Es un foro/chat único,
+global, para que admin/superadmin y profesores puedan hablar entre sí
+(avisos de dirección, preguntas directas al staff) **sin depender de
+estar dentro de una materia puntual** — el chat por materia
+(`modulo_aula.php` → pestaña Foro, `api/foro.php`) sigue funcionando
+exactamente igual que antes, sin cambios de comportamiento.
+
+- Acceso: `superadmin`, `admin`, `profesor`. El rol `alumno` nunca lo
+  ve — ni en el sidebar (`layout/head.php`) ni en el backend
+  (`api/chat_general.php` corta con 403 lógico si el rol no matchea).
+- Mismo diseño de moderación que el foro por materia: cualquiera borra
+  su propio mensaje, admin/superadmin borran cualquiera.
+- Accesible desde el sidebar (sección "Comunicación" → "Chat del
+  Staff") para admin/superadmin, y desde una pestaña nueva dentro de
+  `portal_docente.php` para profesores (no tienen sidebar de módulos
+  sueltos, todo su portal es un solo archivo con vistas).
+- Tiempo real: canal WebSocket `'staff'`, que ahora se suma
+  automáticamente al token de **todo** usuario no-alumno
+  (`ws_token_for_materias()` en `config/ws_token.php`, y el minteo de
+  `layout/head.php`) — no hace falta tocar cada página para que reciba
+  los mensajes en vivo; sin WebSocket configurado, cae a polling cada
+  5s como el resto del chat.
+- Escalabilidad: igual que el chat por materia, `get_mensajes` solo
+  trae los últimos 500 mensajes (`ORDER BY fecha DESC LIMIT 500`,
+  reordenados en PHP) en vez de la tabla entera, con un índice
+  (`idx_fecha` / `idx_materia_fecha`, migración
+  `011_indices_chat_escalabilidad.sql`) para que ese `ORDER BY` no
+  tenga que barrer todas las filas antes de cortar el `LIMIT`.
+
+**Bug corregido de paso:** la primera versión de `get_mensajes` en
+`api/chat_general.php` traía los últimos 500 con `ORDER BY fecha ASC
+LIMIT 500` — eso trae los 500 **más viejos**, no los más recientes; en
+cuanto la tabla pasara de 500 filas el chat se hubiera quedado
+congelado mostrando siempre el mismo historial antiguo y nunca los
+mensajes nuevos. Se corrigió a `DESC LIMIT 500` + `array_reverse()` en
+PHP (el mismo patrón que ya usaba `api/foro.php`, al que se le aplicó
+el mismo límite por la misma razón de escalabilidad).
+
+## Alta de docente nuevo: la crea el administrador, no el propio docente
+
+A diferencia del alumno (que se autoregistra), un docente **nunca crea
+su propia cuenta**. El flujo ahora es:
+
+1. Admin/superadmin va a `modulo_docentes.php` → "Nuevo Docente" y,
+   además de los datos de siempre, define el **usuario** y una
+   **contraseña inicial** para esa persona (hay un botón "🎲 Generar
+   contraseña" si no quiere inventar una).
+2. `docente_create` (en `api/ajax.php`, ahora exige admin/superadmin —
+   antes no verificaba rol en absoluto) valida la contraseña con la
+   misma política que el resto del sistema
+   (`config/password_policy.php` → `ibbs_validar_password()`), revisa
+   que usuario/correo/cédula no estén repetidos, crea primero la fila
+   en `usuarios` (`rol='profesor'`, `aprobado=1` — a un docente que
+   crea el propio admin nunca hace falta aprobarlo) y recién si eso
+   sale bien crea la fila en `docentes` enlazada por `usuario_id` (si
+   falla, se revierte el `usuarios` ya insertado).
+3. Al terminar, el modal muestra el usuario y la contraseña para que el
+   admin se los entregue al docente por el canal que use normalmente
+   (en persona, WhatsApp, etc.) — la contraseña no se guarda en
+   ninguna otra parte ni se vuelve a mostrar después de cerrar ese
+   modal.
+4. El docente inicia sesión con esas credenciales y, desde su propio
+   perfil (`portal_docente.php` → Configuración de Perfil → sección
+   Contraseña, acción `perfil_pwd`), puede cambiarla cuando quiera.
+
+De paso quedaron blindadas varias acciones que **no verificaban rol en
+absoluto** (bastaba con estar logueado, con cualquier rol, para
+llamarlas directo por `fetch`): `docente_create`, `docente_update`,
+`docente_delete`, `docente_list`, `docente_get`, `alumno_create`,
+`alumno_update`, `alumno_delete`, `alumno_list`, `alumno_get` — todas
+ahora exigen `admin`/`superadmin` en el backend, no solo a nivel de
+página. `docente_update` además ahora sincroniza `usuarios.activo`
+cuando se activa/desactiva un docente (antes solo tocaba `docentes.activo`,
+dejando la cuenta de login activa aunque el docente apareciera "inactivo").
+
+`actualizar_perfil_docente.php` se eliminó: nunca funcionó (comparaba
+`$_SESSION['rol']` contra `'docente'`, cuando el rol real siempre es
+`'profesor'`, y usaba columnas `email`/`foto_perfil` que no existen —
+son `correo`/`foto`). El formulario de perfil de `portal_docente.php`
+se reescribió para usar las mismas acciones que ya funcionaban en el
+resto del sistema (`perfil_update`, `perfil_pwd`, `api/upload_foto.php`).
+
+## Notificaciones: panel para roles sin acceso a Herramientas
+
+La campanita ya avisaba con un badge y un toast en vivo a cualquier
+rol, pero al hacer click siempre mandaba a `modulo_herramientas.php` —
+una página exclusiva de admin/superadmin. Para `profesor` y `alumno`
+eso era un callejón sin salida (la propia página los redirigía de
+vuelta a `index.php` sin mostrar nada). Ahora la campanita es distinta
+según el rol (`layout/head.php` + `layout/foot.php`):
+- **admin/superadmin**: sigue yendo directo a `modulo_herramientas.php`
+  (ahí además están los botones Aceptar/Rechazar de solicitudes de
+  alumnos, ver arriba).
+- **profesor/alumno**: abre un panel desplegable propio (sin navegar a
+  ningún lado) que lista sus notificaciones pendientes con "Marcar
+  leída" — reusa las mismas acciones (`notif_list`, `notif_leer`) que
+  ya existían, no hizo falta backend nuevo.
+
+## Auditoría de permisos en `api/ajax.php` (varias acciones sin ningún chequeo de rol)
+
+Se revisó **cada** bloque `if($action===...)` de `api/ajax.php` en busca de
+acciones que no verificaran rol/permiso en absoluto (solo exigían estar
+logueado) — apareció una lista larga, y varias eran serias:
+
+- **`usuario_list`/`usuario_create`/`usuario_update`/`usuario_toggle`/
+  `usuario_reset_pwd`/`usuario_delete`** (el módulo de usuarios,
+  `modulo_usuarios.php`, exclusivo de superadmin a nivel de página) **no
+  tenían NINGÚN chequeo de rol en el backend** — cualquier usuario
+  logueado, incluido un alumno, podía llamarlas directo por `fetch()`
+  para: listar todos los usuarios del sistema, crearse una cuenta
+  admin/superadmin para sí mismo, cambiarle el rol a cualquiera
+  (incluso ponerse `superadmin` a sí mismo vía `usuario_update`, que
+  aceptaba el campo `rol` del POST sin validar quién lo mandaba),
+  resetear la contraseña de cualquiera o eliminar cualquier cuenta.
+  Era la escalación de privilegios más grave de todo el sistema. Las
+  seis ahora exigen `$_rol==='superadmin'`. De paso había un
+  `usuario_delete` **duplicado** más abajo en el archivo (una versión
+  vieja, sí blindada, que había quedado inalcanzable porque la primera
+  siempre respondía y hacía `exit` antes de llegar a la segunda) — se
+  eliminó el duplicado muerto.
+- **`inscripcion_alumno_materias`** y **`record_alumno`** devuelven el
+  expediente completo de un alumno (datos personales, notas,
+  asistencias) a partir de un `alumno_id` que llega del cliente, sin
+  validar que quien pregunta tenga derecho a verlo — cualquier alumno
+  podía pedir el expediente de cualquier otro con solo cambiar el id.
+  Ahora exigen admin/superadmin (las únicas páginas que las usan,
+  `modulo_record.php` e `modulo_inscripciones.php`, ya lo eran a nivel
+  de página).
+- **`materia_get`** devolvía el roster completo de una materia —con
+  cédula de cada alumno— para cualquier `id`, sin chequear permiso.
+  Ahora exige admin/superadmin (sus únicos llamantes).
+- **`alumno_all_simple`** y **`buscar_cedula`** exponían nombre/cédula
+  (y en el segundo caso, expediente completo) de cualquier persona sin
+  restricción. Ahora admin/superadmin.
+- **`asistencia_register`** dejaba que cualquiera registrara asistencia
+  (presente/ausente/tardanza) para cualquier persona en cualquier
+  materia, sin verificar que gestionara esa materia — ahora exige
+  `materia_puede_gestionar()`, igual que `nota_guardar`.
+- **`asistencia_list`**, **`asistencia_resumen`**, **`asistencia_resumen_global`**,
+  **`dashboard_stats`**, **`actividad_reciente`**, **`global_search`**
+  quedaron con el chequeo de rol que ya exigía la página que los usa
+  (admin/superadmin, o + profesor donde corresponde).
+- **`historial_actividad`** (el log de auditoría completo del sistema)
+  ahora exige superadmin, igual que `modulo_historial.php`.
+
+Ningún dato dejó de estar disponible para quien ya lo veía por la UI —
+estos chequeos solo cierran el acceso **directo** a la API que nunca
+debió estar abierto.
+
+## Constancias, Boletín y Récord Académico: ahora son un trámite pago, no autoservicio
+
+Hasta esta tanda un alumno regular podía descargar su propia
+Constancia de Estudio, Constancia de Notas y el Boletín de
+Calificaciones (`api/export_constancia.php`, `api/export_boletin.php`)
+sin pasar por nadie. La institución cobra por estos documentos, así
+que ahora:
+
+- **`api/export_constancia.php`** (`?tipo=estudio` / `?tipo=notas`) y
+  **`api/export_boletin.php`** ya **no aceptan que un alumno las genere
+  para sí mismo** — solo admin/superadmin puede emitirlas (para
+  cualquier `alumno_id`), asumiendo que ya confirmó el pago en persona
+  (el sistema no tiene pasarela de pago; sigue siendo un trámite
+  presencial, como cualquier constancia de una institución real). Cada
+  emisión queda en la auditoría (`log_audit`) con quién la generó y
+  para quién.
+- El **Récord Académico** (`modulo_record.php`) ya era admin/superadmin
+  únicamente desde la tanda anterior — se mantiene así; ahora además su
+  export en PDF (`api/export_boletin.php`) respeta la misma regla.
+- `portal_alumno.php` → pestaña "Trámites y Constancias" ya no muestra
+  botones de descarga: explica que es un trámite pago y que hay que
+  solicitarlo en administración. La autoinscripción tampoco vuelve a
+  abrir la constancia automáticamente (antes lo hacía).
+- **Nuevo — Constancia de Trabajo (docente)**: `?tipo=trabajo` en el
+  mismo `api/export_constancia.php`, con el mismo diseño institucional
+  (membrete, párrafo legal, firmas) que las constancias de alumno, pero
+  con su propio texto ("presta sus servicios como Docente... desde
+  el..."). Esta **no** es un trámite pago — el propio docente la genera
+  para sí mismo desde `portal_docente.php` → Configuración de Perfil, y
+  admin/superadmin puede emitirla para cualquier docente desde
+  `modulo_docentes.php` (botón 📄 Trabajo en cada fila).
+
+## Pantalla de espera para el alumno recién registrado
+
+`login.php` tiene un nuevo panel (`pEspera`) que se muestra: (a)
+apenas termina el registro público de 3 pasos, en vez de mandar de
+vuelta al login con un toast, y (b) cada vez que alguien con la cuenta
+todavía pendiente intenta iniciar sesión (el backend ahora devuelve
+`pendiente:true` en la respuesta de `login` cuando `aprobado=0`, y el
+frontend lo detecta y muestra el mismo panel en lugar de un simple
+mensaje de error). Es una carita 😊 y un texto corto explicando que un
+administrador tiene que aprobar el ingreso — nada más que hacer del
+lado del alumno.
+
+## Política de roles: quién puede terminar siendo qué
+
+Quedó reforzado (y documentado acá para que no se repita el bug de
+"me registro y termino de profesor" de una tanda anterior) que solo
+hay tres caminos para que una cuenta tenga un rol distinto de `alumno`:
+1. El autoregistro público (`login.php`) **siempre** crea `rol='alumno'`
+   — está hardcodeado en el `INSERT`, no depende de nada que mande el
+   formulario.
+2. `docente_create` (botón "Nuevo Docente" en `modulo_docentes.php`,
+   exclusivo de admin/superadmin) crea `rol='profesor'` — también
+   hardcodeado.
+3. `modulo_usuarios.php` (exclusivo de superadmin, ver arriba) es el
+   **único** lugar donde un rol se puede cambiar directamente, vía
+   `usuario_update`/`usuario_create` — recién blindado en el backend
+   en esta misma tanda.
+Ningún otro `INSERT INTO usuarios` existe en el código.
+
+**Refuerzo extra (esta tanda):** si después de todo esto seguís viendo
+que un registro público entra como profesor, el código ya está
+descartado como causa (el `INSERT` de `reg_finish` en `login.php` trae
+`rol='alumno'` escrito literal en el SQL, no viene de ningún campo del
+formulario) — lo más probable es un despliegue con una versión vieja
+del archivo, o un caché de opcode que no recargó `login.php`. Aun así,
+`reg_finish` ahora es a prueba de eso: antes del `INSERT` corre un
+`ALTER TABLE ... MODIFY rol ENUM(...)` idempotente (por si el ENUM real
+de esa base de datos no tuviera `alumno` todavía) y, apenas se crea la
+fila, una segunda consulta (`UPDATE usuarios SET rol='alumno' WHERE
+id=... AND rol<>'alumno'`) la corrige si por lo que sea no quedó bien.
+Nunca debería hacer falta — es una garantía adicional, no un parche
+sobre un bug real encontrado en el código actual.
+
+## Autoinscripción con comprobante de pago (`materia_solicitudes`)
+
+La autoinscripción directa (`materia_autoinscribir` en `api/ajax.php`)
+quedó **deshabilitada** — dejaba inscrito al alumno al instante, sin
+comprobar que hubiera pagado la materia. En su lugar, nuevo endpoint
+propio **`api/materia_solicitud.php`** (migración
+`012_materia_solicitudes.sql`, tabla `materia_solicitudes`):
+
+- El alumno regular, desde `portal_alumno.php` → Mis Materias, ahora
+  tiene que adjuntar la captura del pago móvil o la transferencia junto
+  con la materia elegida (acción `crear`) — se valida que sea una
+  imagen real (extensión + `getimagesize()`, mismo patrón de
+  `api/upload_foto.php`), se guarda con nombre generado en el servidor
+  bajo `uploads/comprobantes/` (protegida contra ejecución de scripts
+  por el `.htaccess` de `uploads/`) y queda en estado `pendiente` — **no**
+  se toca `materia_alumno` todavía, así que el alumno no tiene acceso
+  real a la materia hasta que la aprueben.
+- Admin/superadmin recibe una notificación (`tipo='solicitud_materia'`)
+  con botones **🧾 Ver comprobante** / **✓ Aceptar** / **✕ Rechazar**
+  directo en el panel de notificaciones (mismo lugar que las
+  solicitudes de ingreso de alumnos). "Ver comprobante" abre la imagen
+  en una pestaña nueva para confirmar que el pago realmente llegó antes
+  de decidir.
+- **Aceptar** (`aprobar`) recién ahí inserta la fila en
+  `materia_alumno` (`auto_inscrito=1`) y notifica al alumno. **Rechazar**
+  marca la solicitud como rechazada y también le avisa — el
+  comprobante rechazado queda guardado por si hay que revisar el caso.
+- `alumno_id`/`materia_id` con una solicitud `pendiente` no pueden
+  volver a mandar otra para la misma materia hasta que la revisen.
+
+## Biblioteca (catálogo de libros + compra con comprobante)
+
+Migración `013_biblioteca.sql` (tablas `libros`, `libro_compras`,
+`datos_pago`). Nuevo endpoint propio **`api/biblioteca.php`** y página
+**`modulo_biblioteca.php`**.
+
+- **Quién carga libros**: admin/superadmin y **cualquier docente**
+  (`modulo_biblioteca.php`, enlazado desde el sidebar para esos tres
+  roles y desde `portal_docente.php` con un botón "Biblioteca" que abre
+  el módulo en una pestaña nueva — mismo patrón que ya usan "Aula
+  Virtual"/"Clases en Vivo"/"Grabadas"). Un docente solo ve y puede
+  editar/eliminar **sus propios** libros; admin/superadmin ve y
+  gestiona todos, y además tiene dos pestañas extra: "Solicitudes de
+  Compra" y "Datos de Pago".
+- **El archivo del libro es contenido pago, nunca un link directo**:
+  vive en `uploads/libros_privados/`, con su propio `.htaccess`
+  (`Require all denied` — a diferencia de `uploads/fotos` o
+  `uploads/materiales`, acá se bloquea CUALQUIER acceso directo, no
+  solo la ejecución de scripts). La única forma de leerlo es
+  `api/biblioteca.php?action=descargar&id=X`, que valida que quien lo
+  pide lo haya comprado (o sea gratis, o admin/superadmin, o el docente
+  que lo subió) antes de hacer `readfile()`. La portada sí es una
+  imagen pública normal (`uploads/libros/portadas/`), como cualquier
+  otra foto de la app.
+- **Cómo compra un alumno**: `portal_alumno.php` → Biblioteca muestra
+  el catálogo (solo libros `activo=1`) con su precio. Al tocar
+  "Comprar" ve los **Datos de Pago** que haya cargado la administración
+  (`datos_pago`, una sola fila — hoy puede estar vacía, "los datos que
+  futuramente se darán de la institución", y el modal lo avisa así) y
+  adjunta la captura del pago móvil/transferencia — mismo patrón exacto
+  que `materia_solicitudes` del turno anterior: la compra queda
+  `pendiente` (con notificación a admin/superadmin, botones **🧾 Ver
+  comprobante** / **✓ Activar** / **✕ Rechazar** en el panel de
+  notificaciones) y recién al aceptarla el libro aparece en "Mi
+  Biblioteca" del alumno, con su propio botón de descarga. Un libro con
+  `precio=0` se activa solo, sin comprobante ni revisión — "Obtener
+  gratis" en vez de "Comprar".
+- **Escalabilidad de cara al pago real**: `datos_pago` es la única
+  pieza que hace falta reemplazar el día que la institución tenga una
+  pasarela de pago de verdad — el resto del flujo (solicitud +
+  comprobante + activación) queda igual; sería cuestión de agregar una
+  opción de pago automático que, al confirmar, llame directo a la misma
+  lógica de `compra_aprobar` en vez de esperar la revisión manual.
 
 ## Convenciones para módulos nuevos
 

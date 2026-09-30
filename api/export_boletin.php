@@ -12,6 +12,15 @@ if(!$aid) die('ID inválido');
 $con = db();
 if (!$con) die('Error de conexión a la base de datos.');
 
+// El boletín es el PDF del récord académico — igual que las
+// constancias de estudio/notas, es un trámite pago que solo puede
+// emitir un administrador (antes el propio alumno podía descargar el
+// suyo, sin pasar por administración ni confirmar el pago).
+if (!in_array($_SESSION['rol'] ?? '', ['superadmin', 'admin'])) {
+    die('Este documento es un trámite administrativo pago — solicitalo en la administración del instituto.');
+}
+log_audit($con, (int)($_SESSION['user_id'] ?? 0), 'BOLETIN_GENERAR', "alumno=$aid");
+
 $a = mysqli_fetch_assoc(mysqli_query($con,"SELECT a.*, u.correo uc FROM alumnos a LEFT JOIN usuarios u ON u.id=a.usuario_id WHERE a.id=$aid LIMIT 1"));
 if(!$a) die('Alumno no encontrado');
 

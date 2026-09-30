@@ -3,6 +3,8 @@
 
 <!-- SweetAlert2 -->
 <script src="assets/libs/sweetalert2.all.min.js"></script>
+<!-- WebSocket en vivo (opcional — no-op si no hay VPS configurado, ver config/ws_config.php) -->
+<script src="assets/ibbs-realtime.js"></script>
 
 <script>
 // ── Sidebar toggle ──────────────────────────────────────────
@@ -344,7 +346,10 @@ setTimeout(function() {
 const NOTIF_ICONS = {
   anuncio:'📢', foro:'💬', tarea:'📋', calificacion:'✅',
   clase_vivo:'🔴', grabacion:'🎬', reprobado:'⚠️', asistencia:'⚠️',
-  sistema:'⚙️', info:'ℹ️'
+  sistema:'⚙️', info:'ℹ️', solicitud_alumno:'🧑‍🎓',
+  solicitud_aprobada:'✅', solicitud_rechazada:'⛔',
+  solicitud_materia:'🧾', solicitud_materia_aprobada:'✅', solicitud_materia_rechazada:'⛔',
+  solicitud_libro:'📚', solicitud_libro_activada:'✅', solicitud_libro_rechazada:'⛔'
 };
 let _notifUnread = 0;
 function _notifSetBadge(n){
@@ -358,17 +363,29 @@ function _notifSetBadge(n){
 let _notifUltimoId = 0;
 let _notifEs = null;
 
+function _notifRecibida(n) {
+  _notifUltimoId = Math.max(_notifUltimoId, parseInt(n.id) || 0);
+  _notifSetBadge(_notifUnread + 1);
+  const icono = NOTIF_ICONS[n.tipo] || 'ℹ️';
+  toast(icono + ' ' + (n.titulo || 'Nueva notificación'));
+}
+
+// Si esta página tiene WebSocket configurado (VPS con ws-server/, ver
+// config/ws_config.php), lo usamos como canal PRINCIPAL — más rápido y
+// no ocupa un worker de Apache por pestaña abierta. Sin WebSocket
+// (XAMPP normal, o el VPS caído), seguimos con SSE exactamente como
+// antes: ningún comportamiento cambia si no configuraste el VPS.
+const _usaWebSocket = !!(window.IbbsRT && window.IbbsRT.hasWs);
+
 function _notifAbrirStream() {
+  if (_usaWebSocket) return; // el WebSocket ya está conectado por su cuenta
   if (typeof EventSource === 'undefined') return; // navegador muy viejo: se queda con el chequeo inicial
   if (_notifEs) return; // ya hay una conexión abierta
   try {
     _notifEs = new EventSource('api/notificaciones_stream.php?since=' + _notifUltimoId);
     _notifEs.onmessage = (ev) => {
       let n; try { n = JSON.parse(ev.data); } catch(e) { return; }
-      _notifUltimoId = Math.max(_notifUltimoId, parseInt(n.id) || 0);
-      _notifSetBadge(_notifUnread + 1);
-      const icono = NOTIF_ICONS[n.tipo] || 'ℹ️';
-      toast(icono + ' ' + (n.titulo || 'Nueva notificación'));
+      _notifRecibida(n);
     };
     // Si el servidor o la red fallan, EventSource reintenta solo —
     // no hace nada acá salvo dejar que el navegador reconecte.
@@ -379,12 +396,18 @@ function _notifCerrarStream() {
   if (_notifEs) { _notifEs.close(); _notifEs = null; }
 }
 
+if (_usaWebSocket) {
+  window.IbbsRT.on('notificacion', _notifRecibida);
+}
+
 // La pestaña en segundo plano no necesita mantener el worker del
 // servidor ocupado — se cierra la conexión y se reabre al volver
 // (retoma desde _notifUltimoId, no se pierde nada). Con miles de
 // usuarios esto es lo que realmente baja cuántas conexiones
-// simultáneas tiene que sostener el servidor en producción.
+// simultáneas tiene que sostener el servidor en producción. El
+// WebSocket ya maneja esto solo (ver assets/ibbs-realtime.js).
 document.addEventListener('visibilitychange', () => {
+  if (_usaWebSocket) return;
   if (document.hidden) _notifCerrarStream();
   else _notifAbrirStream();
 });
@@ -400,6 +423,51 @@ setTimeout(async function(){
 
   if (!document.hidden) _notifAbrirStream();
 }, 800);
+
+// Panel desplegable de la campana — solo para profesor/alumno, que no
+// tienen acceso a modulo_herramientas.php (admin/superadmin siguen
+// yendo directo a esa página al clickear la campana).
+async function toggleNotifDrop(){
+  const drop = document.getElementById('notifDrop');
+  if(!drop) return;
+  const abierto = drop.style.display==='block';
+  drop.style.display = abierto ? 'none' : 'block';
+  if(!abierto) await _renderNotifDrop();
+}
+document.addEventListener('click', (e) => {
+  const drop = document.getElementById('notifDrop');
+  if(!drop || drop.style.display!=='block') return;
+  if(!drop.contains(e.target) && e.target.id!=='notifBell' && !e.target.closest('#notifBell')) drop.style.display='none';
+});
+async function _renderNotifDrop(){
+  const box = document.getElementById('notifDropList');
+  if(!box) return;
+  box.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);"><span class="spin"></span></div>';
+  const d = await ajax('notif_list');
+  if(!d?.ok || !d.data.length){
+    box.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem;">Sin notificaciones pendientes.</div>';
+    return;
+  }
+  box.innerHTML = d.data.map(n => `
+    <div id="nd${n.id}" style="padding:.6rem .5rem;border-bottom:1px solid var(--border);">
+      <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.15rem;">${(NOTIF_ICONS[n.tipo]||'ℹ️')} ${n.titulo||''}</div>
+      <div style="font-size:.8rem;color:var(--ink);line-height:1.4;">${n.mensaje||''}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.35rem;">
+        <span style="font-size:.68rem;color:var(--muted);">${n.creado_en?.substring(0,16)||''}</span>
+        <button onclick="_leerNotifDrop(${n.id})" style="background:none;border:none;color:var(--lime,#059669);font-size:.7rem;cursor:pointer;">Marcar leída</button>
+      </div>
+    </div>`).join('');
+}
+async function _leerNotifDrop(id){
+  await ajax('notif_leer',{id});
+  document.getElementById('nd'+id)?.remove();
+  _notifSetBadge(Math.max(0,_notifUnread-1));
+}
+async function marcarTodasLeidasDrop(){
+  await ajax('notif_leer',{id:0});
+  _notifSetBadge(0);
+  await _renderNotifDrop();
+}
 </script>
 
 <style>

@@ -3,6 +3,13 @@ uploads/fotos/*
 !uploads/fotos/.gitkeep
 uploads/materiales/*
 !uploads/materiales/.gitkeep
+uploads/comprobantes/*
+!uploads/comprobantes/.gitkeep
+uploads/libros/portadas/*
+!uploads/libros/portadas/.gitkeep
+uploads/libros_privados/*
+!uploads/libros_privados/.gitkeep
+!uploads/libros_privados/.htaccess
 
 # Datos locales de runtime (freno de fuerza bruta del login, etc.)
 storage/*
@@ -18,3 +25,7 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+
+# Servidor de WebSocket (ws-server/) — dependencias de Node, nunca al repo
+ws-server/node_modules/
+ws-server/npm-debug.log*

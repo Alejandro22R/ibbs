@@ -59,6 +59,21 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
           <div class="field"><label>Especialidad</label><input name="especialidad" data-only="letters" placeholder="Matemáticas"></div>
           <div class="field"><label>Ciudad</label><input name="ciudad" data-only="letters" placeholder="Caracas, Valencia…"></div>
         </div>
+        <hr class="divider">
+        <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.8rem;">
+          Acceso al sistema (foro, aula virtual, tareas…)
+        </p>
+        <div class="form-grid" style="margin-bottom:1rem;">
+          <div class="field"><label>Usuario de acceso *</label><input name="usuario_login" data-only="username" placeholder="ej. crodriguez" autocomplete="off"></div>
+          <div class="field">
+            <label>Contraseña inicial *</label>
+            <input type="text" name="password_inicial" id="dNewPwd" placeholder="mín. 8 car., mayús., minús., nº" autocomplete="off">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="generarPasswordDocente()">🎲 Generar contraseña</button>
+          <span style="font-size:.72rem;color:var(--muted);">Pasásela al docente — él puede cambiarla después desde su perfil.</span>
+        </div>
         <div style="display:flex;justify-content:flex-end;gap:.6rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('mCD')">Cancelar</button>
           <button type="submit" class="btn btn-primary">Registrar</button>
@@ -168,8 +183,17 @@ async function loadDocentes(){
       <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignar(${r.id}, '${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" style="background:var(--ink);color:var(--lime);">Asignar</button>
       <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
       <button class="btn btn-sm btn-primary" onclick="editDoc(${r.id})">Editar</button>
+      <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=trabajo&docente_id=${r.id}" target="_blank" title="Constancia de Trabajo">📄 Trabajo</a>
       <button class="btn btn-sm btn-danger" onclick="delDoc(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')">Eliminar</button>
     </td></tr>`).join('');
+}
+
+function generarPasswordDocente(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
+  let pwd = '';
+  for(let i=0;i<10;i++) pwd += chars[Math.floor(Math.random()*chars.length)];
+  document.getElementById('dNewPwd').value = pwd;
+  document.getElementById('dNewPwd').type = 'text';
 }
 
 async function createDoc(e){
@@ -180,21 +204,35 @@ async function createDoc(e){
     {name:'cedula',   label:'Cédula',   tipo:'cedula'},
     {name:'correo',   label:'Correo',   tipo:'email'},
   ])) return;
-  
-  const fd = new FormData(e.target); 
+  const usuarioLogin = document.querySelector('#fCD [name="usuario_login"]').value.trim();
+  const pwdInicial = document.getElementById('dNewPwd').value;
+  if(!usuarioLogin){ Ibbs.error('Ponle un usuario de acceso al docente.'); return; }
+  if(!pwdInicial){ Ibbs.error('Escribí una contraseña inicial o generá una.'); return; }
+
+  const fd = new FormData(e.target);
   fd.append('action','docente_create');
-  const r = await fetch('api/ajax.php',{method:'POST',body:fd}); 
+  const r = await fetch('api/ajax.php',{method:'POST',body:fd});
   const d = await r.json();
-  
+
   if(d.ok){
-      toast(d.msg);
       closeModal('mCD');
+      const nombreCompleto = e.target.querySelector('[name="nombre"]').value+' '+e.target.querySelector('[name="apellido"]').value;
+      await Ibbs.confirm({
+        title:'Docente creado',
+        text:`Pasale estos datos a <b>${h(nombreCompleto)}</b> para que pueda ingresar:<br><br>
+              Usuario: <code>${h(usuarioLogin)}</code><br>
+              Contraseña: <code>${h(pwdInicial)}</code><br><br>
+              Puede cambiarla luego desde su perfil.`,
+        confirm:'Listo',
+      });
       e.target.reset();
       loadDocentes();
   } else {
       Ibbs.error(d.msg);
   }
 }
+
+function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
 
 async function editDoc(id){
   const d = await ajax('docente_get',{id}); 

@@ -39,11 +39,14 @@ if (!function_exists('materia_puede_ver')) {
 
 if (!function_exists('materias_asignadas')) {
     /**
-     * Materias que el usuario puede administrar: todas si es
-     * admin/superadmin, o solo las suyas (vía materia_docente) si es
-     * profesor. Usado por los selectores "elige una materia" de cada
-     * módulo — así nunca se ofrece una sobre la que después no podría
-     * hacer nada.
+     * "Mis materias" para los selectores de cada módulo (Aula, Clases
+     * en Vivo, Clases Grabadas, Calificaciones...): admin/superadmin
+     * ve todas, profesor solo las suyas (vía materia_docente), y
+     * alumno solo las que tiene inscritas (vía materia_alumno) — así
+     * nunca se ofrece una materia sobre la que después no podría hacer
+     * nada. El permiso fino de cada acción lo sigue resolviendo
+     * materia_puede_ver()/materia_puede_gestionar() en cada request,
+     * esto es solo para no mostrar opciones inútiles en el <select>.
      */
     function materias_asignadas($con, $uid, $rol) {
         if (in_array($rol, ['superadmin','admin'])) {
@@ -54,6 +57,15 @@ if (!function_exists('materias_asignadas')) {
                                          JOIN materia_docente md ON md.materia_id=m.id
                                          JOIN docentes d ON d.id=md.docente_id
                                          WHERE d.usuario_id=? AND m.activo=1 ORDER BY m.nombre");
+            mysqli_stmt_bind_param($st, 'i', $uid);
+            mysqli_stmt_execute($st);
+            $r = mysqli_stmt_get_result($st);
+        } elseif ($rol === 'alumno') {
+            $st = mysqli_prepare($con, "SELECT m.id,m.nombre,m.codigo,m.estado
+                                         FROM materias m
+                                         JOIN materia_alumno ma ON ma.materia_id=m.id
+                                         JOIN alumnos a ON a.id=ma.alumno_id
+                                         WHERE a.usuario_id=? AND m.activo=1 ORDER BY m.nombre");
             mysqli_stmt_bind_param($st, 'i', $uid);
             mysqli_stmt_execute($st);
             $r = mysqli_stmt_get_result($st);

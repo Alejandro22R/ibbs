@@ -1,15 +1,9 @@
 <?php
 require_once __DIR__.'/config/bootstrap.php';
 if (!empty($_SESSION['loggedin'])) { header('Location: index.php'); exit; }
-
-/** Misma política que se exige al recuperar contraseña (rec_newpwd). */
-function ibbs_validar_password($pwd) {
-    if (strlen($pwd) < 8) return 'La contraseña debe tener al menos 8 caracteres.';
-    if (!preg_match('/[A-Z]/', $pwd)) return 'Debe contener al menos una mayúscula.';
-    if (!preg_match('/[a-z]/', $pwd)) return 'Debe contener al menos una minúscula.';
-    if (!preg_match('/[0-9!@#$%^&*()\_+\-=\[\]{};\':",.<>?\/|`~]/', $pwd)) return 'Debe contener al menos un número o carácter especial.';
-    return null;
-}
+// ibbs_validar_password() ahora vive en config/password_policy.php
+// (cargado por el bootstrap) — la usan también modulo_perfil.php y la
+// creación de docentes desde api/ajax.php.
 
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     ob_start(); error_reporting(0);
@@ -31,15 +25,16 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $u = trim($_POST['usuario']??'');
         $p = trim($_POST['password']??'');
         
-        $st = mysqli_prepare($con,"SELECT id,usuario,password_hash,rol,activo,foto FROM usuarios WHERE (usuario=? OR correo=? OR cedula=?) LIMIT 1");
+        $st = mysqli_prepare($con,"SELECT id,usuario,password_hash,rol,activo,aprobado,foto FROM usuarios WHERE (usuario=? OR correo=? OR cedula=?) LIMIT 1");
         mysqli_stmt_bind_param($st,'sss',$u,$u,$u);
         mysqli_stmt_execute($st);
         $r = mysqli_stmt_get_result($st);
         $row = mysqli_fetch_assoc($r);
-        
+
         if (!$row) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Usuario no encontrado.']); exit; }
         if (!$row['activo']) { echo json_encode(['ok'=>false,'msg'=>'Cuenta desactivada.']); exit; }
         if (!password_verify($p,$row['password_hash'])) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Contraseña incorrecta.']); exit; }
+        if (!$row['aprobado']) { echo json_encode(['ok'=>false,'pendiente'=>true,'msg'=>'Tu cuenta todavía no fue aprobada por la administración. Te avisaremos apenas la revisen.']); exit; }
         
         login_throttle_reset();
         session_regenerate_id(true); // evita fijación de sesión al autenticarse
@@ -65,12 +60,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     if ($action==='reg_check') {
         $con = db();
         if (!$con) { echo json_encode(['ok'=>false,'msg'=>'Error de BD.']); exit; }
+        $nom  = trim($_POST['nombre']??'');
+        $ape  = trim($_POST['apellido']??'');
         $u    = trim($_POST['usuario']??'');
         $mail = trim($_POST['correo']??'');
         $ced  = trim($_POST['cedula']??'');
         $pwd  = trim($_POST['password']??'');
         $rep  = trim($_POST['repetir']??'');
-        if (!$u||!$mail||!$ced||!$pwd) { echo json_encode(['ok'=>false,'msg'=>'Completa todos los campos.']); exit; }
+        if (!$nom||!$ape||!$u||!$mail||!$ced||!$pwd) { echo json_encode(['ok'=>false,'msg'=>'Completa todos los campos.']); exit; }
         $pwdErr = ibbs_validar_password($pwd);
         if ($pwdErr)                   { echo json_encode(['ok'=>false,'msg'=>$pwdErr]); exit; }
         if ($pwd!==$rep)               { echo json_encode(['ok'=>false,'msg'=>'Las contraseñas no coinciden.']); exit; }
@@ -78,8 +75,12 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         mysqli_stmt_bind_param($st,'sss',$u,$mail,$ced);
         mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
         if (mysqli_stmt_num_rows($st)>0) { echo json_encode(['ok'=>false,'msg'=>'Usuario, correo o cédula ya registrado.']); exit; }
+        $stA = mysqli_prepare($con,"SELECT id FROM alumnos WHERE cedula=? OR correo=?");
+        mysqli_stmt_bind_param($stA,'ss',$ced,$mail);
+        mysqli_stmt_execute($stA); mysqli_stmt_store_result($stA);
+        if (mysqli_stmt_num_rows($stA)>0) { echo json_encode(['ok'=>false,'msg'=>'Ya existe un alumno registrado con esa cédula o correo.']); exit; }
         // Store in session temp
-        $_SESSION['reg_tmp'] = ['u'=>$u,'mail'=>$mail,'ced'=>$ced,'pwd'=>$pwd];
+        $_SESSION['reg_tmp'] = ['nom'=>$nom,'ape'=>$ape,'u'=>$u,'mail'=>$mail,'ced'=>$ced,'pwd'=>$pwd];
         echo json_encode(['ok'=>true]); exit;
     }
 
@@ -112,14 +113,73 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $hash = password_hash($pwd2, PASSWORD_BCRYPT);
         $rh1  = password_hash($tmp['r1'], PASSWORD_BCRYPT);
         $rh2  = password_hash($tmp['r2'], PASSWORD_BCRYPT);
-        $st = mysqli_prepare($con,"INSERT INTO usuarios(usuario,correo,cedula,password_hash,rol,preg1,resp1_hash,preg2,resp2_hash) VALUES(?,?,?,?,'profesor',?,?,?,?)");
+        // El registro público siempre crea una cuenta de alumno — nunca
+        // profesor/admin, esos los crea el staff desde el panel interno.
+        // Queda "aprobado=0": no puede iniciar sesión hasta que un
+        // admin/superadmin apruebe la solicitud (ver alumno_aprobar en
+        // api/ajax.php).
+        //
+        // Defensa extra: si el ENUM de `rol` en la base de datos real
+        // (que puede venir de un dump viejo, o de una instalación a la
+        // que nunca se le corrió la migración 008) no incluyera
+        // 'alumno' todavía, MySQL en modo no-estricto guardaría un
+        // valor vacío en vez de fallar — y esa cuenta terminaría
+        // pareciendo "profesor" en cualquier página que hace
+        // `$_SESSION['rol'] ?? 'profesor'`. Este ALTER es idempotente
+        // (redefinir el ENUM con las mismas opciones no rompe nada) y
+        // se corre acá también para que el registro público nunca
+        // dependa de que alguien haya pegado la migración a mano.
+        mysqli_query($con, "ALTER TABLE usuarios MODIFY rol ENUM('superadmin','admin','profesor','alumno') DEFAULT 'alumno'");
+
+        $st = mysqli_prepare($con,"INSERT INTO usuarios(usuario,correo,cedula,password_hash,rol,aprobado,preg1,resp1_hash,preg2,resp2_hash) VALUES(?,?,?,?,'alumno',0,?,?,?,?)");
         mysqli_stmt_bind_param($st,'ssssssss',$tmp['u'],$tmp['mail'],$tmp['ced'],$hash,$tmp['p1'],$rh1,$tmp['p2'],$rh2);
-        if (mysqli_stmt_execute($st)) {
-            unset($_SESSION['reg_tmp']);
-            echo json_encode(['ok'=>true,'msg'=>'¡Cuenta creada exitosamente! Ya puedes iniciar sesión.']);
-        } else {
-            echo json_encode(['ok'=>false,'msg'=>mysqli_error($con)]);
+        if (!mysqli_stmt_execute($st)) {
+            echo json_encode(['ok'=>false,'msg'=>mysqli_error($con)]); exit;
         }
+        $nuevoUid = mysqli_insert_id($con);
+        // Verificación final — si por lo que sea la fila no quedó con
+        // rol='alumno' (ENUM viejo, trigger de terceros, etc.), se
+        // fuerza acá mismo antes de seguir. Nunca debería hacer falta,
+        // pero es la única garantía 100% a prueba de una base de datos
+        // que no está en el estado que el código espera.
+        mysqli_query($con, "UPDATE usuarios SET rol='alumno' WHERE id=$nuevoUid AND rol<>'alumno'");
+
+        // Ficha de alumno vinculada — "regular" (puede autoinscribirse)
+        // recién cuando lo aprueben, no antes.
+        $stA = mysqli_prepare($con,"INSERT INTO alumnos(nombre,apellido,cedula,correo,usuario_id,regular) VALUES(?,?,?,?,?,0)");
+        mysqli_stmt_bind_param($stA,'ssssi',$tmp['nom'],$tmp['ape'],$tmp['ced'],$tmp['mail'],$nuevoUid);
+        if (!mysqli_stmt_execute($stA)) {
+            // No dejamos a medio crear una cuenta de alumno sin ficha de alumno.
+            mysqli_query($con, "DELETE FROM usuarios WHERE id=$nuevoUid");
+            echo json_encode(['ok'=>false,'msg'=>'No se pudo completar el registro: '.mysqli_error($con)]); exit;
+        }
+
+        log_audit($con, $nuevoUid, 'ALUMNO_AUTOREGISTRO', "usuario={$tmp['u']}");
+
+        // Avisar a admin/superadmin — aparece en su campana de
+        // notificaciones con botones Aceptar/Rechazar (modulo_herramientas.php).
+        $nombreCompleto = trim($tmp['nom'].' '.$tmp['ape']);
+        $stN = mysqli_prepare($con,"INSERT INTO notificaciones(tipo,titulo,mensaje,para_rol,referencia_id) VALUES('solicitud_alumno',?,?,'admin',?)");
+        $tituloN = "Nueva solicitud de ingreso: $nombreCompleto";
+        $mensajeN = "$nombreCompleto (usuario: {$tmp['u']}, cédula: {$tmp['ced']}) se registró y espera aprobación para poder ingresar.";
+        mysqli_stmt_bind_param($stN,'ssi',$tituloN,$mensajeN,$nuevoUid);
+        mysqli_stmt_execute($stN);
+        $notifId = mysqli_insert_id($con);
+        if (function_exists('ws_broadcast_user')) {
+            // Empuje en vivo a cualquier admin/superadmin que ya esté
+            // conectado por WebSocket — si ninguno lo está, el aviso
+            // real ya quedó guardado en la tabla para cuando entren.
+            $rAdmins = mysqli_query($con, "SELECT id FROM usuarios WHERE rol IN ('admin','superadmin') AND activo=1");
+            while ($fAdmin = mysqli_fetch_assoc($rAdmins)) {
+                ws_broadcast_user((int)$fAdmin['id'], 'notificacion', [
+                    'id' => $notifId, 'tipo' => 'solicitud_alumno', 'titulo' => $tituloN,
+                    'mensaje' => $mensajeN, 'referencia_id' => $nuevoUid, 'creado_en' => date('Y-m-d H:i:s'),
+                ]);
+            }
+        }
+
+        unset($_SESSION['reg_tmp']);
+        echo json_encode(['ok'=>true,'msg'=>'¡Cuenta creada! Un administrador debe aprobar tu ingreso antes de que puedas iniciar sesión — te avisaremos apenas lo revisen.']);
         exit;
     }
 
@@ -308,13 +368,17 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
     <!-- ══ REGISTRO — PASO 1: Datos básicos ══════════════ -->
     <div id="pReg1" class="pane">
       <h2>Crear cuenta</h2>
-      <p class="sub">Paso 1 de 3 — Datos de acceso</p>
+      <p class="sub">Registro de alumnos · Paso 1 de 3 — Datos de acceso</p>
       <div class="steps-wrap">
         <div class="step-item active"><div class="step-circle">1</div><div class="step-lbl">Datos</div></div>
         <div class="step-item"><div class="step-circle">2</div><div class="step-lbl">Seguridad</div></div>
         <div class="step-item"><div class="step-circle">3</div><div class="step-lbl">Confirmar</div></div>
       </div>
       <div id="errReg1" class="err"></div>
+      <div class="field-row">
+        <div class="field"><label>Nombre *</label><input id="rNom" data-only="letters" placeholder="María" autocomplete="off"></div>
+        <div class="field"><label>Apellido *</label><input id="rApe" data-only="letters" placeholder="López" autocomplete="off"></div>
+      </div>
       <div class="field-row">
         <div class="field"><label>Usuario *</label><input id="rU" data-only="username" placeholder="ej. jperez" autocomplete="off"></div>
         <div class="field"><label>Cédula *</label><input id="rCed" data-only="cedula" placeholder="12345678" autocomplete="off"></div>
@@ -395,6 +459,25 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
         <input id="rP4" type="password" placeholder="Repite tu contraseña"></div>
       <button class="btn btn-primary" id="btnReg3" onclick="doReg3()">✓ Crear mi cuenta</button>
       <button class="btn btn-outline" onclick="show('pReg2')">← Atrás</button>
+    </div>
+
+    <!-- ══ ESPERANDO APROBACIÓN ═════════════════════════════ -->
+    <div id="pEspera" class="pane">
+      <div style="text-align:center;padding:1rem 0 .5rem;">
+        <div style="font-size:4.2rem;line-height:1;margin-bottom:1rem;">😊</div>
+        <h2 style="margin-bottom:.5rem;">¡Ya casi estás adentro!</h2>
+        <p class="sub" style="margin-bottom:1.6rem;">
+          Tu cuenta se creó correctamente. Ahora un administrador tiene que
+          aprobar tu ingreso — apenas lo haga, vas a poder iniciar sesión
+          e inscribirte en tus materias.
+        </p>
+        <div class="info-box" style="text-align:left;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          No hace falta que hagas nada más por ahora. Podés cerrar esta
+          página con tranquilidad; te avisaremos cuando esté lista.
+        </div>
+        <button class="btn btn-primary" style="margin-top:1.6rem;" onclick="show('pLogin')">Ir a Iniciar Sesión</button>
+      </div>
     </div>
 
     <!-- ══ RECUPERAR — Paso 1 ══════════════════════════════ -->
@@ -497,6 +580,10 @@ async function doLogin(){
   const d=await post('login',{usuario:document.getElementById('lUser').value,password:document.getElementById('lPwd').value});
   if(d.ok){
     window.location = d.redirect || 'index.php';
+  }else if(d.pendiente){
+    btn.disabled=false;
+    btn.textContent='Iniciar sesión';
+    show('pEspera');
   }else{
     setErr('errLogin',d.msg);
     btn.disabled=false;
@@ -511,7 +598,7 @@ async function doReg1(){
   btn.textContent='Verificando…';
   const pwdErr = validarPassword(document.getElementById('rP').value);
   if (pwdErr) { setErr('errReg1', pwdErr); btn.disabled=false; btn.textContent='Continuar →'; return; }
-  const d=await post('reg_check',{usuario:document.getElementById('rU').value,cedula:document.getElementById('rCed').value,correo:document.getElementById('rM').value,password:document.getElementById('rP').value,repetir:document.getElementById('rP2').value});
+  const d=await post('reg_check',{nombre:document.getElementById('rNom').value,apellido:document.getElementById('rApe').value,usuario:document.getElementById('rU').value,cedula:document.getElementById('rCed').value,correo:document.getElementById('rM').value,password:document.getElementById('rP').value,repetir:document.getElementById('rP2').value});
   btn.disabled=false;
   btn.textContent='Continuar →';
   if(d.ok){show('pReg2');}else setErr('errReg1',d.msg);
@@ -540,7 +627,7 @@ async function doReg3(){
   const d=await post('reg_finish',{password:document.getElementById('rP3').value,repetir:document.getElementById('rP4').value});
   btn.disabled=false;
   btn.textContent='✓ Crear mi cuenta';
-  if(d.ok){setOk('okReg3',d.msg);setTimeout(()=>show('pLogin'),2500);}else setErr('errReg3',d.msg);
+  if(d.ok){show('pEspera');}else setErr('errReg3',d.msg);
 }
 
 async function doRec1(){

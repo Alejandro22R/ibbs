@@ -37,6 +37,7 @@ function can($perm){
 
 // ════ GLOBAL SEARCH ══════════════════════════════════════════
 if($action==='global_search'){
+    if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $q = trim($_POST['q']??'');
     if(strlen($q)<2){echo json_encode(['ok'=>true,'data'=>['alumnos'=>[],'docentes'=>[],'materias'=>[]]]);exit;}
     $qe = '%'.esc($con,$q).'%';
@@ -84,6 +85,7 @@ if($action==='periodo_delete'){
 
 // ════ DASHBOARD ════════════════════════════════════════════════
 if($action==='dashboard_stats'){
+    if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $al =(int)mysqli_fetch_assoc(mysqli_query($con,"SELECT COUNT(*) t FROM alumnos  WHERE activo=1"))['t'];
     $do =(int)mysqli_fetch_assoc(mysqli_query($con,"SELECT COUNT(*) t FROM docentes WHERE activo=1"))['t'];
     $ma =(int)mysqli_fetch_assoc(mysqli_query($con,"SELECT COUNT(*) t FROM materias WHERE activo=1"))['t'];
@@ -105,7 +107,7 @@ if($action==='dashboard_stats'){
 // ════ MATERIAS ═════════════════════════════════════════════════
 if($action==='materia_list'){
     $r=mysqli_query($con,"
-        SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado,m.activo,
+        SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado,m.activo,m.inscripcion_abierta,
                COUNT(DISTINCT md.docente_id) nd,
                COUNT(DISTINCT ma.alumno_id) na,
                SUM(CASE WHEN ma.nota_final IS NOT NULL THEN 1 ELSE 0 END) notas_cargadas
@@ -117,6 +119,7 @@ if($action==='materia_list'){
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
 if($action==='materia_create'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $n=trim($_POST['nombre']??''); $c=trim($_POST['codigo']??'');
     $d=trim($_POST['descripcion']??''); $dias=trim($_POST['dias']??'');
     $hi=trim($_POST['hora_inicio']??'')?:null; $hf=trim($_POST['hora_fin']??'')?:null;
@@ -135,6 +138,7 @@ if($action==='materia_create'){
     exit;
 }
 if($action==='materia_update'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0);
     $n=trim($_POST['nombre']??''); $c=trim($_POST['codigo']??'');
     $d=trim($_POST['descripcion']??''); $dias=trim($_POST['dias']??'');
@@ -144,29 +148,49 @@ if($action==='materia_update'){
     echo json_encode(['ok'=>true,'msg'=>'Actualizada.']); exit;
 }
 if($action==='materia_set_estado'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0); $est=trim($_POST['estado']??'');
     $allowed=['pendiente','en_curso','culminada'];
     if(!in_array($est,$allowed)){echo json_encode(['ok'=>false,'msg'=>'Estado inválido.']);exit;}
     mysqli_query($con,"UPDATE materias SET estado='".esc($con,$est)."' WHERE id=$id");
     echo json_encode(['ok'=>true,'msg'=>'Estado actualizado.']); exit;
 }
+if($action==='materia_toggle_inscripcion'){
+    // "Abrir/cerrar inscripción" es una decisión exclusiva de
+    // administración — controla si los alumnos regulares pueden
+    // autoinscribirse en esta materia (ver materia_autoinscribir).
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $id=(int)($_POST['id']??0);
+    if(!$id){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
+    mysqli_query($con,"UPDATE materias SET inscripcion_abierta=1-inscripcion_abierta WHERE id=$id");
+    $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT inscripcion_abierta FROM materias WHERE id=$id"));
+    log_audit($con,$uid,'MATERIA_INSCRIPCION_TOGGLE',"ID=$id abierta=".($f['inscripcion_abierta']??'?'));
+    echo json_encode(['ok'=>true,'msg'=>$f && (int)$f['inscripcion_abierta']===1 ? 'Inscripción abierta para alumnos regulares.' : 'Inscripción cerrada.','abierta'=>$f?(int)$f['inscripcion_abierta']:0]); exit;
+}
 if($action==='materia_delete'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0);
     mysqli_query($con,"DELETE FROM materias WHERE id=$id");
     log_audit($con,$uid,'MATERIA_DELETE',"ID=$id");
     echo json_encode(['ok'=>true,'msg'=>'Eliminada.']); exit;
 }
 if($action==='materia_get'){
+    // Devuelve el roster completo (con cédula) — solo lo usan
+    // modulo_materias.php y modulo_asistencias.php, ambos admin/superadmin;
+    // sin este chequeo, cualquier alumno podía pedir la cédula de todos
+    // sus compañeros de cualquier materia con solo cambiar el id.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0);
     $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM materias WHERE id=$id"));
     if(!$f){echo json_encode(['ok'=>false,'msg'=>'No encontrada.']);exit;}
     $rd=mysqli_query($con,"SELECT d.id,d.nombre,d.apellido FROM docentes d JOIN materia_docente md ON md.docente_id=d.id WHERE md.materia_id=$id");
     $f['docentes']=[]; while($dd=mysqli_fetch_assoc($rd)) $f['docentes'][]=$dd;
-    $ra=mysqli_query($con,"SELECT a.id,a.nombre,a.apellido,a.cedula,a.foto FROM alumnos a JOIN materia_alumno ma ON ma.alumno_id=a.id WHERE ma.materia_id=$id ORDER BY a.apellido,a.nombre");
+    $ra=mysqli_query($con,"SELECT a.id,a.nombre,a.apellido,a.cedula,a.foto,ma.auto_inscrito FROM alumnos a JOIN materia_alumno ma ON ma.alumno_id=a.id WHERE ma.materia_id=$id ORDER BY a.apellido,a.nombre");
     $f['alumnos']=[]; while($aa=mysqli_fetch_assoc($ra)) $f['alumnos'][]=$aa;
     echo json_encode(['ok'=>true,'data'=>$f]); exit;
 }
 if($action==='materia_add_docente'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid=(int)($_POST['materia_id']??0); $did=(int)($_POST['docente_id']??0);
     $st=mysqli_prepare($con,"SELECT id FROM materia_docente WHERE materia_id=? AND docente_id=?");
     mysqli_stmt_bind_param($st,'ii',$mid,$did); mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
@@ -190,24 +214,49 @@ if($action==='materia_add_docente'){
     echo json_encode(['ok'=>true,'msg'=>'Docente asignado.']); exit;
 }
 if($action==='materia_remove_docente'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid=(int)($_POST['materia_id']??0); $did=(int)($_POST['docente_id']??0);
     mysqli_query($con,"DELETE FROM materia_docente WHERE materia_id=$mid AND docente_id=$did");
+    log_audit($con,$uid,'MATERIA_DOCENTE_QUITAR',"materia=$mid docente=$did");
     echo json_encode(['ok'=>true,'msg'=>'Removido.']); exit;
 }
 if($action==='materia_add_alumno'){
+    // Asignación "manual" por el staff. La autoinscripción del propio
+    // alumno usa la acción materia_autoinscribir, más abajo.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid=(int)($_POST['materia_id']??0); $aid=(int)($_POST['alumno_id']??0);
     $st=mysqli_prepare($con,"SELECT id FROM materia_alumno WHERE materia_id=? AND alumno_id=?");
     mysqli_stmt_bind_param($st,'ii',$mid,$aid); mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
     if(mysqli_stmt_num_rows($st)){echo json_encode(['ok'=>false,'msg'=>'El alumno ya está inscrito.']);exit;}
     mysqli_stmt_close($st);
-    $st=mysqli_prepare($con,"INSERT INTO materia_alumno(materia_id,alumno_id) VALUES(?,?)");
+    $st=mysqli_prepare($con,"INSERT INTO materia_alumno(materia_id,alumno_id,auto_inscrito) VALUES(?,?,0)");
     mysqli_stmt_bind_param($st,'ii',$mid,$aid); mysqli_stmt_execute($st);
+    log_audit($con,$uid,'MATERIA_ALUMNO_ASIGNAR',"materia=$mid alumno=$aid");
     echo json_encode(['ok'=>true,'msg'=>'Alumno inscrito correctamente.']); exit;
 }
 if($action==='materia_remove_alumno'){
     $mid=(int)($_POST['materia_id']??0); $aid=(int)($_POST['alumno_id']??0);
+    $fila=mysqli_fetch_assoc(mysqli_query($con,"SELECT auto_inscrito FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
+    if(!$fila){echo json_encode(['ok'=>false,'msg'=>'El alumno no está inscrito en esta materia.']);exit;}
+    if((int)$fila['auto_inscrito']===1){
+        // El alumno se inscribió solo (siendo "regular") — solo el
+        // superadmin puede revocarla, ni admin ni profesor.
+        if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Esta inscripción la hizo el propio alumno; solo un superadmin puede quitarla.']);exit;}
+    } else {
+        if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    }
     mysqli_query($con,"DELETE FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid");
+    log_audit($con,$uid,'MATERIA_ALUMNO_QUITAR',"materia=$mid alumno=$aid".((int)$fila['auto_inscrito']===1?' (auto-inscrito)':''));
     echo json_encode(['ok'=>true,'msg'=>'Alumno removido de la materia.']); exit;
+}
+if($action==='materia_autoinscribir'){
+    // Reemplazada por api/materia_solicitud.php (acción "crear"): ahora
+    // la autoinscripción exige adjuntar el comprobante de pago y pasa
+    // por revisión admin antes de tocar materia_alumno. Esta acción
+    // vieja insertaba directo sin pedir comprobante — se deja
+    // deshabilitada (no eliminada, para no romper si algo la referencia
+    // por error) en vez de reactivar ese atajo.
+    echo json_encode(['ok'=>false,'msg'=>'La autoinscripción ahora requiere adjuntar el comprobante de pago. Usá el formulario de inscripción de tu portal.']); exit;
 }
 
 // ════ NOTAS ════════════════════════════════════════════════════
@@ -218,6 +267,7 @@ if($action==='nota_guardar'){
     $fecha=trim($_POST['fecha']??date('Y-m-d'));
     if(!$mid){echo json_encode(['ok'=>false,'msg'=>'Falta materia_id.']);exit;}
     if(!$aid){echo json_encode(['ok'=>false,'msg'=>'Falta alumno_id.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
     if($cal<0||$cal>20){echo json_encode(['ok'=>false,'msg'=>'Nota debe estar entre 0 y 20. Recibido: '.$nota_raw]);exit;}
     // Upsert
     $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
@@ -227,21 +277,29 @@ if($action==='nota_guardar'){
         $res=mysqli_query($con,"INSERT INTO materia_alumno(materia_id,alumno_id,nota_final,nota_fecha,nota_registrada_por,nota_actualizada_en) VALUES($mid,$aid,$cal,'".esc($con,$fecha)."',$uid,NOW())");
     }
     if(!$res){echo json_encode(['ok'=>false,'msg'=>'BD error: '.mysqli_error($con)]);exit;}
+    log_audit($con,$uid,'NOTA_GUARDAR',"materia=$mid alumno=$aid nota=$cal");
     $estado=$cal>=15?'Aprobado':'Reprobado';
     echo json_encode(['ok'=>true,'msg'=>"Nota $cal guardada. $estado."]); exit;
 }
 if($action==='nota_borrar'){
     $mid=(int)($_POST['materia_id']??0); $aid=(int)($_POST['alumno_id']??0);
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
     mysqli_query($con,"UPDATE materia_alumno SET nota_final=NULL,nota_fecha=NULL,nota_registrada_por=NULL,nota_actualizada_en=NULL WHERE materia_id=$mid AND alumno_id=$aid");
+    log_audit($con,$uid,'NOTA_BORRAR',"materia=$mid alumno=$aid");
     echo json_encode(['ok'=>true,'msg'=>'Nota borrada.']); exit;
 }
 if($action==='notas_tabla_materia'){
     $mid=(int)($_POST['materia_id']??0);
     if(!$mid){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
     $mat=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM materias WHERE id=$mid"));
     $docs=[]; $rd=mysqli_query($con,"SELECT d.nombre,d.apellido FROM docentes d JOIN materia_docente md ON md.docente_id=d.id WHERE md.materia_id=$mid");
     while($f=mysqli_fetch_assoc($rd)) $docs[]=$f;
-    $alumnos=[]; $ra=mysqli_query($con,"SELECT a.id,a.nombre,a.apellido,a.cedula,a.ciudad,ma.nota_final,ma.nota_fecha FROM alumnos a JOIN materia_alumno ma ON ma.alumno_id=a.id WHERE ma.materia_id=$mid ORDER BY a.apellido,a.nombre");
+    $alumnos=[]; $ra=mysqli_query($con,"SELECT a.id,a.nombre,a.apellido,a.cedula,a.ciudad,ma.nota_final,ma.nota_fecha,ma.nota_actualizada_en,
+        u.usuario AS nota_registrada_por_nombre
+        FROM alumnos a JOIN materia_alumno ma ON ma.alumno_id=a.id
+        LEFT JOIN usuarios u ON u.id=ma.nota_registrada_por
+        WHERE ma.materia_id=$mid ORDER BY a.apellido,a.nombre");
     while($f=mysqli_fetch_assoc($ra)) $alumnos[]=$f;
     $apr=0; foreach($alumnos as $_a){ if($_a['nota_final']!==null&&(float)$_a['nota_final']>=15) $apr++; }
     $rep=0; foreach($alumnos as $_a){ if($_a['nota_final']!==null&&(float)$_a['nota_final']<15) $rep++; }
@@ -252,6 +310,12 @@ if($action==='notas_tabla_materia'){
 
 // ════ INSCRIPCIONES ════════════════════════════════════════════
 if($action==='inscripcion_alumno_materias'){
+    // Devuelve el expediente COMPLETO de un alumno (notas, materias,
+    // datos personales) — sin este chequeo, cualquier usuario logueado
+    // (incluido otro alumno) podía pedir el expediente de cualquiera
+    // con solo cambiar alumno_id. Solo lo usan modulo_record.php y
+    // modulo_inscripciones.php, ambos admin/superadmin.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $aid=(int)($_POST['alumno_id']??0);
     if(!$aid){echo json_encode(['ok'=>false,'msg'=>'ID de alumno requerido.']);exit;}
     $al=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,nombre,apellido,cedula,correo,telefono,ciudad,foto,activo FROM alumnos WHERE id=$aid LIMIT 1"));
@@ -260,13 +324,13 @@ if($action==='inscripcion_alumno_materias'){
     // Materias en las que YA está inscrito
     $inscritas=[];
     $ri=mysqli_query($con,"
-        SELECT m.id,m.nombre,m.codigo,m.estado,ma.nota_final,ma.nota_fecha,
+        SELECT m.id,m.nombre,m.codigo,m.estado,ma.nota_final,ma.nota_fecha,ma.auto_inscrito,
                GROUP_CONCAT(DISTINCT CONCAT(d.nombre,' ',d.apellido) SEPARATOR ', ') docentes
         FROM materias m
         JOIN materia_alumno ma ON ma.materia_id=m.id AND ma.alumno_id=$aid
         LEFT JOIN materia_docente md ON md.materia_id=m.id
         LEFT JOIN docentes d ON d.id=md.docente_id
-        GROUP BY m.id,ma.nota_final,ma.nota_fecha
+        GROUP BY m.id,ma.nota_final,ma.nota_fecha,ma.auto_inscrito
         ORDER BY m.nombre");
     while($f=mysqli_fetch_assoc($ri)) $inscritas[]=$f;
 
@@ -290,16 +354,42 @@ if($action==='inscripcion_alumno_materias'){
 
 // ════ DOCENTES ══════════════════════════════════════════════════
 if($action==='docente_create'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $n=trim($_POST['nombre']??''); $a=trim($_POST['apellido']??''); $c=trim($_POST['cedula']??'');
     $m=trim($_POST['correo']??''); $t=trim($_POST['telefono']??''); $e=trim($_POST['especialidad']??''); $ci=trim($_POST['ciudad']??'');
+    $usuarioLogin=trim($_POST['usuario_login']??''); $pwdInicial=trim($_POST['password_inicial']??'');
     if(!$n||!$a||!$c||!$m){echo json_encode(['ok'=>false,'msg'=>'Faltan campos requeridos.']);exit;}
+    if(!$usuarioLogin||!$pwdInicial){echo json_encode(['ok'=>false,'msg'=>'Faltan el usuario y la contraseña de acceso del docente.']);exit;}
+    $pwdErr=ibbs_validar_password($pwdInicial);
+    if($pwdErr){echo json_encode(['ok'=>false,'msg'=>$pwdErr]);exit;}
     $st=mysqli_prepare($con,"SELECT id FROM docentes WHERE cedula=?"); mysqli_stmt_bind_param($st,'s',$c); mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
     if(mysqli_stmt_num_rows($st)){echo json_encode(['ok'=>false,'msg'=>'Cédula ya registrada.']);exit;} mysqli_stmt_close($st);
-    $st=mysqli_prepare($con,"INSERT INTO docentes(nombre,apellido,cedula,correo,telefono,especialidad,ciudad) VALUES(?,?,?,?,?,?,?)");
-    mysqli_stmt_bind_param($st,'sssssss',$n,$a,$c,$m,$t,$e,$ci); mysqli_stmt_execute($st);
+    $stU=mysqli_prepare($con,"SELECT id FROM usuarios WHERE usuario=? OR correo=? OR cedula=?");
+    mysqli_stmt_bind_param($stU,'sss',$usuarioLogin,$m,$c); mysqli_stmt_execute($stU); mysqli_stmt_store_result($stU);
+    if(mysqli_stmt_num_rows($stU)>0){echo json_encode(['ok'=>false,'msg'=>'Ese usuario, correo o cédula ya está en uso.']);exit;}
+    mysqli_stmt_close($stU);
+
+    // 1. Cuenta de acceso — la crea el admin, ya aprobada (a diferencia
+    // del autoregistro público de alumnos, este docente lo dio de alta
+    // el propio staff, no hace falta aprobación aparte).
+    $hash=password_hash($pwdInicial,PASSWORD_BCRYPT);
+    $stU2=mysqli_prepare($con,"INSERT INTO usuarios(usuario,correo,cedula,password_hash,rol,aprobado) VALUES(?,?,?,?,'profesor',1)");
+    mysqli_stmt_bind_param($stU2,'ssss',$usuarioLogin,$m,$c,$hash);
+    if(!mysqli_stmt_execute($stU2)){echo json_encode(['ok'=>false,'msg'=>'No se pudo crear el usuario: '.mysqli_error($con)]);exit;}
+    $nuevoUsuarioId=mysqli_insert_id($con);
+
+    // 2. Ficha de docente, vinculada a esa cuenta.
+    $st=mysqli_prepare($con,"INSERT INTO docentes(nombre,apellido,cedula,correo,telefono,especialidad,ciudad,usuario_id) VALUES(?,?,?,?,?,?,?,?)");
+    mysqli_stmt_bind_param($st,'sssssssi',$n,$a,$c,$m,$t,$e,$ci,$nuevoUsuarioId);
+    if(!mysqli_stmt_execute($st)){
+        mysqli_query($con,"DELETE FROM usuarios WHERE id=$nuevoUsuarioId");
+        echo json_encode(['ok'=>false,'msg'=>'No se pudo registrar el docente: '.mysqli_error($con)]); exit;
+    }
+    log_audit($con,$uid,'DOCENTE_CREATE',"ID=".mysqli_insert_id($con)." usuario=$usuarioLogin");
     echo json_encode(['ok'=>true,'msg'=>'Docente registrado.','id'=>mysqli_insert_id($con)]); exit;
 }
 if($action==='docente_update'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0); $n=trim($_POST['nombre']??''); $a=trim($_POST['apellido']??'');
     $c=trim($_POST['cedula']??''); $m=trim($_POST['correo']??''); $t=trim($_POST['telefono']??'');
     $e=trim($_POST['especialidad']??''); $ci=trim($_POST['ciudad']??''); $ac=(int)($_POST['activo']??1);
@@ -310,19 +400,25 @@ if($action==='docente_update'){
     mysqli_stmt_close($ck);
     $st=mysqli_prepare($con,"UPDATE docentes SET nombre=?,apellido=?,cedula=?,correo=?,telefono=?,especialidad=?,ciudad=?,activo=? WHERE id=?");
     mysqli_stmt_bind_param($st,'sssssssii',$n,$a,$c,$m,$t,$e,$ci,$ac,$id); mysqli_stmt_execute($st);
+    // Si el docente tiene cuenta vinculada, su activo/inactivo también
+    // le bloquea/desbloquea el acceso al sistema (login.php ya exige activo=1).
+    mysqli_query($con,"UPDATE usuarios u JOIN docentes d ON d.usuario_id=u.id SET u.activo=$ac WHERE d.id=$id");
     echo json_encode(['ok'=>true,'msg'=>'Actualizado.']); exit;
 }
 if($action==='docente_delete'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0); mysqli_query($con,"DELETE FROM docentes WHERE id=$id");
     log_audit($con,$uid,'DOCENTE_DELETE',"ID=$id");
     echo json_encode(['ok'=>true,'msg'=>'Eliminado.']); exit;
 }
 if($action==='docente_list'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $r=mysqli_query($con,"SELECT d.*,COUNT(DISTINCT md.materia_id) nm FROM docentes d LEFT JOIN materia_docente md ON md.docente_id=d.id GROUP BY d.id ORDER BY d.apellido,d.nombre");
     $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
 if($action==='docente_get'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0);
     $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM docentes WHERE id=$id"));
     if(!$f){echo json_encode(['ok'=>false,'msg'=>'No encontrado.']);exit;}
@@ -340,6 +436,7 @@ if($action==='docente_all_simple'){
 
 // ════ ALUMNOS ═══════════════════════════════════════════════════
 if($action==='alumno_create'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $n=trim($_POST['nombre']??''); $a=trim($_POST['apellido']??''); $c=trim($_POST['cedula']??'');
     $m=trim($_POST['correo']??''); $t=trim($_POST['telefono']??''); $ci=trim($_POST['ciudad']??'');
     if(!$n||!$a||!$c||!$m){echo json_encode(['ok'=>false,'msg'=>'Faltan campos requeridos.']);exit;}
@@ -350,6 +447,7 @@ if($action==='alumno_create'){
     echo json_encode(['ok'=>true,'msg'=>'Alumno registrado.','id'=>mysqli_insert_id($con)]); exit;
 }
 if($action==='alumno_update'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0); $n=trim($_POST['nombre']??''); $a=trim($_POST['apellido']??'');
     $c=trim($_POST['cedula']??''); $m=trim($_POST['correo']??''); $t=trim($_POST['telefono']??'');
     $ci=trim($_POST['ciudad']??''); $ac=(int)($_POST['activo']??1);
@@ -360,21 +458,74 @@ if($action==='alumno_update'){
     mysqli_stmt_close($ck);
     $st=mysqli_prepare($con,"UPDATE alumnos SET nombre=?,apellido=?,cedula=?,correo=?,telefono=?,ciudad=?,activo=? WHERE id=?");
     mysqli_stmt_bind_param($st,'ssssssii',$n,$a,$c,$m,$t,$ci,$ac,$id); mysqli_stmt_execute($st);
+    // "Regular" (habilita autoinscripción) solo lo cambia el superadmin,
+    // aunque un admin también pueda editar el resto del perfil.
+    if(isset($_POST['regular']) && $_rol==='superadmin'){
+        $reg=(int)!!$_POST['regular'];
+        mysqli_query($con,"UPDATE alumnos SET regular=$reg WHERE id=$id");
+        log_audit($con,$uid,'ALUMNO_REGULAR',"ID=$id regular=$reg");
+    }
     echo json_encode(['ok'=>true,'msg'=>'Alumno actualizado.']); exit;
 }
 if($action==='alumno_delete'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0); mysqli_query($con,"DELETE FROM alumnos WHERE id=$id");
     log_audit($con,$uid,'ALUMNO_DELETE',"ID=$id");
     echo json_encode(['ok'=>true,'msg'=>'Eliminado.']); exit;
 }
 if($action==='alumno_list'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $ciudad=trim($_POST['ciudad']??'');
     $w=$ciudad?" WHERE a.ciudad LIKE '%".esc($con,$ciudad)."%'":'';
-    $r=mysqli_query($con,"SELECT a.*,COUNT(DISTINCT ma.materia_id) nm FROM alumnos a LEFT JOIN materia_alumno ma ON ma.alumno_id=a.id$w GROUP BY a.id ORDER BY a.apellido,a.nombre");
+    // aprobado/usuario_activo: NULL si el alumno no tiene cuenta de
+    // acceso vinculada (lo creó el staff a mano, sin autoregistro).
+    $r=mysqli_query($con,"SELECT a.*,COUNT(DISTINCT ma.materia_id) nm,u.aprobado,u.activo usuario_activo
+        FROM alumnos a
+        LEFT JOIN materia_alumno ma ON ma.alumno_id=a.id
+        LEFT JOIN usuarios u ON u.id=a.usuario_id
+        $w GROUP BY a.id ORDER BY a.apellido,a.nombre");
     $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
+if($action==='alumno_aprobar'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $id=(int)($_POST['id']??0); // id de ALUMNOS, no de usuarios
+    $usuarioIdPost=(int)($_POST['usuario_id']??0); // alternativa: desde el panel de notificaciones solo se conoce el usuario_id (referencia_id)
+    if($id) $al=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,usuario_id,nombre,apellido FROM alumnos WHERE id=$id LIMIT 1"));
+    elseif($usuarioIdPost) $al=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,usuario_id,nombre,apellido FROM alumnos WHERE usuario_id=$usuarioIdPost LIMIT 1"));
+    else{echo json_encode(['ok'=>false,'msg'=>'Alumno requerido.']);exit;}
+    if(!$al||!$al['usuario_id']){echo json_encode(['ok'=>false,'msg'=>'Este alumno no tiene una solicitud de ingreso pendiente.']);exit;}
+    $id=(int)$al['id'];
+    $uidAlumno=(int)$al['usuario_id'];
+    mysqli_query($con,"UPDATE usuarios SET aprobado=1 WHERE id=$uidAlumno");
+    mysqli_query($con,"UPDATE alumnos SET regular=1 WHERE id=$id");
+    log_audit($con,$uid,'ALUMNO_APROBAR',"alumno=$id usuario=$uidAlumno");
+    notificar_usuario($con,$uidAlumno,'solicitud_aprobada','¡Tu ingreso fue aprobado!','Ya podés iniciar sesión e inscribirte en tus materias.');
+    // Marca como leída la notificación de solicitud original, si existe.
+    mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
+    echo json_encode(['ok'=>true,'msg'=>"Se aprobó el ingreso de {$al['nombre']} {$al['apellido']}."]); exit;
+}
+if($action==='alumno_rechazar'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $id=(int)($_POST['id']??0);
+    $usuarioIdPost=(int)($_POST['usuario_id']??0);
+    if($id) $al=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,usuario_id,nombre,apellido FROM alumnos WHERE id=$id LIMIT 1"));
+    elseif($usuarioIdPost) $al=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,usuario_id,nombre,apellido FROM alumnos WHERE usuario_id=$usuarioIdPost LIMIT 1"));
+    else{echo json_encode(['ok'=>false,'msg'=>'Alumno requerido.']);exit;}
+    if(!$al||!$al['usuario_id']){echo json_encode(['ok'=>false,'msg'=>'Este alumno no tiene una solicitud de ingreso pendiente.']);exit;}
+    $id=(int)$al['id'];
+    $uidAlumno=(int)$al['usuario_id'];
+    // No se borra la cuenta — queda desactivada, por si hay que revisar
+    // el caso después. activo=0 ya bloquea el login con el mensaje
+    // "Cuenta desactivada."
+    mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=$uidAlumno");
+    log_audit($con,$uid,'ALUMNO_RECHAZAR',"alumno=$id usuario=$uidAlumno");
+    notificar_usuario($con,$uidAlumno,'solicitud_rechazada','Tu solicitud de ingreso fue rechazada','Contactá a la administración si creés que es un error.');
+    mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
+    echo json_encode(['ok'=>true,'msg'=>"Se rechazó la solicitud de {$al['nombre']} {$al['apellido']}."]); exit;
+}
 if($action==='alumno_get'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0);
     $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM alumnos WHERE id=$id"));
     if(!$f){echo json_encode(['ok'=>false,'msg'=>'No encontrado.']);exit;}
@@ -385,6 +536,7 @@ if($action==='alumno_get'){
     echo json_encode(['ok'=>true,'data'=>$f]); exit;
 }
 if($action==='alumno_all_simple'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $r=mysqli_query($con,"SELECT id,nombre,apellido,cedula FROM alumnos WHERE activo=1 ORDER BY apellido,nombre");
     $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
@@ -392,6 +544,9 @@ if($action==='alumno_all_simple'){
 
 // ════ RECORD ALUMNO ════════════════════════════════════════════
 if($action==='record_alumno'){
+    // Igual que inscripcion_alumno_materias: expediente completo de
+    // cualquier alumno_id sin validar quién lo pide.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $aid=(int)($_POST['alumno_id']??0);
     $al=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,nombre,apellido,cedula,correo,telefono,ciudad,foto,activo FROM alumnos WHERE id=$aid"));
     if(!$al){echo json_encode(['ok'=>false,'msg'=>'Alumno no encontrado.']);exit;}
@@ -414,6 +569,10 @@ if($action==='asistencia_register'){
     $pid=(int)($_POST['persona_id']??0); $fecha=trim($_POST['fecha']??'');
     $estado=trim($_POST['estado']??'presente'); $obs=trim($_POST['observacion']??'');
     if(!$mid||!$pid||!$fecha){echo json_encode(['ok'=>false,'msg'=>'Datos incompletos.']);exit;}
+    // Sin este chequeo, cualquier usuario logueado (un alumno incluso)
+    // podía marcarse presente a sí mismo, o a cualquiera, en cualquier
+    // materia con solo cambiar materia_id/persona_id.
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
     if($tipo==='alumno'){
         $st=mysqli_prepare($con,"INSERT INTO asistencias(materia_id,alumno_id,tipo,fecha,estado,observacion,registrado_por) VALUES(?,?,'alumno',?,?,?,?)");
         mysqli_stmt_bind_param($st,'iisssi',$mid,$pid,$fecha,$estado,$obs,$uid);
@@ -429,6 +588,7 @@ if($action==='asistencia_register'){
     exit;
 }
 if($action==='asistencia_list'){
+    if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid=(int)($_POST['materia_id']??0); $tipo=trim($_POST['tipo']??''); $fecha=trim($_POST['fecha']??'');
     $w=[]; if($mid) $w[]="a.materia_id=$mid"; if($tipo) $w[]="a.tipo='".esc($con,$tipo)."'"; if($fecha) $w[]="a.fecha='".esc($con,$fecha)."'";
     $wq=$w?"WHERE ".implode(' AND ',$w):'';
@@ -439,6 +599,7 @@ if($action==='asistencia_list'){
 
 // ════ BÚSQUEDA CÉDULA ══════════════════════════════════════════
 if($action==='buscar_cedula'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $ced=trim($_POST['cedula']??''); if(!$ced){echo json_encode(['ok'=>false,'msg'=>'Ingresa una cédula.']);exit;}
     $ce=esc($con,$ced);
     $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM alumnos WHERE cedula='$ce' LIMIT 1"));
@@ -463,12 +624,21 @@ if($action==='buscar_cedula'){
 }
 
 // ════ USUARIOS ══════════════════════════════════════════════════
+// modulo_usuarios.php (la única pantalla que llama estas 6 acciones)
+// ya es exclusiva de superadmin a nivel de página — pero ninguna de
+// estas acciones lo volvía a exigir en el backend. Cualquier usuario
+// logueado (alumno incluido) podía llamarlas directo por fetch():
+// listar TODOS los usuarios, crearse una cuenta admin/superadmin
+// propia, cambiarle el rol a cualquiera (incluso a sí mismo),
+// resetear la contraseña de cualquiera o borrar cualquier cuenta.
 if($action==='usuario_list'){
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $r=mysqli_query($con,"SELECT id,usuario,correo,rol,activo,creado_en FROM usuarios ORDER BY creado_en DESC");
     $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
 if($action==='usuario_create'){
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $usr=trim($_POST['usuario']??''); $mail=trim($_POST['correo']??'');
     $ced=trim($_POST['cedula']??'');
     $pwd=trim($_POST['password']??''); $rol=trim($_POST['rol']??'profesor');
@@ -487,6 +657,7 @@ if($action==='usuario_create'){
     echo json_encode(['ok'=>true,'msg'=>'Usuario creado.','id'=>mysqli_insert_id($con)]); exit;
 }
 if($action==='usuario_update'){
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0); $usr=trim($_POST['usuario']??''); $mail=trim($_POST['correo']??'');
     $rol=trim($_POST['rol']??'profesor'); $ac=(int)($_POST['activo']??1);
     $allowed_roles = $_rol==='superadmin' ? ['superadmin','admin','profesor'] : ['admin','profesor'];
@@ -501,6 +672,7 @@ if($action==='usuario_update'){
     echo json_encode(['ok'=>true,'msg'=>'Usuario actualizado.']); exit;
 }
 if($action==='usuario_toggle'){
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0);
     if($id===$uid){echo json_encode(['ok'=>false,'msg'=>'No puedes desactivar tu propia cuenta.']);exit;}
     $cur=(int)mysqli_fetch_assoc(mysqli_query($con,"SELECT activo FROM usuarios WHERE id=$id"))['activo'];
@@ -509,6 +681,7 @@ if($action==='usuario_toggle'){
     echo json_encode(['ok'=>true,'msg'=>$nuevo?'Activado.':'Desactivado.','activo'=>$nuevo]); exit;
 }
 if($action==='usuario_reset_pwd'){
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0); $pwd=trim($_POST['password']??'');
     if(strlen($pwd)<6){echo json_encode(['ok'=>false,'msg'=>'Mínimo 6 caracteres.']);exit;}
     $hash=password_hash($pwd,PASSWORD_BCRYPT);
@@ -517,6 +690,7 @@ if($action==='usuario_reset_pwd'){
     echo json_encode(['ok'=>true,'msg'=>'Contraseña actualizada.']); exit;
 }
 if($action==='usuario_delete'){
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede eliminar usuarios.']);exit;}
     $id=(int)($_POST['id']??0);
     if($id===$uid){echo json_encode(['ok'=>false,'msg'=>'No puedes eliminar tu propia cuenta.']);exit;}
     mysqli_query($con,"DELETE FROM usuarios WHERE id=$id");
@@ -685,6 +859,7 @@ if($action==='importar_alumnos'){
 
 // ════ CERTIFICADO PDF — datos para generar ══════════════════
 if($action==='cert_datos'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $aid=(int)($_POST['alumno_id']??0);
     if(!$aid){echo json_encode(['ok'=>false,'msg'=>'Falta alumno.']);exit;}
     $a=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM alumnos WHERE id=$aid"));
@@ -823,6 +998,7 @@ if($action==='reset_bd'){
 
 // ════ RESUMEN GLOBAL ASISTENCIAS (dashboard) ════════════════
 if($action==='asistencia_resumen_global'){
+    if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $r=mysqli_query($con,"SELECT estado,COUNT(*) cnt FROM asistencias GROUP BY estado");
     $data=[]; while($f=mysqli_fetch_assoc($r)) $data[$f['estado']]=(int)$f['cnt'];
     echo json_encode(['ok'=>true,'data'=>$data]); exit;
@@ -830,6 +1006,7 @@ if($action==='asistencia_resumen_global'){
 
 // ════ ACTIVIDAD RECIENTE (dashboard) ════════════════════════
 if($action==='actividad_reciente'){
+    if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $r=mysqli_query($con,"
         SELECT a.nombre alumno_nombre, a.apellido alumno_apellido,
                m.nombre materia_nombre,
@@ -877,14 +1054,8 @@ if($action==='perfil_pregs'){
 }
 
 // ════ USUARIOS (con permisos) ════════════════════════════════
-if($action==='usuario_delete'){
-    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede eliminar usuarios.']);exit;}
-    $id=(int)($_POST['id']??0);
-    if($id===$uid){echo json_encode(['ok'=>false,'msg'=>'No puedes eliminar tu propia cuenta.']);exit;}
-    mysqli_query($con,"DELETE FROM usuarios WHERE id=$id");
-    log_audit($con,$uid,'USUARIO_DELETE',"ID=$id");
-    echo json_encode(['ok'=>true,'msg'=>'Usuario eliminado.']); exit;
-}
+// (usuario_delete ya se resolvió más arriba — este era un bloque
+// duplicado, inalcanzable, que quedó de una versión anterior)
 if($action==='usuario_set_rol'){
     if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede cambiar roles.']);exit;}
     $id=(int)($_POST['id']??0); $rol=trim($_POST['rol']??'');
@@ -897,6 +1068,7 @@ if($action==='usuario_set_rol'){
 
 // ════ HISTORIAL ACTIVIDAD ════════════════════════════════════
 if($action==='historial_actividad'){
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $tipo  = trim($_POST['tipo']??'');
     $fecha = trim($_POST['fecha']??'');
     $data  = [];
@@ -995,6 +1167,7 @@ if($action==='asistencia_editar'){
 
 // ════ ASISTENCIA RESUMEN ══════════════════════════════════════
 if($action==='asistencia_resumen'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid     = (int)($_POST['materia_id']??0);
     $periodo = trim($_POST['periodo']??'');
     $where_m = $mid ? "AND a.materia_id=$mid" : '';

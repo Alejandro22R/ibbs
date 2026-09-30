@@ -2,12 +2,15 @@
 $page_title = 'Aula Virtual';
 $page_sub   = 'Anuncios, materiales, actividades, tareas y foro de la materia';
 $active_link = 'materias';
+// Se calcula ANTES del include para que layout/head.php pueda armar el
+// token de WebSocket ya con el canal de esta materia (ver $ws_materia_id).
+$materia_id = (int)($_GET['materia_id'] ?? 0);
+$ws_materia_id = $materia_id;
 include __DIR__.'/layout/head.php';
 // Acceso: admin, superadmin, profesor y alumno.
 if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
-$materia_id = (int)($_GET['materia_id'] ?? 0);
 ?>
 
 <?php if(in_array($_rol,['superadmin','admin'])): ?>
@@ -375,7 +378,16 @@ async function iniciarAula() {
   // Iniciar el foro y el auto-refresco
   loadForo();
   if(foroInterval) clearInterval(foroInterval);
-  foroInterval = setInterval(loadForo, 5000); 
+  foroInterval = setInterval(loadForo, 5000);
+
+  // Con WebSocket (VPS configurado) el refresco es casi instantáneo en
+  // vez de esperar hasta 5s — el setInterval de arriba se deja igual
+  // como red de seguridad si el WebSocket se cae.
+  if (window.IbbsRT && window.IbbsRT.hasWs) {
+    window.IbbsRT.on('foro_mensaje', (data) => {
+      if (!data || parseInt(data.materia_id) === parseInt(MATERIA_ID)) { lastMessageCount = -1; loadForo(); }
+    });
+  }
 }
 
 /* ══ ANUNCIOS ══ */
@@ -817,16 +829,19 @@ function renderMessages(mensajes) {
 function createMessageHTML(msg, isReply) {
   const isMe = msg.usuario_nombre === CURRENT_USER;
   const bg = isMe ? 'background:#f0fdf4; border:1px solid #bbf7d0;' : 'background:#ffffff; border:1px solid var(--border);';
-  
+
   let badge = '';
-  if(msg.rol === 'profesor') {
+  if (msg.rol === 'profesor') {
       badge = '<span class="badge b-tardanza" style="font-size:.65rem;margin-left:.4rem;">Profesor</span>';
   } else if (msg.rol === 'admin' || msg.rol === 'superadmin') {
       badge = '<span class="badge b-profesor" style="font-size:.65rem;margin-left:.4rem;">Admin</span>';
+  } else if (msg.rol === 'alumno') {
+      badge = '<span class="badge b-presente" style="font-size:.65rem;margin-left:.4rem;">Alumno</span>';
   }
 
   const dateStr = new Date(msg.fecha).toLocaleString([], {month:'short', day:'numeric', hour: '2-digit', minute:'2-digit'});
   const replyBtn = !isReply ? `<button type="button" onclick="setReply(${msg.id}, '${h(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;">Responder</button>` : '';
+  const delBtn = msg.puede_borrar ? `<button type="button" onclick="borrarMensajeForo(${msg.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;margin-left:.8rem;">Borrar</button>` : '';
 
   return `
     <div style="padding:.8rem 1rem; border-radius:8px; ${bg}">
@@ -835,9 +850,25 @@ function createMessageHTML(msg, isReply) {
             <span style="font-size:.75rem;color:var(--muted);">${dateStr}</span>
         </div>
         <p style="margin:0;font-size:.9rem;color:#333;white-space:pre-wrap;line-height:1.4;">${h(msg.mensaje)}</p>
-        ${replyBtn}
+        ${replyBtn}${delBtn}
     </div>
   `;
+}
+
+async function borrarMensajeForo(id) {
+  const rr = await Ibbs.confirm({title:'¿Borrar mensaje?',text:'Esta acción no se puede deshacer.',confirm:'Sí, borrar',danger:true});
+  if (!rr.isConfirmed) return;
+  try {
+    const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const r = await fetch(`api/foro.php?action=delete_mensaje&materia_id=${MATERIA_ID}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
+    });
+    const result = await r.json();
+    if (result.success) { lastMessageCount = -1; loadForo(); }
+    else toast(result.error || 'No se pudo borrar el mensaje.', 'err');
+  } catch (e) { toast('Error al borrar el mensaje.', 'err'); }
 }
 
 window.setReply = function(id, nombre) {

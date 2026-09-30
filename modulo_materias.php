@@ -29,8 +29,8 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
   <div class="tbl-wrap">
     <table id="tblM">
-      <thead><tr><th>Código</th><th>Materia</th><th>Horario</th><th>Estado</th><th>Docentes</th><th>Alumnos</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyM"><tr class="empty-row"><td colspan="7"><span class="spin"></span></td></tr></tbody>
+      <thead><tr><th>Código</th><th>Materia</th><th>Horario</th><th>Estado</th><th>Inscripción</th><th>Docentes</th><th>Alumnos</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyM"><tr class="empty-row"><td colspan="8"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -148,6 +148,7 @@ if(!in_array($_rol,['superadmin','admin'])){
 
 <script>
 let _mid=null;
+const MI_ROL='<?=$_rol?>';
 document.addEventListener('ibbs:ready', () => loadMaterias());
 
 (async()=>{
@@ -179,13 +180,18 @@ function estadoBadge(e){
 }
 
 async function loadMaterias(){
-  console.log('[IBBS] Calling materia_list...'); const d=await ajax('materia_list'); console.log('[IBBS] materia_list response:', d); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="7">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  console.log('[IBBS] Calling materia_list...'); const d=await ajax('materia_list'); console.log('[IBBS] materia_list response:', d); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="8">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
   const tb=document.getElementById('tbodyM');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="7">Sin materias.</td></tr>';return;}
+  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="8">Sin materias.</td></tr>';return;}
   tb.innerHTML=d.data.map(m=>`<tr>
     <td><strong>${m.codigo}</strong></td><td>${m.nombre}</td>
     <td style="font-size:.79rem;color:var(--muted);">${m.dias||'—'} ${m.hora_inicio?m.hora_inicio.substring(0,5):''}${m.hora_fin?'–'+m.hora_fin.substring(0,5):''}</td>
     <td>${estadoBadge(m.estado||'en_curso')}</td>
+    <td>
+      <button class="btn btn-sm ${m.inscripcion_abierta==1?'btn-success':'btn-secondary'}" onclick="toggleInscripcion(${m.id})" style="font-size:.7rem;" title="Alumnos regulares pueden autoinscribirse cuando está abierta">
+        ${m.inscripcion_abierta==1?'🔓 Abierta':'🔒 Cerrada'}
+      </button>
+    </td>
     <td><span class="badge b-profesor">${m.nd}</span></td>
     <td><span class="badge b-alumno">${m.na}</span></td>
     <td class="td-actions">
@@ -232,6 +238,11 @@ async function toggleEstado(id,est){
   if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
 }
 
+async function toggleInscripcion(id){
+  const d=await ajax('materia_toggle_inscripcion',{id});
+  if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
+}
+
 // ----------------------------------------------------
 // Renderizado exacto de tablas (Docentes y Alumnos)
 // ----------------------------------------------------
@@ -243,7 +254,14 @@ function renderMD(list){
 
 function renderMA(list){
   document.getElementById('tbMA').innerHTML=list.length
-    ? list.map(a=>`<tr><td>${a.apellido||''} ${a.nombre}</td><td class="td-actions" style="justify-content:flex-end;"><button class="btn btn-sm btn-danger" onclick="rmAlu(${a.id},this)">Quitar</button></td></tr>`).join('')
+    ? list.map(a=>{
+        const auto = !!(a.auto_inscrito==1);
+        const puedeQuitar = !auto || MI_ROL==='superadmin';
+        const accion = puedeQuitar
+          ? `<button class="btn btn-sm btn-danger" onclick="rmAlu(${a.id},this)">Quitar</button>`
+          : `<span title="Auto-inscripción: solo un superadmin puede quitarla" style="color:var(--muted);font-size:.85rem;">🔒</span>`;
+        return `<tr><td>${a.apellido||''} ${a.nombre}${auto?' <span class="badge b-alumno" style="font-size:.6rem;vertical-align:middle;">Auto-inscrito</span>':''}</td><td class="td-actions" style="justify-content:flex-end;">${accion}</td></tr>`;
+      }).join('')
     : '<tr class="empty-row"><td colspan="2">Sin alumnos</td></tr>';
 }
 

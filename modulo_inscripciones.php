@@ -154,6 +154,7 @@ mysqli_close($con);
 
 <script>
 let _aid = null;
+const MI_ROL = '<?=$_rol?>';
 
 // Cargar el select de exportar planilla
 (async () => {
@@ -212,10 +213,12 @@ async function cargarAlumno(id) {
         const nv  = m.nota_final !== null ? parseFloat(m.nota_final) : null;
         const ok  = nv !== null && nv >= 15;
         const cls = nv === null ? 'color:var(--muted)' : nv >= 15 ? 'color:#16a34a' : nv >= 10 ? 'color:#ca8a04' : 'color:#dc2626';
+        const autoInsc = !!(m.auto_inscrito == 1);
+        const puedeQuitar = !autoInsc || MI_ROL === 'superadmin';
         return `<tr>
           <td style="text-align:left;">
             <strong style="font-size:.72rem;color:var(--muted);">${h(m.codigo)}</strong>
-            <div style="font-size:.86rem;">${h(m.nombre)}</div>
+            <div style="font-size:.86rem;">${h(m.nombre)}${autoInsc ? ' <span class="badge b-alumno" style="font-size:.6rem;vertical-align:middle;" title="El alumno se inscribió solo">Auto-inscrito</span>' : ''}</div>
             ${m.docentes ? `<div style="font-size:.7rem;color:var(--muted);">${h(m.docentes)}</div>` : ''}
           </td>
           <td style="text-align:center;">
@@ -232,7 +235,9 @@ async function cargarAlumno(id) {
               : '<span style="font-size:.7rem;color:var(--muted);">Pendiente</span>'}
           </td>
           <td style="text-align:center;">
-            <button class="btn btn-sm btn-danger" onclick="desinscribir(${m.id},'${h(m.nombre)}')" style="font-size:.65rem;padding:3px 8px;">✕</button>
+            ${puedeQuitar
+              ? `<button class="btn btn-sm btn-danger" onclick="desinscribir(${m.id},'${h(m.nombre)}')" style="font-size:.65rem;padding:3px 8px;">✕</button>`
+              : `<span title="Auto-inscripción: solo un superadmin puede quitarla" style="color:var(--muted);font-size:.9rem;">🔒</span>`}
           </td>
         </tr>`;
       }).join('');

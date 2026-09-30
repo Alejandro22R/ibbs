@@ -65,6 +65,12 @@ $res_materias = mysqli_stmt_get_result($stmt_m);
 $materias = [];
 while($row = mysqli_fetch_assoc($res_materias)) $materias[] = $row;
 
+// Token de WebSocket (opcional — ver config/ws_config.php) con un
+// canal por cada materia que este profesor/admin puede tener abierta
+// en el chat, para que el foro se actualice al instante si hay un VPS
+// con ws-server/ configurado.
+$ws_token = ws_enabled() ? ws_token_for_materias($con, $user_id, $_SESSION['rol'], $_SESSION['usuario'], array_column($materias, 'id')) : null;
+
 // Obtener entregas
 if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     $query_entregas = "SELECT e.*, t.titulo as tarea_titulo, t.nota_maxima, a.nombre as alumno_nombre, a.apellido as alumno_apellido, m.nombre as materia_nombre 
@@ -99,6 +105,11 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
+    <?php if ($ws_token): ?>
+    <meta name="ibbs-ws-url" content="<?=htmlspecialchars(ws_public_url())?>">
+    <meta name="ibbs-ws-token" content="<?=htmlspecialchars($ws_token)?>">
+    <?php endif; ?>
     <title>Portal Docente | IBBS</title>
     
     <!-- CSS Maestro del Sistema IBBS -->
@@ -185,6 +196,12 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button onclick="switchView('chat', this)" class="sb-link">
                 <i class="fas fa-comments"></i> <span class="sb-lbl">Foros de Clase</span>
             </button>
+            <button onclick="switchView('chat-staff', this)" class="sb-link">
+                <i class="fas fa-bullhorn"></i> <span class="sb-lbl">Chat del Staff</span>
+            </button>
+            <a href="modulo_biblioteca.php" target="_blank" class="sb-link">
+                <i class="fas fa-book"></i> <span class="sb-lbl">Biblioteca</span>
+            </a>
 
             <?php if(in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
             <div class="sb-section" style="margin-top: .5rem;">Administración</div>
@@ -198,7 +215,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button onclick="switchView('perfil', this)" class="sb-link">
                 <i class="fas fa-user-circle"></i> <span class="sb-lbl">Mi Perfil</span>
             </button>
-            <a href="logout.php" class="sb-link">
+            <a href="cerrar_sesion.php" class="sb-link">
                 <i class="fas fa-sign-out-alt"></i> <span class="sb-lbl">Salir</span>
             </a>
         </div>
@@ -506,6 +523,14 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         <a href="modulo_aula.php?materia_id=<?= $m['id'] ?>" target="_blank" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: auto;">
                             <i class="fas fa-sign-in-alt"></i> Entrar al Aula
                         </a>
+                        <div style="display:flex;gap:.5rem;width:100%;margin-top:.6rem;">
+                            <a href="modulo_vivo.php?materia_id=<?= $m['id'] ?>" target="_blank" class="btn btn-secondary" style="flex:1;justify-content:center;font-size:.78rem;">
+                                🔴 En Vivo
+                            </a>
+                            <a href="modulo_grabaciones.php?materia_id=<?= $m['id'] ?>" target="_blank" class="btn btn-secondary" style="flex:1;justify-content:center;font-size:.78rem;">
+                                🎬 Grabadas
+                            </a>
+                        </div>
                     </div>
                 </div>
                 <?php endforeach; ?>
@@ -521,38 +546,68 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         </div>
 
         <!-- ============================================== -->
+        <!-- VISTA: CHAT DEL STAFF (admin ↔ docentes, sin materia) -->
+        <!-- ============================================== -->
+        <div id="view-chat-staff" class="view-section">
+            <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink); margin-bottom: .3rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">Chat del Staff</h2>
+            <p style="font-size:.85rem;color:var(--muted);margin:.8rem 0 1.2rem;">Avisos de dirección y preguntas directas entre administración y docentes — visible para todo el staff, sin necesidad de estar en una materia.</p>
+            <div class="card" style="height:60vh;min-height:400px;display:flex;flex-direction:column;">
+                <div id="staffchat-box" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;background:#fafafa;">
+                    <div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span> Cargando chat...</div>
+                </div>
+                <div id="staffchat-reply-indicator" style="display:none;padding:.5rem 1.2rem;background:var(--cream);border-top:1px solid var(--border);font-size:.8rem;color:var(--muted);align-items:center;justify-content:space-between;">
+                    <span>Respondiendo a <strong id="staffchat-reply-name"></strong></span>
+                    <button type="button" onclick="cancelReplyStaffChat()" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:1rem;">✕</button>
+                </div>
+                <form id="staffchat-form" style="display:flex;gap:.6rem;padding:1rem 1.2rem;border-top:1px solid var(--border);">
+                    <input type="hidden" id="staffchat-respuesta-a" value="">
+                    <input type="text" id="staffchat-input" placeholder="Escribe un mensaje para el staff…" autocomplete="off"
+                        style="flex:1;padding:.7rem 1rem;border:1.5px solid var(--border);border-radius:10px;font-size:.9rem;outline:none;">
+                    <button type="submit" class="btn btn-primary">Enviar</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
         <!-- VISTA: PERFIL                                  -->
         <!-- ============================================== -->
         <div id="view-perfil" class="view-section">
             <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">Configuración de Perfil</h2>
-            
+
+            <div class="card" style="max-width: 700px; margin: 0 auto 1.5rem;">
+                <div class="card-body" style="padding: 1.5rem 2.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+                    <div>
+                        <h3 style="font-size: 1rem; margin-bottom: .3rem;">Constancia de Trabajo</h3>
+                        <p style="font-size: .82rem; color: var(--muted); margin:0;">Documento oficial que certifica que prestás servicios como docente en el instituto.</p>
+                    </div>
+                    <a href="api/export_constancia.php?tipo=trabajo" target="_blank" class="btn btn-secondary" style="white-space:nowrap;"><i class="fas fa-file-pdf"></i> Generar PDF</a>
+                </div>
+            </div>
+
             <div class="card" style="max-width: 700px; margin: 0 auto;">
                 <div class="card-body" style="padding: 2.5rem;">
-                    <form action="api/ajax.php" method="POST" enctype="multipart/form-data">
-                        <!-- Permite actualizar perfil en backend genérico si es necesario, o tu archivo específico -->
-                        <input type="hidden" name="action" value="actualizar_perfil_docente">
-                        
-                        <!-- SECCIÓN: FOTO DE PERFIL -->
-                        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 2rem;">
-                            <div style="width: 120px; height: 120px; border-radius: 50%; background: var(--cream); margin-bottom: 1.2rem; position: relative; overflow: hidden; border: 4px solid #fff; box-shadow: 0 8px 24px rgba(26,77,46,.12);">
-                                <?php if($foto_perfil): ?>
-                                    <img id="avatar-preview" src="<?= htmlspecialchars($foto_perfil) ?>" style="width:100%;height:100%;object-fit:cover;">
-                                <?php else: ?>
-                                    <div id="avatar-preview-fallback" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.8rem;font-weight:bold;color:var(--muted);"><?= $inicial ?></div>
-                                <?php endif; ?>
-                            </div>
-                            <label class="btn btn-secondary btn-sm" style="cursor: pointer; position: relative;">
-                                <i class="fas fa-camera"></i> Cambiar Foto
-                                <input type="file" name="foto" accept="image/*" style="opacity: 0; position: absolute; inset: 0; cursor: pointer;" onchange="previewAvatar(this)">
-                            </label>
-                            <span style="font-size: .7rem; color: var(--muted); margin-top: .6rem;">Soporta JPG y PNG. Máx 2MB.</span>
+                    <!-- SECCIÓN: FOTO DE PERFIL -->
+                    <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: 2rem;">
+                        <div style="width: 120px; height: 120px; border-radius: 50%; background: var(--cream); margin-bottom: 1.2rem; position: relative; overflow: hidden; border: 4px solid #fff; box-shadow: 0 8px 24px rgba(26,77,46,.12);">
+                            <?php if($foto_perfil): ?>
+                                <img id="avatar-preview" src="<?= htmlspecialchars($foto_perfil) ?>" style="width:100%;height:100%;object-fit:cover;">
+                            <?php else: ?>
+                                <div id="avatar-preview-fallback" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.8rem;font-weight:bold;color:var(--muted);"><?= $inicial ?></div>
+                            <?php endif; ?>
                         </div>
+                        <label class="btn btn-secondary btn-sm" style="cursor: pointer; position: relative;">
+                            <i class="fas fa-camera"></i> Cambiar Foto
+                            <input type="file" id="perfil-foto-input" accept="image/*" style="opacity: 0; position: absolute; inset: 0; cursor: pointer;" onchange="subirFotoPerfilDocente(this)">
+                        </label>
+                        <span style="font-size: .7rem; color: var(--muted); margin-top: .6rem;">Soporta JPG, PNG, GIF o WebP. Máx 3MB.</span>
+                    </div>
 
-                        <!-- SECCIÓN: DATOS GENERALES -->
+                    <!-- SECCIÓN: DATOS GENERALES -->
+                    <form id="form-perfil-docente" onsubmit="guardarPerfilDocente(event)">
                         <div class="form-grid" style="margin-bottom: 1.5rem;">
                             <div class="field">
                                 <label>Nombre de Usuario</label>
-                                <input type="text" name="nombre" value="<?= htmlspecialchars($usuario_db['usuario'] ?? '') ?>" required>
+                                <input type="text" name="usuario" value="<?= htmlspecialchars($usuario_db['usuario'] ?? '') ?>" required>
                             </div>
                             <div class="field">
                                 <label>Cédula (Solo lectura)</label>
@@ -560,12 +615,36 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             </div>
                             <div class="field field-full">
                                 <label>Correo Electrónico</label>
-                                <input type="email" name="email" value="<?= htmlspecialchars($usuario_db['correo'] ?? '') ?>">
+                                <input type="email" name="correo" value="<?= htmlspecialchars($usuario_db['correo'] ?? '') ?>">
                             </div>
                         </div>
                         <div class="divider"></div>
                         <div style="display: flex; justify-content: flex-end;">
                             <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar Cambios</button>
+                        </div>
+                    </form>
+
+                    <!-- SECCIÓN: CAMBIAR CONTRASEÑA -->
+                    <div class="divider" style="margin: 2rem 0;"></div>
+                    <h3 style="font-size: 1.1rem; margin-bottom: 1.2rem;">Cambiar contraseña</h3>
+                    <form id="form-pwd-docente" onsubmit="cambiarPwdDocente(event)">
+                        <div class="form-grid" style="margin-bottom: 1.5rem;">
+                            <div class="field">
+                                <label>Contraseña actual</label>
+                                <input type="password" id="dp-actual" placeholder="••••••••" required>
+                            </div>
+                            <div class="field"></div>
+                            <div class="field">
+                                <label>Nueva contraseña</label>
+                                <input type="password" id="dp-nueva" placeholder="mín. 8 car., mayús., minús. y nº" required>
+                            </div>
+                            <div class="field">
+                                <label>Repetir nueva</label>
+                                <input type="password" id="dp-repetir" placeholder="repite" required>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end;">
+                            <button type="submit" class="btn btn-primary"><i class="fas fa-key"></i> Actualizar contraseña</button>
                         </div>
                     </form>
                 </div>
@@ -646,6 +725,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             </div>
             <div class="modal-body">
                 <form id="form-calificar" onsubmit="submitCalificacion(event)">
+                    <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
                     <input type="hidden" name="entrega_id" id="modal-cal-id">
                     
                     <div style="background: var(--cream); border: 1px solid var(--border); padding: 1rem; border-radius: 8px; margin-bottom: 1.2rem;">
@@ -681,6 +761,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <div class="modal-body">
                 <!-- Se agregó enctype="multipart/form-data" para permitir subida de archivos -->
                 <form id="form-nueva-tarea" onsubmit="submitNuevaTarea(event)" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
                     <div class="form-grid" style="margin-bottom: 1.5rem;">
                         <div class="field field-full">
                             <label>Materia Asignada</label>
@@ -735,6 +816,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             </div>
             <div class="modal-body">
                 <form id="form-asignar-materia" onsubmit="submitAsignarMateria(event)">
+                    <input type="hidden" name="csrf_token" value="<?=htmlspecialchars(csrf_token())?>">
                     <div class="form-grid" style="margin-bottom: 1.5rem;">
                         <div class="field field-full">
                             <label>Seleccionar Docente</label>
@@ -764,6 +846,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         </div>
     </div>
     <?php endif; ?>
+
+    <!-- WebSocket en vivo (opcional — no-op si no hay VPS configurado) -->
+    <script src="assets/ibbs-realtime.js"></script>
 
     <!-- 4. SCRIPTS LÓGICA FRONTEND -->
     <script>
@@ -840,25 +925,79 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             }
         }
 
-        // Script para previsualizar foto de perfil
-        function previewAvatar(input) {
-            if (input.files && input.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const fallback = document.getElementById('avatar-preview-fallback');
-                    if (fallback) fallback.remove();
-                    
-                    let preview = document.getElementById('avatar-preview');
-                    if (!preview) {
-                        preview = document.createElement('img');
-                        preview.id = 'avatar-preview';
-                        preview.style = 'width:100%;height:100%;object-fit:cover;';
-                        input.closest('.view-section').querySelector('div[style*="border-radius: 50%"]').appendChild(preview);
-                    }
-                    preview.src = e.target.result;
+        // Foto de perfil: sube de verdad a api/upload_foto.php (antes el
+        // formulario posteaba a api/ajax.php con una acción que no
+        // existe — nunca guardaba nada, solo mostraba una vista previa
+        // que se perdía al recargar).
+        async function subirFotoPerfilDocente(input) {
+            if (!input.files || !input.files[0]) return;
+            const fd = new FormData();
+            fd.append('foto', input.files[0]);
+            fd.append('tipo', 'usuario');
+            const _csrf = document.querySelector('meta[name="csrf-token"]');
+            if (_csrf) fd.append('csrf_token', _csrf.content);
+            try {
+                const r = await fetch('api/upload_foto.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (!d.ok) { alert(d.msg || 'No se pudo subir la foto.'); return; }
+                const fallback = document.getElementById('avatar-preview-fallback');
+                if (fallback) fallback.remove();
+                let preview = document.getElementById('avatar-preview');
+                if (!preview) {
+                    preview = document.createElement('img');
+                    preview.id = 'avatar-preview';
+                    preview.style = 'width:100%;height:100%;object-fit:cover;';
+                    input.closest('.view-section').querySelector('div[style*="border-radius: 50%"]').appendChild(preview);
                 }
-                reader.readAsDataURL(input.files[0]);
-            }
+                preview.src = d.foto + '?t=' + Date.now();
+            } catch (e) { alert('Error de conexión al subir la foto.'); }
+        }
+
+        async function guardarPerfilDocente(e) {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            fd.append('action', 'perfil_update');
+            const _csrf = document.querySelector('meta[name="csrf-token"]');
+            if (_csrf) fd.append('csrf_token', _csrf.content);
+            try {
+                const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) alert('✓ Perfil actualizado correctamente.');
+                else alert(d.msg || 'No se pudo actualizar el perfil.');
+            } catch (err) { alert('Error de conexión.'); }
+        }
+
+        function validarPasswordDocente(pwd) {
+            if (pwd.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+            if (!/[A-Z]/.test(pwd)) return 'Debe contener al menos una mayúscula.';
+            if (!/[a-z]/.test(pwd)) return 'Debe contener al menos una minúscula.';
+            if (!/[0-9!@#$%^&*()_+\-=[\]{};':",./<>?|`~]/.test(pwd)) return 'Debe contener al menos un número o carácter especial.';
+            return null;
+        }
+
+        async function cambiarPwdDocente(e) {
+            e.preventDefault();
+            const actual = document.getElementById('dp-actual').value;
+            const nueva = document.getElementById('dp-nueva').value;
+            const repetir = document.getElementById('dp-repetir').value;
+            if (!actual || !nueva) { alert('Completá todos los campos.'); return; }
+            const err = validarPasswordDocente(nueva);
+            if (err) { alert(err); return; }
+            if (nueva !== repetir) { alert('Las contraseñas nuevas no coinciden.'); return; }
+            const fd = new FormData();
+            fd.append('action', 'perfil_pwd');
+            fd.append('actual', actual);
+            fd.append('nueva', nueva);
+            const _csrf = document.querySelector('meta[name="csrf-token"]');
+            if (_csrf) fd.append('csrf_token', _csrf.content);
+            try {
+                const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) {
+                    alert('✓ Contraseña actualizada correctamente.');
+                    e.target.reset();
+                } else alert(d.msg || 'No se pudo actualizar la contraseña.');
+            } catch (err) { alert('Error de conexión.'); }
         }
 
         function irAlChatMateria(materiaId) {
@@ -943,6 +1082,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         let materiaActivaChatId = <?= !empty($materias) ? $materias[0]['id'] : 0 ?>;
         let ultimoIdMensaje = 0;
         let chatInterval = null;
+        const MI_USUARIO_ID = <?= (int)$user_id ?>;
+        function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
 
         function prepararRespuesta(nombreUsuario, idMensaje) {
             document.getElementById('chat-reply-to-id').value = idMensaje;
@@ -961,7 +1102,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             document.getElementById('chat-title').innerText = nombreMateria;
             document.getElementById('chat-materia-id').value = materiaId;
             cancelarRespuesta();
-            
+
             document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active-chat'));
             if(element) element.classList.add('active-chat');
 
@@ -970,70 +1111,105 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             cargarMensajesForo();
         }
 
+        function roleBadgeDocente(rol) {
+            if (rol === 'profesor') return '<i class="fas fa-chalkboard-teacher" style="margin-left:4px;" title="Profesor"></i>';
+            if (rol === 'admin' || rol === 'superadmin') return '<i class="fas fa-user-shield" style="margin-left:4px;" title="Administrador"></i>';
+            return '';
+        }
+
         function cargarMensajesForo() {
             if (materiaActivaChatId === 0) return;
-            fetch(`obtener_mensajes_foro.php?materia_id=${materiaActivaChatId}&ultimo_id=${ultimoIdMensaje}`)
+            fetch(`api/foro.php?action=get_mensajes&materia_id=${materiaActivaChatId}`)
             .then(res => res.json())
-            .then(data => {
-                if(data.ok && data.mensajes.length > 0) {
-                    const chatBox = document.getElementById('chat-messages-container');
-                    if(ultimoIdMensaje === 0) chatBox.innerHTML = ''; 
-
-                    data.mensajes.forEach(msg => {
-                        let isMe = msg.usuario_nombre === '<?= htmlspecialchars($_SESSION['usuario'] ?? '') ?>';
-                        let replyHtml = '';
-                        if (msg.respuesta_a_nombre) {
-                            replyHtml = `<div style="font-size:.7rem; background:rgba(0,0,0,.1); padding:4px 8px; border-radius:4px; margin-bottom:6px; border-left:2px solid currentColor;"><i class="fas fa-reply"></i> a ${msg.respuesta_a_nombre}</div>`;
-                        }
-
-                        let html = '';
-                        if (isMe) {
-                            html = `
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; width: 100%;">
-                                <span style="font-size: .65rem; color: var(--muted); margin-bottom: .2rem; font-weight: 700;">Tú</span>
-                                <div class="msg-bubble msg-mine">
-                                    ${replyHtml}
-                                    <p>${msg.mensaje}</p>
-                                    <div style="display: flex; justify-content: flex-end; align-items: center; gap: .4rem; margin-top: .4rem; font-size: .65rem; opacity: .7;">
-                                        <span>${msg.hora}</span> <i class="fas fa-check-double text-ibbs-lime"></i>
-                                    </div>
-                                </div>
-                            </div>`;
-                        } else {
-                            let isDocente = (msg.rol === 'docente' || msg.rol === 'superadmin' || msg.rol === 'profesor' || msg.rol === 'admin');
-                            let nameColor = isDocente ? 'color: var(--ink);' : 'color: var(--muted);';
-                            let badge = isDocente ? '<i class="fas fa-chalkboard-teacher" style="margin-left: 4px;" title="Profesor/Admin"></i>' : '';
-                            html = `
-                            <div style="display: flex; flex-direction: column; align-items: flex-start; width: 100%;">
-                                <span style="font-size: .65rem; ${nameColor} margin-bottom: .2rem; font-weight: 700;">${msg.usuario_nombre} ${badge}</span>
-                                <div class="msg-bubble msg-other">
-                                    ${replyHtml}
-                                    <p>${msg.mensaje}</p>
-                                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: .4rem; font-size: .65rem;">
-                                        <span style="color: var(--muted);">${msg.hora}</span>
-                                        <button type="button" onclick="prepararRespuesta('${msg.usuario_nombre}', ${msg.id})" style="background: none; border: none; color: var(--ink); font-weight: 700; cursor: pointer; text-decoration: underline;">Responder</button>
-                                    </div>
-                                </div>
-                            </div>`;
-                        }
-                        chatBox.innerHTML += html;
-                        ultimoIdMensaje = Math.max(ultimoIdMensaje, msg.id);
-                    });
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                } else if(ultimoIdMensaje === 0 && (!data.mensajes || data.mensajes.length === 0)) {
-                    document.getElementById('chat-messages-container').innerHTML = `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted); gap: .5rem;"><i class="far fa-comments" style="font-size: 2.5rem;"></i><p style="font-size: .8rem; font-weight: 700; text-transform: uppercase;">No hay mensajes aún.</p></div>`;
+            .then(mensajes => {
+                if (mensajes && mensajes.error) { console.error("Error del servidor:", mensajes.error); return; }
+                const chatBox = document.getElementById('chat-messages-container');
+                if (!mensajes || mensajes.length === 0) {
+                    chatBox.innerHTML = `<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted); gap: .5rem;"><i class="far fa-comments" style="font-size: 2.5rem;"></i><p style="font-size: .8rem; font-weight: 700; text-transform: uppercase;">No hay mensajes aún.</p></div>`;
+                    ultimoIdMensaje = 0;
+                    return;
                 }
+
+                chatBox.innerHTML = '';
+                mensajes.forEach(msg => {
+                    let isMe = msg.usuario_id === MI_USUARIO_ID;
+                    let replyHtml = '';
+                    if (msg.respuesta_a_nombre) {
+                        replyHtml = `<div style="font-size:.7rem; background:rgba(0,0,0,.1); padding:4px 8px; border-radius:4px; margin-bottom:6px; border-left:2px solid currentColor;"><i class="fas fa-reply"></i> a ${hChat(msg.respuesta_a_nombre)}</div>`;
+                    }
+                    const hora = new Date(msg.fecha).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                    const delBtn = msg.puede_borrar
+                        ? `<button type="button" onclick="borrarMensajeForo(${msg.id})" style="background:none;border:none;color:var(--red);font-weight:700;cursor:pointer;text-decoration:underline;margin-left:.6rem;">Borrar</button>`
+                        : '';
+
+                    let html = '';
+                    if (isMe) {
+                        html = `
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; width: 100%;">
+                            <span style="font-size: .65rem; color: var(--muted); margin-bottom: .2rem; font-weight: 700;">Tú</span>
+                            <div class="msg-bubble msg-mine">
+                                ${replyHtml}
+                                <p>${hChat(msg.mensaje)}</p>
+                                <div style="display: flex; justify-content: flex-end; align-items: center; gap: .4rem; margin-top: .4rem; font-size: .65rem; opacity: .7;">
+                                    <span>${hora}</span> <i class="fas fa-check-double text-ibbs-lime"></i>${delBtn}
+                                </div>
+                            </div>
+                        </div>`;
+                    } else {
+                        let isDocente = (msg.rol === 'superadmin' || msg.rol === 'profesor' || msg.rol === 'admin');
+                        let nameColor = isDocente ? 'color: var(--ink);' : 'color: var(--muted);';
+                        html = `
+                        <div style="display: flex; flex-direction: column; align-items: flex-start; width: 100%;">
+                            <span style="font-size: .65rem; ${nameColor} margin-bottom: .2rem; font-weight: 700;">${hChat(msg.usuario_nombre)} ${roleBadgeDocente(msg.rol)}</span>
+                            <div class="msg-bubble msg-other">
+                                ${replyHtml}
+                                <p>${hChat(msg.mensaje)}</p>
+                                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: .4rem; font-size: .65rem;">
+                                    <span style="color: var(--muted);">${hora}</span>
+                                    <span>
+                                        <button type="button" onclick="prepararRespuesta('${hChat(msg.usuario_nombre)}', ${msg.id})" style="background: none; border: none; color: var(--ink); font-weight: 700; cursor: pointer; text-decoration: underline;">Responder</button>${delBtn}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>`;
+                    }
+                    chatBox.innerHTML += html;
+                    ultimoIdMensaje = Math.max(ultimoIdMensaje, msg.id);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
             }).catch(err => console.error(err));
+        }
+
+        async function borrarMensajeForo(id) {
+            if (!confirm('¿Borrar este mensaje?')) return;
+            try {
+                const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const r = await fetch(`api/foro.php?action=delete_mensaje&materia_id=${materiaActivaChatId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
+                });
+                const result = await r.json();
+                if (result.success) cargarMensajesForo();
+                else alert(result.error || 'No se pudo borrar el mensaje.');
+            } catch (e) { console.error(e); }
         }
 
         function sendChat(e) {
             e.preventDefault();
             const input = document.getElementById('chat-input-text');
-            if(input.value.trim() === '') return;
-            const formData = new FormData(e.target);
+            const mensaje = input.value.trim();
+            if (mensaje === '') return;
+            const respuesta_a = document.getElementById('chat-reply-to-id').value;
             input.value = ''; cancelarRespuesta();
-            fetch('guardar_foro_mensaje.php', { method: 'POST', body: formData })
-            .then(res => res.json()).then(data => { if(data.ok) cargarMensajesForo(); })
+            const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            fetch(`api/foro.php?action=post_mensaje&materia_id=${materiaActivaChatId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mensaje, respuesta_a, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
+            })
+            .then(res => res.json())
+            .then(data => { if (data.success) cargarMensajesForo(); else alert(data.error || 'No se pudo enviar el mensaje.'); })
             .catch(err => console.error(err));
         }
 
@@ -1042,7 +1218,132 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         chatInterval = setInterval(() => {
             const viewChat = document.getElementById('view-chat');
             if(viewChat.classList.contains('active') && materiaActivaChatId > 0) cargarMensajesForo();
-        }, 5000); 
+        }, 5000);
+
+        // Con WebSocket (VPS configurado) el chat se refresca casi al
+        // instante en vez de esperar hasta 5s — el setInterval de
+        // arriba queda como red de seguridad si el WebSocket se cae.
+        if (window.IbbsRT && window.IbbsRT.hasWs) {
+            window.IbbsRT.on('foro_mensaje', (data) => {
+                if (data && parseInt(data.materia_id) === parseInt(materiaActivaChatId)) cargarMensajesForo();
+            });
+        }
+
+        /* ══ CHAT DEL STAFF (admin ↔ docentes, sin materia) ══ */
+        let lastCountStaffChat = -1;
+
+        function hStaffChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+        function roleBadgeStaffChat(rol) {
+            if (rol === 'profesor') return '<span style="font-size:.65rem;margin-left:.4rem;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:10px;font-weight:700;">Profesor</span>';
+            if (rol === 'admin' || rol === 'superadmin') return '<span style="font-size:.65rem;margin-left:.4rem;background:#fee2e2;color:#991b1b;padding:1px 6px;border-radius:10px;font-weight:700;">Admin</span>';
+            return '';
+        }
+
+        async function loadChatStaffPortal() {
+            try {
+                const r = await fetch('api/chat_general.php?action=get_mensajes');
+                const mensajes = await r.json();
+                if (mensajes.error) { console.error('Error del servidor:', mensajes.error); return; }
+                if (mensajes.length === lastCountStaffChat) return;
+                lastCountStaffChat = mensajes.length;
+                renderChatStaffPortal(mensajes);
+            } catch (e) { console.error('Error cargando chat del staff', e); }
+        }
+
+        function renderChatStaffPortal(mensajes) {
+            const chatBox = document.getElementById('staffchat-box');
+            chatBox.innerHTML = '';
+            if (!mensajes.length) {
+                chatBox.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.9rem;">Sin mensajes todavía. Escribí el primero para el staff.</div>';
+                return;
+            }
+            const hilos = {};
+            mensajes.forEach(m => { if (m.respuesta_a === null) hilos[m.id] = { ...m, respuestas: [] }; });
+            mensajes.forEach(m => { if (m.respuesta_a !== null && hilos[m.respuesta_a]) hilos[m.respuesta_a].respuestas.push(m); });
+            for (const id in hilos) {
+                const thread = hilos[id];
+                chatBox.insertAdjacentHTML('beforeend', crearMensajeStaffChatHTML(thread, false));
+                if (thread.respuestas.length > 0) {
+                    const cont = document.createElement('div');
+                    cont.style.cssText = "margin-left:2.5rem;margin-top:.5rem;padding-left:1rem;border-left:2px solid var(--border);display:flex;flex-direction:column;gap:.5rem;";
+                    thread.respuestas.forEach(r => cont.insertAdjacentHTML('beforeend', crearMensajeStaffChatHTML(r, true)));
+                    chatBox.appendChild(cont);
+                }
+            }
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function crearMensajeStaffChatHTML(msg, isReply) {
+            const isMe = msg.usuario_id === <?= (int)$user_id ?>;
+            const bg = isMe ? 'background:#f0fdf4;border:1px solid #bbf7d0;' : 'background:#ffffff;border:1px solid var(--border);';
+            const dateStr = new Date(msg.fecha).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+            const replyBtn = !isReply ? `<button type="button" onclick="setReplyStaffChat(${msg.id}, '${hStaffChat(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--ink);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;text-decoration:underline;">Responder</button>` : '';
+            const delBtn = msg.puede_borrar ? `<button type="button" onclick="borrarMensajeStaffChat(${msg.id})" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:.8rem;margin-top:.4rem;margin-left:.8rem;padding:0;text-decoration:underline;">Borrar</button>` : '';
+            return `
+                <div style="padding:.8rem 1rem;border-radius:8px;${bg}">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;">
+                        <strong style="font-size:.9rem;color:var(--ink);">${hStaffChat(msg.usuario_nombre)} ${roleBadgeStaffChat(msg.rol)}</strong>
+                        <span style="font-size:.75rem;color:var(--muted);">${dateStr}</span>
+                    </div>
+                    <p style="margin:0;font-size:.9rem;color:#333;white-space:pre-wrap;line-height:1.4;">${hStaffChat(msg.mensaje)}</p>
+                    ${replyBtn}${delBtn}
+                </div>`;
+        }
+
+        window.setReplyStaffChat = function(id, nombre) {
+            document.getElementById('staffchat-respuesta-a').value = id;
+            document.getElementById('staffchat-reply-name').textContent = nombre;
+            document.getElementById('staffchat-reply-indicator').style.display = 'flex';
+            document.getElementById('staffchat-input').focus();
+        };
+        window.cancelReplyStaffChat = function() {
+            document.getElementById('staffchat-respuesta-a').value = '';
+            document.getElementById('staffchat-reply-indicator').style.display = 'none';
+        };
+
+        async function borrarMensajeStaffChat(id) {
+            if (!confirm('¿Borrar este mensaje?')) return;
+            try {
+                const _csrf = document.querySelector('meta[name="csrf-token"]');
+                const r = await fetch('api/chat_general.php?action=delete_mensaje', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ id, csrf_token: _csrf ? _csrf.content : '' })
+                });
+                const result = await r.json();
+                if (result.success) { lastCountStaffChat = -1; loadChatStaffPortal(); }
+                else alert(result.error || 'No se pudo borrar el mensaje.');
+            } catch (e) { console.error(e); }
+        }
+
+        document.getElementById('staffchat-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('staffchat-input');
+            const mensaje = input.value.trim();
+            const respuesta_a = document.getElementById('staffchat-respuesta-a').value;
+            if (!mensaje) return;
+            input.value = '';
+            cancelReplyStaffChat();
+            try {
+                const _csrf = document.querySelector('meta[name="csrf-token"]');
+                const r = await fetch('api/chat_general.php?action=post_mensaje', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ mensaje, respuesta_a, csrf_token: _csrf ? _csrf.content : '' })
+                });
+                const result = await r.json();
+                if (result.success) { lastCountStaffChat = -1; loadChatStaffPortal(); }
+                else alert(result.error || 'No se pudo enviar el mensaje.');
+            } catch (e) { console.error(e); }
+        });
+
+        loadChatStaffPortal();
+        setInterval(() => {
+            const v = document.getElementById('view-chat-staff');
+            if (v && v.classList.contains('active')) loadChatStaffPortal();
+        }, 5000);
+        if (window.IbbsRT && window.IbbsRT.hasWs) {
+            window.IbbsRT.on('chat_staff_mensaje', () => { lastCountStaffChat = -1; loadChatStaffPortal(); });
+        }
     </script>
 </body>
 </html>
