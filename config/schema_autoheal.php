@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 13);
+define('IBBS_SCHEMA_VERSION', 14);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -142,6 +142,24 @@ if (!function_exists('ibbs_autoheal_schema')) {
                 PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
             "INSERT IGNORE INTO `datos_pago` (`id`) VALUES (1)",
+            // 014_asistencia_hojas.sql
+            "CREATE TABLE IF NOT EXISTS `asistencia_hojas` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `fecha` DATE NOT NULL,
+                `foto` VARCHAR(255) NOT NULL,
+                `texto_ocr` MEDIUMTEXT DEFAULT NULL,
+                `modo` ENUM('asistieron','faltaron') NOT NULL DEFAULT 'asistieron',
+                `total_alumnos` INT(11) NOT NULL DEFAULT 0,
+                `total_detectados` INT(11) NOT NULL DEFAULT 0,
+                `cargado_por` INT(11) DEFAULT NULL,
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia_fecha` (`materia_id`,`fecha`),
+                CONSTRAINT `autoheal_ah_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_ah_ibfk_2` FOREIGN KEY (`cargado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            "ALTER TABLE `asistencias` ADD COLUMN IF NOT EXISTS `hoja_id` INT(11) DEFAULT NULL AFTER `registrado_por`",
         ];
 
         foreach ($ddl as $sql) {

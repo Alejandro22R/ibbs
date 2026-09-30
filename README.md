@@ -851,6 +851,64 @@ verificado con una búsqueda global.
   lleva un contador en vivo (rojo si hay pendientes) que se actualiza
   apenas se abre el módulo, sin tener que entrar a la pestaña.
 
+## Asistencias por foto (OCR con Tesseract.js) + escalabilidad
+
+Migración `014_asistencia_hojas.sql` (tabla `asistencia_hojas`, columna
+`asistencias.hoja_id`). Nueva pestaña **"📷 Registro por Foto"** en
+`modulo_asistencias.php`, nuevo endpoint **`api/asistencia_ocr.php`**.
+
+- **Cómo funciona**: el docente/admin elige materia y fecha, marca si
+  la hoja de papel indica quiénes *asistieron* o quiénes *faltaron*, y
+  sube la foto (con `capture="environment"` para abrir directo la
+  cámara en el celular). El OCR (**Tesseract.js**, corre entero en el
+  navegador — la imagen no se manda a ningún servicio externo hasta
+  que se decide guardar) lee el texto de la foto, y por cada alumno
+  inscrito en esa materia se busca si aparece mencionado: primero por
+  cédula (el OCR suele leer mejor números impresos que letra
+  manuscrita), si no por apellido o nombre como palabra suelta (con
+  tolerancia a 1-2 letras mal leídas, distancia de Levenshtein). Eso
+  arma un estado inicial (presente/ausente) por alumno.
+- **El OCR nunca es la fuente de verdad, solo un adelanto**: reconocer
+  letra manuscrita jamás es 100% exacto, así que el resultado se
+  muestra siempre en una tabla editable — igual a "Paso de lista" —
+  con un indicador "¿En la hoja? Sí/No" por alumno, para que quien
+  cargó la foto revise y corrija los errores del OCR antes de guardar.
+  Nada toca la base de datos hasta ese "Guardar asistencia".
+- **Evidencia y auditoría**: la foto original y el texto crudo que
+  leyó el OCR quedan guardados (`asistencia_hojas`, con un historial
+  de "Hojas cargadas recientemente" en la misma pestaña) — si alguna
+  vez hay que revisar un reclamo sobre una fecha puntual, la hoja
+  física escaneada sigue ahí.
+- **Mobile**: la foto se redimensiona en el navegador (máx. 1800px de
+  ancho, recomprimida a JPEG) antes de leerla o subirla — una foto de
+  cámara a resolución completa (varias decenas de MB en un celular
+  moderno) podía trabar el OCR o la subida en una red móvil lenta.
+
+**Escalabilidad del módulo completo (no solo la pestaña nueva):**
+- `asistencia_register` hacía un `INSERT` ciego — volver a guardar el
+  mismo día (o reprocesar la misma hoja) iba acumulando filas
+  duplicadas sin que nada lo evitara. Ahora hace un UPSERT real
+  (`asistencia_upsert()` en `config/asistencia_helpers.php`, compartida
+  entre `api/ajax.php` y `api/asistencia_ocr.php`): busca la fila
+  existente por materia+tipo+fecha+persona y la actualiza en vez de
+  duplicarla.
+- **"Paso de lista"** guardaba con un `fetch()` por alumno — en una
+  materia con muchos inscritos, decenas de round-trips secuenciales al
+  servidor. Nueva acción `asistencia_register_lote` guarda la materia
+  entera en una sola llamada (recibe el lote como JSON, una lista de
+  `{persona_id, estado, observacion}`).
+
+**Bug de codificación encontrado de paso (riesgo real en celular):**
+el regex que le saca los acentos al texto antes de compararlo (para el
+matching del OCR) había quedado escrito con los caracteres Unicode de
+acentuación literales en vez del escape `̀-ͯ` — funciona en
+cualquier navegador porque el archivo es UTF-8 válido, pero es
+justamente el tipo de bytes que algunos proxies de compresión de datos
+móviles (comunes en redes con poca señal) pueden llegar a corromper al
+transcodificar la página, rompiendo el script entero en ese momento.
+Se corrigió a la forma segura (`̀-ͯ`), que no depende de que
+nadie en el camino preserve bytes multi-byte intactos.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

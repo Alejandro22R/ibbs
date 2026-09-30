@@ -10,6 +10,8 @@ uploads/libros/portadas/*
 uploads/libros_privados/*
 !uploads/libros_privados/.gitkeep
 !uploads/libros_privados/.htaccess
+uploads/asistencias/*
+!uploads/asistencias/.gitkeep
 
 # Datos locales de runtime (freno de fuerza bruta del login, etc.)
 storage/*

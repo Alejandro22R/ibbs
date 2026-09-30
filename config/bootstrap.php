@@ -17,6 +17,7 @@ require_once __DIR__ . '/rate_limit.php';
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/audit.php';
 require_once __DIR__ . '/materia_permisos.php';
+require_once __DIR__ . '/asistencia_helpers.php';
 require_once __DIR__ . '/url_validacion.php';
 require_once __DIR__ . '/notificaciones.php';
 require_once __DIR__ . '/password_policy.php';

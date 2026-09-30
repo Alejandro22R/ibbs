@@ -564,6 +564,9 @@ if($action==='record_alumno'){
 }
 
 // ════ ASISTENCIAS ══════════════════════════════════════════════
+// asistencia_upsert() vive en config/asistencia_helpers.php (cargado
+// por el bootstrap) — la usan tanto las acciones de acá abajo como
+// api/asistencia_ocr.php, para no duplicar la lógica de upsert.
 if($action==='asistencia_register'){
     $mid=(int)($_POST['materia_id']??0); $tipo=trim($_POST['tipo']??'alumno');
     $pid=(int)($_POST['persona_id']??0); $fecha=trim($_POST['fecha']??'');
@@ -573,19 +576,36 @@ if($action==='asistencia_register'){
     // podía marcarse presente a sí mismo, o a cualquiera, en cualquier
     // materia con solo cambiar materia_id/persona_id.
     if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
-    if($tipo==='alumno'){
-        $st=mysqli_prepare($con,"INSERT INTO asistencias(materia_id,alumno_id,tipo,fecha,estado,observacion,registrado_por) VALUES(?,?,'alumno',?,?,?,?)");
-        mysqli_stmt_bind_param($st,'iisssi',$mid,$pid,$fecha,$estado,$obs,$uid);
-    } else {
-        $st=mysqli_prepare($con,"INSERT INTO asistencias(materia_id,docente_id,tipo,fecha,estado,observacion,registrado_por) VALUES(?,?,'docente',?,?,?,?)");
-        mysqli_stmt_bind_param($st,'iisssi',$mid,$pid,$fecha,$estado,$obs,$uid);
+    if(!asistencia_upsert($con,$mid,$tipo,$pid,$fecha,$estado,$obs,$uid)){
+        echo json_encode(['ok'=>false,'msg'=>mysqli_error($con)]); exit;
     }
-    if(mysqli_stmt_execute($st)){
-        echo json_encode(['ok'=>true,'msg'=>'Asistencia registrada.']);
-    } else {
-        echo json_encode(['ok'=>false,'msg'=>mysqli_error($con)]);
+    echo json_encode(['ok'=>true,'msg'=>'Asistencia registrada.']); exit;
+}
+if($action==='asistencia_register_lote'){
+    // Guarda de una sola llamada la asistencia de TODA una materia para
+    // un día — antes "Paso de lista" hacía un fetch() por alumno
+    // (guardarPasoLista en modulo_asistencias.php), lo que en una
+    // materia con muchos inscritos son decenas de round-trips
+    // secuenciales. api/asistencia_ocr.php usa la misma
+    // asistencia_upsert() de config/asistencia_helpers.php, pero desde
+    // su propio endpoint (necesita manejar además la subida de la
+    // foto y la fila de asistencia_hojas en la misma request).
+    $mid=(int)($_POST['materia_id']??0); $tipo=trim($_POST['tipo']??'alumno');
+    $fecha=trim($_POST['fecha']??'');
+    $registros=json_decode($_POST['registros']??'[]', true);
+    if(!$mid||!$fecha||!is_array($registros)||!$registros){echo json_encode(['ok'=>false,'msg'=>'Datos incompletos.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
+    $ok=0; $err=0;
+    foreach($registros as $r){
+        $pid=(int)($r['persona_id']??0);
+        $estado=trim($r['estado']??'presente');
+        if(!in_array($estado,['presente','ausente','tardanza','justificado'],true)) $estado='presente';
+        $obs=trim($r['observacion']??'');
+        if(!$pid){ $err++; continue; }
+        asistencia_upsert($con,$mid,$tipo,$pid,$fecha,$estado,$obs,$uid) ? $ok++ : $err++;
     }
-    exit;
+    log_audit($con,$uid,'ASISTENCIA_LOTE',"materia=$mid fecha=$fecha tipo=$tipo ok=$ok err=$err");
+    echo json_encode(['ok'=>true,'msg'=>"$ok registros guardados".($err?", $err con error":'.'),'guardados'=>$ok,'errores'=>$err]); exit;
 }
 if($action==='asistencia_list'){
     if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
