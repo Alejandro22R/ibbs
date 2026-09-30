@@ -157,6 +157,7 @@ async function rechazarAlumno(id,n){
 }
 async function createAlumno(e){
   e.preventDefault(); const fd=new FormData(e.target); fd.append('action','alumno_create');
+  const _csrf=document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token',_csrf?_csrf.content:'');
   const r=await fetch('api/ajax.php',{method:'POST',body:fd}); const d=await r.json();
   if(d.ok){toast(d.msg);closeModal('mCA');e.target.reset();loadAlumnos();}else Ibbs.error(d.msg);
 }

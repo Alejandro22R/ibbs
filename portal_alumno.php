@@ -203,6 +203,59 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             background-image: radial-gradient(rgba(57,255,20,.05) 1px, transparent 1px);
             background-size: 20px 20px;
         }
+
+        /* ══════════════════════════════════════════════════════════
+           TOQUES VISUALES ADICIONALES — clases nuevas, no tocan nada
+           de lo que ya existía; solo se agregan como class="..." extra
+           en elementos puntuales para que se sientan más vivos.
+        ══════════════════════════════════════════════════════════ */
+
+        /* Orbes de luz difuminados — dan profundidad al banner de
+           bienvenida sin tocar su fondo ni su padding actual. */
+        .ibbs-glow-orb {
+            position: absolute; border-radius: 50%; filter: blur(40px);
+            pointer-events: none; opacity: .35;
+            animation: ibbsFloat 8s ease-in-out infinite;
+        }
+        .ibbs-glow-orb.o1 { width: 180px; height: 180px; background: #39ff14; top: -60px; right: -40px; }
+        .ibbs-glow-orb.o2 { width: 140px; height: 140px; background: #2563eb; bottom: -50px; right: 120px; animation-delay: -3s; }
+        @keyframes ibbsFloat { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-14px) scale(1.06); } }
+
+        /* Insignia con pulso — para números que piden atención (tareas
+           pendientes) sin cambiar el badge que ya existe, solo le suma
+           un anillo animado alrededor. */
+        .ibbs-badge-pulse { position: relative; }
+        .ibbs-badge-pulse::after {
+            content: ''; position: absolute; inset: 0; border-radius: inherit;
+            box-shadow: 0 0 0 0 rgba(57,255,20,.6);
+            animation: ibbsPulseRing 2s ease-out infinite;
+            pointer-events: none;
+        }
+        @keyframes ibbsPulseRing {
+            0%   { box-shadow: 0 0 0 0 rgba(57,255,20,.55); }
+            70%  { box-shadow: 0 0 0 8px rgba(57,255,20,0); }
+            100% { box-shadow: 0 0 0 0 rgba(57,255,20,0); }
+        }
+
+        /* Confeti — festejo breve cuando algo sale bien (entregar una
+           tarea, inscribirse en una materia). Puro CSS + un puñado de
+           divs generados por JS, nada de librerías externas. */
+        .ibbs-confetti-piece {
+            position: fixed; top: -12px; z-index: 99999; pointer-events: none;
+            border-radius: 2px; animation: ibbsConfettiFall linear forwards;
+        }
+        @keyframes ibbsConfettiFall {
+            to { transform: translateY(105vh) rotate(540deg); opacity: .2; }
+        }
+
+        /* Brillo sutil de "cargando" — alternativa más agradable al
+           spinner plano para tarjetas que todavía no tienen datos. */
+        .ibbs-shimmer {
+            background: linear-gradient(90deg, rgba(224,216,200,.35) 25%, rgba(224,216,200,.6) 37%, rgba(224,216,200,.35) 63%);
+            background-size: 400% 100%;
+            animation: ibbsShimmer 1.4s ease infinite;
+        }
+        @keyframes ibbsShimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden text-ibbs-ink bg-ibbs-cream selection:bg-ibbs-lime/30 selection:text-ibbs-ink font-sans">
@@ -260,7 +313,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     <i class="fas fa-tasks w-5 text-center"></i> <span class="font-medium text-sm">Tareas</span>
                 </div>
                 <?php if($pendientes_count > 0): ?>
-                <span class="bg-ibbs-lime text-ibbs-ink text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm"><?= $pendientes_count ?></span>
+                <span class="bg-ibbs-lime text-ibbs-ink text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ibbs-badge-pulse"><?= $pendientes_count ?></span>
                 <?php endif; ?>
             </button>
             <button data-tour="nav-chat" onclick="switchView('chat', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
@@ -323,6 +376,8 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <!-- Banner Bienvenida -->
                 <div class="bg-ibbs-ink rounded-[14px] p-7 text-white relative overflow-hidden">
                     <div class="absolute inset-0 bg-dots pointer-events-none"></div>
+                    <div class="ibbs-glow-orb o1"></div>
+                    <div class="ibbs-glow-orb o2"></div>
                     <div class="relative z-10">
                         <h2 class="text-2xl font-serif mb-1">Bienvenido, <em class="text-ibbs-lime not-italic"><?= htmlspecialchars(explode(' ', $nombre_alumno)[0]) ?></em> 👋</h2>
                         <p class="text-white/50 text-sm max-w-lg">Resumen general de tu actividad académica · <?= date('d M Y') ?></p>
@@ -851,6 +906,26 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             window.history.replaceState({}, '', nuevaUrl);
         })();
 
+        // ── Festejo breve (confeti) al entregar una tarea o inscribirte
+        // en una materia — puro CSS + divs generados acá, sin librerías.
+        function ibbsConfetti() {
+            const colores = ['#39ff14', '#2ecc10', '#fdfaf4', '#2563eb', '#f59e0b'];
+            const total = 26;
+            for (let i = 0; i < total; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'ibbs-confetti-piece';
+                const size = 6 + Math.random() * 6;
+                piece.style.width = size + 'px';
+                piece.style.height = (size * 0.4) + 'px';
+                piece.style.left = Math.random() * 100 + 'vw';
+                piece.style.background = colores[i % colores.length];
+                piece.style.animationDuration = (1.8 + Math.random() * 1.2) + 's';
+                piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+                document.body.appendChild(piece);
+                piece.addEventListener('animationend', () => piece.remove());
+            }
+        }
+
         // Lógica de vistas y modal conservada pero con colores ajustados
         function switchView(viewId, btnElement = null) {
             document.querySelectorAll('.view-section').forEach(el => {
@@ -927,8 +1002,10 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             e.preventDefault(); 
             const form = e.target;
             const formData = new FormData(form);
+            const _csrfEnt = document.querySelector('meta[name="csrf-token"]');
+            formData.append('csrf_token', _csrfEnt ? _csrfEnt.content : '');
             const btn = form.querySelector('button[type="submit"]');
-            
+
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Procesando...';
 
@@ -938,6 +1015,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 if(data.ok) {
                     closeModalEntrega();
                     Ibbs.success('Entrega enviada correctamente.');
+                    ibbsConfetti();
                     setTimeout(() => location.reload(), 1200);
                 } else { Ibbs.error(data.msg); }
             })
@@ -989,6 +1067,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 const r = await fetch('api/materia_solicitud.php', { method: 'POST', body: fd });
                 const d = await r.json();
                 if (d.ok) {
+                    ibbsConfetti();
                     await Ibbs.success(d.msg);
                     location.reload();
                 } else {

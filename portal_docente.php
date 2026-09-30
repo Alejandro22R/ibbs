@@ -1269,7 +1269,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const form = e.target; const btn = form.querySelector('button[type="submit"]');
             btn.disabled = true; btn.innerHTML = 'Guardando...';
 
-            fetch('calificar_entrega.php', { method: 'POST', body: new FormData(form) })
+            const fdCal = new FormData(form);
+            const _csrfCal = document.querySelector('meta[name="csrf-token"]');
+            fdCal.append('csrf_token', _csrfCal ? _csrfCal.content : '');
+            fetch('calificar_entrega.php', { method: 'POST', body: fdCal })
             .then(res => res.json()).then(data => {
                 if(data.ok) { closeModal('modal-calificar'); Ibbs.success('Calificación guardada.'); setTimeout(() => location.reload(), 900); }
                 else { Ibbs.error(data.msg); btn.disabled = false; btn.innerHTML = 'Guardar'; }
@@ -1281,7 +1284,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const form = e.target; const btn = form.querySelector('button[type="submit"]');
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo...';
 
-            fetch('crear_tarea.php', { method: 'POST', body: new FormData(form) })
+            const fdTarea = new FormData(form);
+            const _csrfTarea = document.querySelector('meta[name="csrf-token"]');
+            fdTarea.append('csrf_token', _csrfTarea ? _csrfTarea.content : '');
+            fetch('crear_tarea.php', { method: 'POST', body: fdTarea })
             .then(res => res.json()).then(async data => {
                 if(data.ok) {
                     closeModal('modal-nueva-tarea');
@@ -1312,7 +1318,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const form = e.target; const btn = form.querySelector('button[type="submit"]');
             btn.disabled = true; btn.innerHTML = '...';
 
-            fetch('asignar_materia.php', { method: 'POST', body: new FormData(form) })
+            const fdAsig = new FormData(form);
+            const _csrfAsig = document.querySelector('meta[name="csrf-token"]');
+            fdAsig.append('csrf_token', _csrfAsig ? _csrfAsig.content : '');
+            fetch('asignar_materia.php', { method: 'POST', body: fdAsig })
             .then(res => res.json()).then(async data => {
                 if(data.ok) { closeModal('modal-asignar-materia'); await Ibbs.success("Materia vinculada con éxito."); location.reload(); }
                 else { Ibbs.error(data.msg); btn.disabled = false; btn.innerHTML = 'Vincular Materia'; }

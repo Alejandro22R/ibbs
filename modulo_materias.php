@@ -208,6 +208,7 @@ async function submitCreate(e){
   e.preventDefault();
   const fd=new FormData(e.target); fd.append('action','materia_create');
   fd.set('dias',[...document.querySelectorAll('.cDia:checked')].map(c=>c.value).join(','));
+  const _csrf=document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token',_csrf?_csrf.content:'');
   const r=await fetch('api/ajax.php',{method:'POST',body:fd}); const d=await r.json();
   if(d.ok){toast(d.msg);closeModal('mCreateMateria');e.target.reset();document.querySelectorAll('.cDia').forEach(c=>c.checked=false);loadMaterias();}
   else toast(d.msg,'err');

@@ -67,3 +67,54 @@ function login_throttle_reset() {
     unset($data[_ibbs_throttle_key()]);
     _ibbs_throttle_save($data);
 }
+
+/**
+ * Freno genérico por IP para acciones sensibles que no son el login en
+ * sí (por ahora: pedir un enlace de recuperación por correo). Sin
+ * esto, cualquiera podría hacer que el sistema mande decenas de
+ * correos por minuto a la bandeja de otra persona con solo repetir el
+ * formulario — molesto para la víctima y puede hacer que el dominio
+ * termine marcado como spam.
+ */
+define('IBBS_RESET_THROTTLE_MAX', 4);
+define('IBBS_RESET_THROTTLE_WINDOW', 900); // 15 minutos
+
+function _ibbs_reset_throttle_file() {
+    $dir = __DIR__ . '/../storage';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    return $dir . '/reset_email_throttle.json';
+}
+function _ibbs_reset_throttle_load() {
+    $file = _ibbs_reset_throttle_file();
+    if (!is_file($file)) return [];
+    $raw = @file_get_contents($file);
+    $data = $raw ? json_decode($raw, true) : null;
+    return is_array($data) ? $data : [];
+}
+function _ibbs_reset_throttle_save($data) {
+    @file_put_contents(_ibbs_reset_throttle_file(), json_encode($data), LOCK_EX);
+}
+function reset_email_throttle_blocked() {
+    $data = _ibbs_reset_throttle_load();
+    $key  = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $now  = time();
+    $entry = $data[$key] ?? null;
+    if (!$entry) return false;
+    if ($now - $entry['first'] > IBBS_RESET_THROTTLE_WINDOW) return false;
+    return $entry['count'] >= IBBS_RESET_THROTTLE_MAX;
+}
+function reset_email_throttle_hit() {
+    $data = _ibbs_reset_throttle_load();
+    $key  = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $now  = time();
+    $entry = $data[$key] ?? null;
+    if (!$entry || $now - $entry['first'] > IBBS_RESET_THROTTLE_WINDOW) {
+        $entry = ['count' => 0, 'first' => $now];
+    }
+    $entry['count']++;
+    $data[$key] = $entry;
+    foreach ($data as $k => $v) {
+        if ($now - $v['first'] > IBBS_RESET_THROTTLE_WINDOW) unset($data[$k]);
+    }
+    _ibbs_reset_throttle_save($data);
+}

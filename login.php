@@ -230,6 +230,102 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         echo json_encode(['ok'=>true,'msg'=>'Contraseña actualizada correctamente.']); exit;
     }
 
+    // ── RECUPERAR POR CORREO — Paso 1: pedir el enlace ────────
+    // Alternativa a las preguntas de seguridad: no todo el mundo se
+    // acuerda de lo que respondió al registrarse. Siempre contesta lo
+    // mismo exista o no la cuenta/el correo — si no, cualquiera podría
+    // usar este formulario para averiguar qué correos están
+    // registrados con solo mirar si la respuesta cambia.
+    if ($action==='rec_email_solicitar') {
+        $generico = ['ok'=>true,'msg'=>'Si ese usuario, cédula o correo está registrado, te enviamos un enlace para recuperar tu cuenta. Revisá también la carpeta de spam.'];
+        if (reset_email_throttle_blocked()) {
+            // Igual respuesta genérica — no delatar que existe un freno.
+            echo json_encode($generico); exit;
+        }
+        reset_email_throttle_hit();
+
+        $con = db();
+        $id = trim($_POST['identificador'] ?? '');
+        if ($con && $id !== '') {
+            $st = mysqli_prepare($con, "SELECT id, correo, usuario FROM usuarios WHERE (usuario=? OR correo=? OR cedula=?) AND activo=1 LIMIT 1");
+            mysqli_stmt_bind_param($st, 'sss', $id, $id, $id);
+            mysqli_stmt_execute($st);
+            $row = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+            if ($row && !empty($row['correo'])) {
+                $token = bin2hex(random_bytes(32));
+                $hash  = hash('sha256', $token);
+                $exp   = date('Y-m-d H:i:s', time() + 3600); // 1 hora
+                // Cualquier enlace anterior sin usar queda invalidado —
+                // solo el más reciente debe funcionar.
+                $stU = mysqli_prepare($con, "UPDATE password_resets SET usado=1 WHERE usuario_id=? AND usado=0");
+                mysqli_stmt_bind_param($stU, 'i', $row['id']); mysqli_stmt_execute($stU);
+                $stI = mysqli_prepare($con, "INSERT INTO password_resets(usuario_id,token_hash,expira_en) VALUES(?,?,?)");
+                mysqli_stmt_bind_param($stI, 'iss', $row['id'], $hash, $exp);
+                mysqli_stmt_execute($stI);
+
+                $https  = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['SERVER_PORT'] ?? '') == 443;
+                $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+                $base   = ($https ? 'https://' : 'http://') . $host . rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/login.php'), '/');
+                $link   = $base . '/login.php?reset=' . $token;
+                $html = '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:2rem;">'
+                      . '<h2 style="color:#1a4d2e;">Recuperar tu contraseña — IBBS</h2>'
+                      . '<p>Hola ' . htmlspecialchars($row['usuario']) . ', pediste recuperar el acceso a tu cuenta.</p>'
+                      . '<p><a href="' . htmlspecialchars($link) . '" style="display:inline-block;background:#1a4d2e;color:#39ff14;padding:.8rem 1.6rem;border-radius:8px;text-decoration:none;font-weight:bold;">Elegir una nueva contraseña</a></p>'
+                      . '<p style="font-size:.85rem;color:#666;">Este enlace vence en 1 hora. Si no fuiste vos, podés ignorar este correo — tu contraseña actual sigue funcionando.</p>'
+                      . '<p style="font-size:.8rem;color:#999;">¿El botón no funciona? Copiá y pegá este enlace en tu navegador:<br>' . htmlspecialchars($link) . '</p>'
+                      . '</div>';
+                ibbs_send_mail($row['correo'], 'Recuperar tu contraseña — IBBS', $html);
+                log_audit($con, $row['id'], 'PASSWORD_RESET_SOLICITADO', "correo={$row['correo']}");
+            }
+        }
+        echo json_encode($generico); exit;
+    }
+
+    // ── RECUPERAR POR CORREO — Paso 2: validar el enlace ──────
+    if ($action==='rec_email_verificar') {
+        $con = db();
+        $token = trim($_POST['token'] ?? '');
+        if (!$token) { echo json_encode(['ok'=>false,'msg'=>'Enlace inválido.']); exit; }
+        $hash = hash('sha256', $token);
+        $st = mysqli_prepare($con, "SELECT pr.id, pr.usuario_id, u.usuario FROM password_resets pr JOIN usuarios u ON u.id=pr.usuario_id WHERE pr.token_hash=? AND pr.usado=0 AND pr.expira_en>NOW() LIMIT 1");
+        mysqli_stmt_bind_param($st, 's', $hash); mysqli_stmt_execute($st);
+        $row = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'Este enlace ya venció o ya fue usado. Solicitá uno nuevo.']); exit; }
+        $_SESSION['rec_email_uid'] = (int)$row['usuario_id'];
+        $_SESSION['rec_email_token'] = $token;
+        echo json_encode(['ok'=>true,'data'=>['usuario'=>$row['usuario']]]); exit;
+    }
+
+    // ── RECUPERAR POR CORREO — Paso 3: nueva contraseña ───────
+    if ($action==='rec_email_confirmar') {
+        $con = db();
+        $uid   = (int)($_SESSION['rec_email_uid'] ?? 0);
+        $token = $_SESSION['rec_email_token'] ?? '';
+        $pwd = trim($_POST['password']??'');
+        $rep = trim($_POST['repetir']??'');
+        if (!$uid || !$token) { echo json_encode(['ok'=>false,'msg'=>'Sesión expirada. Solicitá el enlace de nuevo.']); exit; }
+        $pwdErr = ibbs_validar_password($pwd);
+        if ($pwdErr)        { echo json_encode(['ok'=>false,'msg'=>$pwdErr]); exit; }
+        if ($pwd!==$rep)    { echo json_encode(['ok'=>false,'msg'=>'Las contraseñas no coinciden.']); exit; }
+
+        // Revalida el token acá también — nunca confiar solo en lo que
+        // quedó en sesión desde el paso anterior.
+        $hash = hash('sha256', $token);
+        $st = mysqli_prepare($con, "SELECT id FROM password_resets WHERE usuario_id=? AND token_hash=? AND usado=0 AND expira_en>NOW() LIMIT 1");
+        mysqli_stmt_bind_param($st, 'is', $uid, $hash); mysqli_stmt_execute($st);
+        $row = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'Este enlace ya venció o ya fue usado. Solicitá uno nuevo.']); exit; }
+
+        $newHash = password_hash($pwd, PASSWORD_BCRYPT);
+        $stU = mysqli_prepare($con, "UPDATE usuarios SET password_hash=? WHERE id=?");
+        mysqli_stmt_bind_param($stU, 'si', $newHash, $uid); mysqli_stmt_execute($stU);
+        $stM = mysqli_prepare($con, "UPDATE password_resets SET usado=1 WHERE id=?");
+        mysqli_stmt_bind_param($stM, 'i', $row['id']); mysqli_stmt_execute($stM);
+        log_audit($con, $uid, 'PASSWORD_RESET_COMPLETADO', '');
+        unset($_SESSION['rec_email_uid'], $_SESSION['rec_email_token']);
+        echo json_encode(['ok'=>true,'msg'=>'Contraseña actualizada correctamente. Ya podés iniciar sesión.']); exit;
+    }
+
     echo json_encode(['ok'=>false,'msg'=>'Acción no reconocida.']); exit;
 }
 ?>
@@ -493,6 +589,44 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       <div id="errRec1" class="err"></div>
       <div class="field"><label>Cédula registrada</label><input id="recCed" placeholder="ej. 12345678"></div>
       <button class="btn btn-primary" onclick="doRec1()">Continuar →</button>
+      <hr class="divider">
+      <p style="font-size:.8rem;color:#888;text-align:center;margin-bottom:.6rem;">¿No te acordás las respuestas de seguridad?</p>
+      <button type="button" class="btn btn-outline" onclick="show('pRecEmail1')">📧 Enviarme un enlace por correo</button>
+      <div class="link-row"><a onclick="show('pLogin')">← Volver al login</a></div>
+    </div>
+
+    <!-- ══ RECUPERAR POR CORREO — Paso 1 ═══════════════════ -->
+    <div id="pRecEmail1" class="pane">
+      <h2>Recuperar por correo</h2>
+      <p class="sub">Te enviamos un enlace para elegir una nueva contraseña</p>
+      <div id="errRecEmail1" class="err"></div>
+      <div class="field"><label>Usuario, cédula o correo</label><input id="recEmailId" placeholder="Cualquiera de los tres"></div>
+      <button class="btn btn-primary" id="btnRecEmail1" onclick="doRecEmail1()">Enviar enlace</button>
+      <div class="link-row"><a onclick="show('pRec1')">← Volver</a></div>
+    </div>
+
+    <!-- ══ RECUPERAR POR CORREO — Confirmación ═════════════ -->
+    <div id="pRecEmail2" class="pane">
+      <div class="info-box">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 6L12 13 2 6"/><path d="M2 6h20v12H2z"/></svg>
+        <span>Revisá tu bandeja de entrada (y la carpeta de spam, por si acaso). El enlace vence en 1 hora.</span>
+      </div>
+      <h2 style="margin-top:1.2rem;">Listo</h2>
+      <p class="sub" id="recEmail2Msg">Si esos datos están registrados, ya te enviamos el enlace.</p>
+      <div class="link-row"><a onclick="show('pLogin')">← Volver al login</a></div>
+    </div>
+
+    <!-- ══ RECUPERAR POR CORREO — Nueva contraseña (desde el enlace) ═ -->
+    <div id="pRecEmailNew" class="pane">
+      <h2>Nueva contraseña</h2>
+      <p class="sub" id="recEmailNewSub">Elegí una contraseña segura para tu cuenta</p>
+      <div id="errRecEmailNew" class="err"></div>
+      <div id="okRecEmailNew" class="ok"></div>
+      <div id="recEmailNewForm">
+        <div class="field"><label>Nueva contraseña</label><input id="recEmailP" type="password" placeholder="mín. 6 caracteres"></div>
+        <div class="field"><label>Repetir</label><input id="recEmailP2" type="password" placeholder="repite"></div>
+        <button class="btn btn-primary" onclick="doRecEmailConfirmar()">Guardar contraseña</button>
+      </div>
       <div class="link-row"><a onclick="show('pLogin')">← Volver al login</a></div>
     </div>
 
@@ -672,6 +806,61 @@ async function doRec3(){
   const d=await post('rec_newpwd',{password:document.getElementById('recP').value,repetir:document.getElementById('recP2').value});
   if(d.ok){setOk('okRec3',d.msg);setTimeout(()=>show('pLogin'),2500);}else setErr('errRec3',d.msg);
 }
+
+// ── Recuperar por correo (enlace) ──────────────────────────
+async function doRecEmail1(){
+  setErr('errRecEmail1','');
+  const id = document.getElementById('recEmailId').value.trim();
+  if(!id){ setErr('errRecEmail1','Escribí tu usuario, cédula o correo.'); return; }
+  const btn = document.getElementById('btnRecEmail1');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  const d = await post('rec_email_solicitar',{identificador:id});
+  btn.disabled = false; btn.textContent = 'Enviar enlace';
+  if(d.ok){
+    document.getElementById('recEmail2Msg').textContent = d.msg;
+    show('pRecEmail2');
+  } else {
+    setErr('errRecEmail1', d.msg || 'No se pudo enviar el enlace. Intenta de nuevo.');
+  }
+}
+
+async function doRecEmailConfirmar(){
+  setErr('errRecEmailNew','');
+  setOk('okRecEmailNew','');
+  const d = await post('rec_email_confirmar',{
+    password: document.getElementById('recEmailP').value,
+    repetir:  document.getElementById('recEmailP2').value,
+  });
+  if(d.ok){
+    setOk('okRecEmailNew', d.msg);
+    document.getElementById('recEmailNewForm').style.display='none';
+    setTimeout(()=>{ window.location.href = 'login.php'; }, 2200);
+  } else {
+    setErr('errRecEmailNew', d.msg);
+  }
+}
+
+// Si se llega desde el enlace del correo (login.php?reset=TOKEN),
+// valida el token apenas carga la página y muestra directo el
+// formulario de nueva contraseña — sin obligar a pasar por el login.
+(async function checkResetLink(){
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('reset');
+  if(!token) return;
+  show('pRecEmailNew');
+  document.getElementById('recEmailNewForm').style.display='none';
+  document.getElementById('recEmailNewSub').textContent = 'Verificando el enlace…';
+  const d = await post('rec_email_verificar',{token});
+  if(d.ok){
+    document.getElementById('recEmailNewSub').textContent = `Elegí una nueva contraseña para "${d.data.usuario}"`;
+    document.getElementById('recEmailNewForm').style.display='block';
+  } else {
+    setErr('errRecEmailNew', d.msg);
+    document.getElementById('recEmailNewSub').textContent = 'Este enlace no es válido.';
+  }
+  // Limpia el token de la URL para que no quede visible/copiable en el historial.
+  window.history.replaceState({}, '', 'login.php');
+})();
 
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('pLogin').classList.contains('active'))doLogin();});
 </script>

@@ -183,6 +183,7 @@ async function crearUsuario(e) {
     {name:'password', label:'Contraseña', tipo:'password',min:6},
   ])) return;
   const fd = new FormData(e.target); fd.append('action','usuario_create');
+  const _csrf = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', _csrf?_csrf.content:'');
   const r = await fetch('api/ajax.php', {method:'POST', body:fd});
   const d = await r.json();
   if (d.ok) { toast(d.msg); closeModal('mCU'); e.target.reset(); loadUsuarios(); }

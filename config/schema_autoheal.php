@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 14);
+define('IBBS_SCHEMA_VERSION', 15);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -160,6 +160,23 @@ if (!function_exists('ibbs_autoheal_schema')) {
                 CONSTRAINT `autoheal_ah_ibfk_2` FOREIGN KEY (`cargado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
             "ALTER TABLE `asistencias` ADD COLUMN IF NOT EXISTS `hoja_id` INT(11) DEFAULT NULL AFTER `registrado_por`",
+            // 015_password_resets.sql — recuperación de contraseña por
+            // correo (enlace con token), alternativa a las preguntas de
+            // seguridad. Solo se guarda el HASH del token — si alguien
+            // llegara a leer la tabla, no podría usar los enlaces ya
+            // enviados (igual que una contraseña, nunca en texto plano).
+            "CREATE TABLE IF NOT EXISTS `password_resets` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `usuario_id` INT(11) NOT NULL,
+                `token_hash` VARCHAR(64) NOT NULL,
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `expira_en` DATETIME NOT NULL,
+                `usado` TINYINT(1) NOT NULL DEFAULT 0,
+                PRIMARY KEY (`id`),
+                KEY `idx_token_hash` (`token_hash`),
+                KEY `idx_usuario` (`usuario_id`),
+                CONSTRAINT `autoheal_pr_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         ];
 
         foreach ($ddl as $sql) {

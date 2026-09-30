@@ -1148,6 +1148,106 @@ Los tres viven solo en `layout/foot.php` (panel de administración) y en
 ambos portales (`ibbs-shortcuts.js`; `ibbs-export.js` no se cargó en los
 portales porque todavía no tienen ninguna `<table>` para exportar).
 
+## Bug: "Token de seguridad inválido" al crear Docente (y otros formularios)
+
+Al crear un docente el formulario mandaba el POST con un `fetch()`
+armado a mano (`new FormData(e.target)`) en vez de usar el helper
+`ajax()` de `layout/foot.php` — que es el que agrega automáticamente el
+`csrf_token` leyendo el `<meta name="csrf-token">`. Sin ese campo,
+`api/ajax.php` rechaza cualquier POST con "Token de seguridad
+inválido" (así está pensado: sin csrf_token, ninguna acción que
+modifique datos debería pasar).
+
+Se encontró el mismo bug, exactamente por la misma razón, en varios
+formularios más — quedaba silenciosamente roto entregar una tarea,
+calificarla, crear una tarea nueva, y crear alumno/materia/usuario:
+
+- `modulo_docentes.php` — crear Docente, Asignar Materia
+- `modulo_alumnos.php` — crear Alumno
+- `modulo_materias.php` — crear Materia
+- `modulo_usuarios.php` — crear Usuario
+- `portal_docente.php` — calificar una entrega, publicar una tarea nueva, asignar materia
+- `portal_alumno.php` — entregar una tarea (`procesar_entrega.php`)
+
+La corrección en todos los casos es la misma: agregar
+`fd.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content)`
+antes del `fetch()`. Si se agrega un formulario nuevo que postea con un
+`fetch()` armado a mano en vez del helper `ajax()`, hay que acordarse
+de este mismo paso — o, mejor, usar `ajax()` directamente y evitarse el
+problema de raíz.
+
+## Recuperación de contraseña por correo (alternativa a las preguntas de seguridad)
+
+Hasta ahora, si alguien no se acordaba de las respuestas a sus
+preguntas de seguridad, se quedaba afuera de su cuenta sin ninguna otra
+salida. Se agregó una segunda vía, un enlace de un solo uso enviado por
+correo (más escalable que un código de un solo vistazo: no hace falta
+una pantalla aparte para "escribir el código", el enlace mismo hace
+todo el trabajo) — sin tocar ni reemplazar el flujo de preguntas de
+seguridad que ya existía, que sigue funcionando igual.
+
+**Flujo** (todo dentro de `login.php`, mismo patrón de acciones que ya
+usaba la recuperación por preguntas):
+1. "¿Olvidaste tu contraseña?" → como antes, pide la cédula para las
+   preguntas de seguridad — pero ahora con un botón extra: "Enviarme un
+   enlace por correo".
+2. Ese botón lleva a un formulario que pide usuario, cédula **o**
+   correo (`rec_email_solicitar`). Responde siempre el mismo mensaje
+   genérico exista o no esa cuenta — si no, el formulario serviría para
+   averiguar qué correos están registrados con solo mirar si la
+   respuesta cambia.
+3. Si la cuenta existe, se genera un token al azar (32 bytes), se
+   guarda su **hash** (nunca el token en texto plano) en la tabla nueva
+   `password_resets` con 1 hora de vencimiento, y se manda un correo
+   con un enlace `login.php?reset=<token>`. Cualquier enlace anterior
+   sin usar de esa misma cuenta queda invalidado — solo el más
+   reciente funciona.
+4. Al abrir el enlace, `login.php` detecta `?reset=` en la URL,
+   valida el token contra la base (`rec_email_verificar`) y, si es
+   válido, muestra directo el formulario de nueva contraseña — sin
+   pasar por el login. `rec_email_confirmar` vuelve a validar el token
+   server-side antes de guardar la contraseña nueva y lo marca como
+   usado.
+
+**Envío de correo** (`config/mailer.php` + `config/mail_config.php`):
+no hay `composer`/`vendor` en este proyecto (ver más abajo), así que en
+vez de sumar PHPMailer se escribió un cliente SMTP mínimo por socket
+(EHLO/STARTTLS/AUTH LOGIN/DATA, sin dependencias) que se usa **solo si**
+`config/mail_config.php` tiene un `smtp_host` configurado. Si se deja
+vacío (el valor por defecto), cae automáticamente a la función `mail()`
+de PHP, que funciona sola en la mayoría de VPS/hosting con un MTA local
+ya configurado. Si el correo no llega o cae a spam, hay que completar
+`config/mail_config.php` con una cuenta SMTP real (Gmail con
+"contraseña de aplicación", SendGrid, Mailgun, el correo del propio
+dominio…) — un solo archivo, nada más que tocar.
+
+**Seguridad:** freno de 4 solicitudes cada 15 minutos por IP
+(`config/rate_limit.php` → `reset_email_throttle_*`, mismo patrón de
+archivo local que ya usaba el freno de fuerza bruta del login) para que
+nadie pueda usar el formulario para mandar decenas de correos a la
+bandeja de otra persona. El token nunca se guarda en texto plano (solo
+su hash SHA-256), vence en 1 hora, y se invalida solo con usarlo una
+vez.
+
+## Toques visuales extra en el portal del alumno
+
+Pedido explícito: sumarle algo de brillo profesional sin tocar ni un
+estilo de los que ya estaban — todo lo de acá son clases CSS nuevas
+(`ibbs-glow-orb`, `ibbs-badge-pulse`, `ibbs-confetti-piece`,
+`ibbs-shimmer` en el propio `<style>` de `portal_alumno.php`) que se
+suman como `class="..."` extra sobre elementos que ya existían, nunca
+reemplazando nada:
+
+- Dos orbes de luz difuminados y animados detrás del banner de
+  bienvenida del Dashboard (antes era un fondo liso con el patrón de
+  puntos que ya tenía).
+- La insignia con el número de tareas pendientes en el menú ahora tiene
+  un anillo con pulso sutil — llama un poco más la atención sin cambiar
+  el badge en sí.
+- Un festejo breve de confeti (puro CSS + un puñado de `<div>` que se
+  generan y se borran solos) al entregar una tarea o mandar una
+  solicitud de autoinscripción con éxito.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

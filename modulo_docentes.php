@@ -211,6 +211,8 @@ async function createDoc(e){
 
   const fd = new FormData(e.target);
   fd.append('action','docente_create');
+  const _csrf = document.querySelector('meta[name="csrf-token"]');
+  fd.append('csrf_token', _csrf ? _csrf.content : '');
   const r = await fetch('api/ajax.php',{method:'POST',body:fd});
   const d = await r.json();
 
@@ -344,6 +346,8 @@ async function asignarMateriaSubmit(e) {
   
   try {
     const formData = new FormData(form);
+    const _csrf = document.querySelector('meta[name="csrf-token"]');
+    formData.append('csrf_token', _csrf ? _csrf.content : '');
     const res = await fetch('asignar_materia.php', { method: 'POST', body: formData });
     const data = await res.json();
     
