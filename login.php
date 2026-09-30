@@ -118,12 +118,31 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         // Queda "aprobado=0": no puede iniciar sesión hasta que un
         // admin/superadmin apruebe la solicitud (ver alumno_aprobar en
         // api/ajax.php).
+        //
+        // Defensa extra: si el ENUM de `rol` en la base de datos real
+        // (que puede venir de un dump viejo, o de una instalación a la
+        // que nunca se le corrió la migración 008) no incluyera
+        // 'alumno' todavía, MySQL en modo no-estricto guardaría un
+        // valor vacío en vez de fallar — y esa cuenta terminaría
+        // pareciendo "profesor" en cualquier página que hace
+        // `$_SESSION['rol'] ?? 'profesor'`. Este ALTER es idempotente
+        // (redefinir el ENUM con las mismas opciones no rompe nada) y
+        // se corre acá también para que el registro público nunca
+        // dependa de que alguien haya pegado la migración a mano.
+        mysqli_query($con, "ALTER TABLE usuarios MODIFY rol ENUM('superadmin','admin','profesor','alumno') DEFAULT 'alumno'");
+
         $st = mysqli_prepare($con,"INSERT INTO usuarios(usuario,correo,cedula,password_hash,rol,aprobado,preg1,resp1_hash,preg2,resp2_hash) VALUES(?,?,?,?,'alumno',0,?,?,?,?)");
         mysqli_stmt_bind_param($st,'ssssssss',$tmp['u'],$tmp['mail'],$tmp['ced'],$hash,$tmp['p1'],$rh1,$tmp['p2'],$rh2);
         if (!mysqli_stmt_execute($st)) {
             echo json_encode(['ok'=>false,'msg'=>mysqli_error($con)]); exit;
         }
         $nuevoUid = mysqli_insert_id($con);
+        // Verificación final — si por lo que sea la fila no quedó con
+        // rol='alumno' (ENUM viejo, trigger de terceros, etc.), se
+        // fuerza acá mismo antes de seguir. Nunca debería hacer falta,
+        // pero es la única garantía 100% a prueba de una base de datos
+        // que no está en el estado que el código espera.
+        mysqli_query($con, "UPDATE usuarios SET rol='alumno' WHERE id=$nuevoUid AND rol<>'alumno'");
 
         // Ficha de alumno vinculada — "regular" (puede autoinscribirse)
         // recién cuando lo aprueben, no antes.

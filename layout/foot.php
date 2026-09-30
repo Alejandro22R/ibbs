@@ -348,7 +348,8 @@ const NOTIF_ICONS = {
   clase_vivo:'🔴', grabacion:'🎬', reprobado:'⚠️', asistencia:'⚠️',
   sistema:'⚙️', info:'ℹ️', solicitud_alumno:'🧑‍🎓',
   solicitud_aprobada:'✅', solicitud_rechazada:'⛔',
-  solicitud_materia:'🧾', solicitud_materia_aprobada:'✅', solicitud_materia_rechazada:'⛔'
+  solicitud_materia:'🧾', solicitud_materia_aprobada:'✅', solicitud_materia_rechazada:'⛔',
+  solicitud_libro:'📚', solicitud_libro_activada:'✅', solicitud_libro_rechazada:'⛔'
 };
 let _notifUnread = 0;
 function _notifSetBadge(n){

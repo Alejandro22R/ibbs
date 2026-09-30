@@ -690,6 +690,20 @@ hay tres caminos para que una cuenta tenga un rol distinto de `alumno`:
    en esta misma tanda.
 Ningún otro `INSERT INTO usuarios` existe en el código.
 
+**Refuerzo extra (esta tanda):** si después de todo esto seguís viendo
+que un registro público entra como profesor, el código ya está
+descartado como causa (el `INSERT` de `reg_finish` en `login.php` trae
+`rol='alumno'` escrito literal en el SQL, no viene de ningún campo del
+formulario) — lo más probable es un despliegue con una versión vieja
+del archivo, o un caché de opcode que no recargó `login.php`. Aun así,
+`reg_finish` ahora es a prueba de eso: antes del `INSERT` corre un
+`ALTER TABLE ... MODIFY rol ENUM(...)` idempotente (por si el ENUM real
+de esa base de datos no tuviera `alumno` todavía) y, apenas se crea la
+fila, una segunda consulta (`UPDATE usuarios SET rol='alumno' WHERE
+id=... AND rol<>'alumno'`) la corrige si por lo que sea no quedó bien.
+Nunca debería hacer falta — es una garantía adicional, no un parche
+sobre un bug real encontrado en el código actual.
+
 ## Autoinscripción con comprobante de pago (`materia_solicitudes`)
 
 La autoinscripción directa (`materia_autoinscribir` en `api/ajax.php`)
@@ -719,6 +733,50 @@ propio **`api/materia_solicitud.php`** (migración
   comprobante rechazado queda guardado por si hay que revisar el caso.
 - `alumno_id`/`materia_id` con una solicitud `pendiente` no pueden
   volver a mandar otra para la misma materia hasta que la revisen.
+
+## Biblioteca (catálogo de libros + compra con comprobante)
+
+Migración `013_biblioteca.sql` (tablas `libros`, `libro_compras`,
+`datos_pago`). Nuevo endpoint propio **`api/biblioteca.php`** y página
+**`modulo_biblioteca.php`**.
+
+- **Quién carga libros**: admin/superadmin y **cualquier docente**
+  (`modulo_biblioteca.php`, enlazado desde el sidebar para esos tres
+  roles y desde `portal_docente.php` con un botón "Biblioteca" que abre
+  el módulo en una pestaña nueva — mismo patrón que ya usan "Aula
+  Virtual"/"Clases en Vivo"/"Grabadas"). Un docente solo ve y puede
+  editar/eliminar **sus propios** libros; admin/superadmin ve y
+  gestiona todos, y además tiene dos pestañas extra: "Solicitudes de
+  Compra" y "Datos de Pago".
+- **El archivo del libro es contenido pago, nunca un link directo**:
+  vive en `uploads/libros_privados/`, con su propio `.htaccess`
+  (`Require all denied` — a diferencia de `uploads/fotos` o
+  `uploads/materiales`, acá se bloquea CUALQUIER acceso directo, no
+  solo la ejecución de scripts). La única forma de leerlo es
+  `api/biblioteca.php?action=descargar&id=X`, que valida que quien lo
+  pide lo haya comprado (o sea gratis, o admin/superadmin, o el docente
+  que lo subió) antes de hacer `readfile()`. La portada sí es una
+  imagen pública normal (`uploads/libros/portadas/`), como cualquier
+  otra foto de la app.
+- **Cómo compra un alumno**: `portal_alumno.php` → Biblioteca muestra
+  el catálogo (solo libros `activo=1`) con su precio. Al tocar
+  "Comprar" ve los **Datos de Pago** que haya cargado la administración
+  (`datos_pago`, una sola fila — hoy puede estar vacía, "los datos que
+  futuramente se darán de la institución", y el modal lo avisa así) y
+  adjunta la captura del pago móvil/transferencia — mismo patrón exacto
+  que `materia_solicitudes` del turno anterior: la compra queda
+  `pendiente` (con notificación a admin/superadmin, botones **🧾 Ver
+  comprobante** / **✓ Activar** / **✕ Rechazar** en el panel de
+  notificaciones) y recién al aceptarla el libro aparece en "Mi
+  Biblioteca" del alumno, con su propio botón de descarga. Un libro con
+  `precio=0` se activa solo, sin comprobante ni revisión — "Obtener
+  gratis" en vez de "Comprar".
+- **Escalabilidad de cara al pago real**: `datos_pago` es la única
+  pieza que hace falta reemplazar el día que la institución tenga una
+  pasarela de pago de verdad — el resto del flujo (solicitud +
+  comprobante + activación) queda igual; sería cuestión de agregar una
+  opción de pago automático que, al confirmar, llame directo a la misma
+  lógica de `compra_aprobar` en vez de esperar la revisión manual.
 
 ## Convenciones para módulos nuevos
 

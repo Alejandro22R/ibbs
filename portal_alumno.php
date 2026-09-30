@@ -265,7 +265,10 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             <button onclick="switchView('constancias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-file-signature w-5 text-center"></i> <span class="font-medium text-sm">Constancias</span>
             </button>
-            
+            <button onclick="switchView('biblioteca', this); loadBiblioteca();" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <i class="fas fa-book w-5 text-center"></i> <span class="font-medium text-sm">Biblioteca</span>
+            </button>
+
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-6 mb-3 px-3">Cuenta</p>
             <button id="navBtnPerfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-user-cog w-5 text-center"></i> <span class="font-medium text-sm">Mi Perfil</span>
@@ -653,6 +656,40 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 </div>
             </div>
 
+            <!-- VISTA: BIBLIOTECA -->
+            <div id="view-biblioteca" class="view-section hidden space-y-5">
+                <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
+                    <h2 class="text-2xl font-serif text-ibbs-ink">Biblioteca</h2>
+                    <div class="flex gap-2">
+                        <button id="btnBibCatalogo" onclick="mostrarBibTab('catalogo')" class="px-4 py-1.5 rounded-full text-xs font-bold bg-ibbs-ink text-white">Catálogo</button>
+                        <button id="btnBibMios" onclick="mostrarBibTab('mios')" class="px-4 py-1.5 rounded-full text-xs font-bold bg-ibbs-cream text-ibbs-ink border border-ibbs-border">Mi Biblioteca</button>
+                    </div>
+                </div>
+
+                <div id="bibTabCatalogo" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <p class="text-sm text-ibbs-muted italic col-span-full">Cargando catálogo…</p>
+                </div>
+                <div id="bibTabMios" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+            </div>
+
+            <!-- MODAL COMPRAR LIBRO -->
+            <div id="modalComprarLibro" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-serif font-bold text-ibbs-ink">Comprar libro</h3>
+                        <button onclick="cerrarModalComprar()" class="text-ibbs-muted hover:text-ibbs-ink"><i class="fas fa-times"></i></button>
+                    </div>
+                    <p id="comprarLibroTitulo" class="text-sm font-bold"></p>
+                    <div id="datosPagoBox" class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 text-xs text-ibbs-ink space-y-1"></div>
+                    <div>
+                        <label class="text-xs font-bold uppercase tracking-wide text-ibbs-muted">Captura del pago móvil o transferencia</label>
+                        <input type="file" id="comprobanteLibroInput" accept="image/png,image/jpeg,image/webp" class="w-full mt-1 border border-ibbs-border rounded-lg px-3 py-2 text-xs bg-white file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-ibbs-ink file:text-white file:text-xs file:font-bold">
+                    </div>
+                    <input type="hidden" id="comprarLibroId">
+                    <button onclick="confirmarCompraLibro()" id="btnConfirmarCompra" class="w-full btn-ibbs py-2.5 rounded-lg text-sm font-bold">Enviar solicitud de compra</button>
+                </div>
+            </div>
+
             <!-- VISTA: PERFIL -->
             <div id="view-perfil" class="view-section hidden space-y-5">
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
@@ -944,6 +981,118 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     btn.disabled = false; btn.textContent = 'Enviar solicitud';
                 }
             } catch (e) { console.error(e); alert('Error de conexión.'); btn.disabled = false; btn.textContent = 'Enviar solicitud'; }
+        }
+
+        // ── BIBLIOTECA ────────────────────────────────────────────
+        let _bibCatalogo = [];
+        let _bibDatosPago = null;
+        function hBib(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+        function mostrarBibTab(tab) {
+            document.getElementById('bibTabCatalogo').classList.toggle('hidden', tab !== 'catalogo');
+            document.getElementById('bibTabMios').classList.toggle('hidden', tab !== 'mios');
+            document.getElementById('btnBibCatalogo').className = 'px-4 py-1.5 rounded-full text-xs font-bold ' + (tab === 'catalogo' ? 'bg-ibbs-ink text-white' : 'bg-ibbs-cream text-ibbs-ink border border-ibbs-border');
+            document.getElementById('btnBibMios').className = 'px-4 py-1.5 rounded-full text-xs font-bold ' + (tab === 'mios' ? 'bg-ibbs-ink text-white' : 'bg-ibbs-cream text-ibbs-ink border border-ibbs-border');
+            if (tab === 'mios') cargarMisLibros();
+        }
+        async function loadBiblioteca() {
+            const cont = document.getElementById('bibTabCatalogo');
+            const r = await fetch('api/biblioteca.php', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('action', 'libro_list'); const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : ''); return fd; })() });
+            const d = await r.json();
+            if (!d.ok) { cont.innerHTML = `<p class="text-sm text-red-600 col-span-full">${hBib(d.msg||'Error al cargar la biblioteca.')}</p>`; return; }
+            _bibCatalogo = d.data;
+            if (!d.data.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Todavía no hay libros cargados.</p>'; return; }
+            cont.innerHTML = d.data.map(l => {
+                const precioTxt = parseFloat(l.precio) > 0 ? '$' + parseFloat(l.precio).toFixed(2) : 'Gratis';
+                let accion = '';
+                if (l.estado_compra === 'activado') accion = `<a href="api/biblioteca.php?action=descargar&id=${l.id}" class="w-full btn-ibbs py-2 rounded-lg text-xs font-bold text-center block mt-3"><i class="fas fa-download mr-1"></i> Descargar</a>`;
+                else if (l.estado_compra === 'pendiente') accion = `<p class="text-xs text-center mt-3 font-bold text-amber-600"><i class="fas fa-clock mr-1"></i> Solicitud en revisión</p>`;
+                else accion = `<button onclick='abrirModalComprar(${l.id})' class="w-full btn-ibbs py-2 rounded-lg text-xs font-bold mt-3">${parseFloat(l.precio) > 0 ? 'Comprar' : 'Obtener gratis'}</button>`;
+                return `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden flex flex-col">
+                    <div class="h-40 bg-ibbs-ink flex items-center justify-center overflow-hidden">
+                        ${l.portada ? `<img src="${l.portada}" class="w-full h-full object-cover">` : `<i class="fas fa-book text-4xl text-ibbs-lime"></i>`}
+                    </div>
+                    <div class="p-4 flex-1 flex flex-col">
+                        <h3 class="font-bold text-ibbs-ink leading-tight mb-1">${hBib(l.titulo)}</h3>
+                        <p class="text-xs text-ibbs-muted mb-2">${hBib(l.autor || 'Autor desconocido')}</p>
+                        <p class="text-xs text-ibbs-muted mb-3 flex-1">${hBib((l.descripcion || '').substring(0, 90))}</p>
+                        <p class="text-sm font-bold text-ibbs-ink">${precioTxt}</p>
+                        ${accion}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        async function cargarMisLibros() {
+            const cont = document.getElementById('bibTabMios');
+            cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Cargando…</p>';
+            const r = await fetch('api/biblioteca.php', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('action', 'mis_libros'); const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : ''); return fd; })() });
+            const d = await r.json();
+            if (!d.ok || !d.data.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Todavía no tenés libros activados en tu biblioteca.</p>'; return; }
+            cont.innerHTML = d.data.map(l => `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden flex flex-col">
+                <div class="h-40 bg-ibbs-ink flex items-center justify-center overflow-hidden">
+                    ${l.portada ? `<img src="${l.portada}" class="w-full h-full object-cover">` : `<i class="fas fa-book text-4xl text-ibbs-lime"></i>`}
+                </div>
+                <div class="p-4 flex-1 flex flex-col">
+                    <h3 class="font-bold text-ibbs-ink leading-tight mb-1">${hBib(l.titulo)}</h3>
+                    <p class="text-xs text-ibbs-muted mb-3">${hBib(l.autor || '')}</p>
+                    <a href="api/biblioteca.php?action=descargar&id=${l.id}" class="w-full btn-ibbs py-2 rounded-lg text-xs font-bold text-center block mt-auto"><i class="fas fa-download mr-1"></i> Descargar</a>
+                </div>
+            </div>`).join('');
+        }
+        async function abrirModalComprar(id) {
+            const libro = _bibCatalogo.find(l => l.id == id);
+            if (!libro) return;
+            document.getElementById('comprarLibroId').value = id;
+            document.getElementById('comprarLibroTitulo').textContent = libro.titulo + (parseFloat(libro.precio) > 0 ? ' — $' + parseFloat(libro.precio).toFixed(2) : ' — Gratis');
+            document.getElementById('comprobanteLibroInput').closest('div').style.display = parseFloat(libro.precio) > 0 ? '' : 'none';
+            document.getElementById('btnConfirmarCompra').textContent = parseFloat(libro.precio) > 0 ? 'Enviar solicitud de compra' : 'Obtener libro gratis';
+
+            if (!_bibDatosPago) {
+                const r = await fetch('api/biblioteca.php', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('action', 'datos_pago_get'); const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : ''); return fd; })() });
+                const d = await r.json();
+                _bibDatosPago = d.ok ? d.data : {};
+            }
+            const p = _bibDatosPago || {};
+            const box = document.getElementById('datosPagoBox');
+            if (parseFloat(libro.precio) <= 0) {
+                box.innerHTML = 'Este libro es gratuito — se activa apenas confirmes.';
+            } else if (!p.titular && !p.pago_movil_telefono && !p.cuenta) {
+                box.innerHTML = 'La administración todavía no cargó los datos de pago. Consultá directamente en el instituto cómo realizar el pago antes de enviar tu solicitud.';
+            } else {
+                box.innerHTML = [
+                    p.titular ? `<div><strong>Titular:</strong> ${hBib(p.titular)}</div>` : '',
+                    p.banco ? `<div><strong>Banco:</strong> ${hBib(p.banco)}</div>` : '',
+                    p.cuenta ? `<div><strong>Cuenta:</strong> ${hBib(p.cuenta)}</div>` : '',
+                    p.cedula_rif ? `<div><strong>CI/RIF:</strong> ${hBib(p.cedula_rif)}</div>` : '',
+                    p.pago_movil_telefono ? `<div><strong>Pago Móvil:</strong> ${hBib(p.pago_movil_telefono)}</div>` : '',
+                    p.instrucciones ? `<div class="mt-1 italic">${hBib(p.instrucciones)}</div>` : '',
+                ].join('');
+            }
+            document.getElementById('modalComprarLibro').classList.remove('hidden');
+        }
+        function cerrarModalComprar() {
+            document.getElementById('modalComprarLibro').classList.add('hidden');
+            document.getElementById('comprobanteLibroInput').value = '';
+        }
+        async function confirmarCompraLibro() {
+            const id = document.getElementById('comprarLibroId').value;
+            const libro = _bibCatalogo.find(l => l.id == id);
+            const file = document.getElementById('comprobanteLibroInput').files[0];
+            if (libro && parseFloat(libro.precio) > 0 && !file) { alert('Adjuntá la captura de tu pago para poder enviar la solicitud.'); return; }
+            const btn = document.getElementById('btnConfirmarCompra');
+            btn.disabled = true; btn.textContent = 'Enviando…';
+            try {
+                const fd = new FormData();
+                fd.append('action', 'compra_crear');
+                fd.append('libro_id', id);
+                if (file) fd.append('comprobante', file);
+                const m = document.querySelector('meta[name="csrf-token"]');
+                fd.append('csrf_token', m ? m.content : '');
+                const r = await fetch('api/biblioteca.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                alert(d.msg || (d.ok ? 'Listo.' : 'No se pudo procesar la solicitud.'));
+                if (d.ok) { cerrarModalComprar(); loadBiblioteca(); }
+            } catch (e) { console.error(e); alert('Error de conexión.'); }
+            btn.disabled = false; btn.textContent = 'Enviar solicitud de compra';
         }
 
         <?php if (empty($materias)): ?>

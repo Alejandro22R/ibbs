@@ -54,6 +54,7 @@ mysqli_close($con);
 .notif-ico.info{background:#dbeafe;}
 .notif-ico.solicitud_alumno{background:#d1fae5;}
 .notif-ico.solicitud_materia{background:#cffafe;}
+.notif-ico.solicitud_libro{background:#ede9fe;}
 .notif-body{flex:1;}
 .notif-msg{font-size:.83rem;color:var(--ink);line-height:1.5;}
 .notif-time{font-size:.7rem;color:var(--muted);margin-top:.2rem;}
@@ -244,6 +245,7 @@ async function loadNotifs() {
     info:       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
     solicitud_alumno: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>',
     solicitud_materia: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+    solicitud_libro: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
   };
   el.innerHTML = d.data.map(n=>`
     <div class="notif-item ${n.leida=='0'?'unread':''}" id="ni${n.id}">
@@ -261,6 +263,12 @@ async function loadNotifs() {
             <button class="btn btn-sm btn-secondary" onclick="verComprobanteNotif(${n.referencia_id})">🧾 Ver comprobante</button>
             <button class="btn btn-sm btn-success" onclick="aprobarMateriaNotif(${n.id},${n.referencia_id})">✓ Aceptar</button>
             <button class="btn btn-sm btn-danger" onclick="rechazarMateriaNotif(${n.id},${n.referencia_id})">✕ Rechazar</button>
+          </div>` : ''}
+        ${n.tipo==='solicitud_libro' && n.referencia_id ? `
+          <div style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-secondary" onclick="verComprobanteLibroNotif(${n.referencia_id})">🧾 Ver comprobante</button>
+            <button class="btn btn-sm btn-success" onclick="aprobarLibroNotif(${n.id},${n.referencia_id})">✓ Activar</button>
+            <button class="btn btn-sm btn-danger" onclick="rechazarLibroNotif(${n.id},${n.referencia_id})">✕ Rechazar</button>
           </div>` : ''}
       </div>
       <div style="display:flex;gap:.4rem;align-items:flex-start;flex-shrink:0;">
@@ -291,6 +299,22 @@ async function aprobarMateriaNotif(notifId, solicitudId) {
 async function rechazarMateriaNotif(notifId, solicitudId) {
   ibbsConfirm('¿Rechazar esta solicitud de inscripción? Revisá bien el comprobante antes de confirmar.', async ()=>{
     const d = await ajax('rechazar', {id: solicitudId}, 'api/materia_solicitud.php');
+    if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
+  });
+}
+async function verComprobanteLibroNotif(compraId) {
+  const d = await ajax('compra_get', {id: compraId}, 'api/biblioteca.php');
+  if(!d?.ok){ Ibbs.error(d?.msg||'No se pudo cargar el comprobante.'); return; }
+  if(!d.data.comprobante){ toast('Este libro es gratuito, no tiene comprobante.'); return; }
+  window.open(d.data.comprobante, '_blank');
+}
+async function aprobarLibroNotif(notifId, compraId) {
+  const d = await ajax('compra_aprobar', {id: compraId}, 'api/biblioteca.php');
+  if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
+}
+async function rechazarLibroNotif(notifId, compraId) {
+  ibbsConfirm('¿Rechazar esta compra? Revisá bien el comprobante antes de confirmar.', async ()=>{
+    const d = await ajax('compra_rechazar', {id: compraId}, 'api/biblioteca.php');
     if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
   });
 }

@@ -199,6 +199,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button onclick="switchView('chat-staff', this)" class="sb-link">
                 <i class="fas fa-bullhorn"></i> <span class="sb-lbl">Chat del Staff</span>
             </button>
+            <a href="modulo_biblioteca.php" target="_blank" class="sb-link">
+                <i class="fas fa-book"></i> <span class="sb-lbl">Biblioteca</span>
+            </a>
 
             <?php if(in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
             <div class="sb-section" style="margin-top: .5rem;">Administración</div>

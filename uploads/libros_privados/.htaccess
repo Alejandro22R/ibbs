@@ -1,0 +1,6 @@
+# Los archivos de los libros son contenido pago — a diferencia del
+# resto de uploads/ (fotos, materiales de clase), acá se bloquea
+# CUALQUIER acceso directo, no solo la ejecución de scripts. El único
+# camino para leer un archivo de esta carpeta es api/biblioteca.php
+# (acción "descargar"), que valida que quien lo pide lo haya comprado.
+Require all denied
