@@ -5,6 +5,8 @@
 <script src="assets/libs/sweetalert2.all.min.js"></script>
 <!-- WebSocket en vivo (opcional — no-op si no hay VPS configurado, ver config/ws_config.php) -->
 <script src="assets/ibbs-realtime.js"></script>
+<!-- Ícono de "ojo" para mostrar/ocultar contraseña en cada input type=password -->
+<script src="assets/ibbs-password-toggle.js"></script>
 
 <script>
 // ── Sidebar toggle ──────────────────────────────────────────
@@ -561,7 +563,6 @@ async function marcarTodasLeidasDrop(){
 #ibbsConfirmSi:hover  { background:#b91c1c;box-shadow:0 6px 20px rgba(220,38,38,.4);transform:translateY(-1px); }
 #ibbsConfirmSi:active { transform:translateY(0); }
 html[data-theme="dark"] #ibbsConfirmBd { background:rgba(0,0,0,.7); }
-html[data-theme="dark"] .warn-pill { background:#1c1009!important;border-color:#7c2d12!important; }
 html[data-theme="dark"] #ibbsConfirmNo { background:var(--cream);border-color:var(--border); }
 </style>
 

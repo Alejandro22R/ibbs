@@ -101,11 +101,20 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 }
 ?>
 <!DOCTYPE html>
-<html lang="es" data-theme="light">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
+    <!-- Aplicar tema ANTES del primer pintado — evita el parpadeo claro→oscuro -->
+    <script>
+      (function(){
+        if(localStorage.getItem('ibbs_theme')==='dark'){
+          document.documentElement.setAttribute('data-theme','dark');
+          document.documentElement.style.background='#162b1f';
+        }
+      })();
+    </script>
     <?php if ($ws_token): ?>
     <meta name="ibbs-ws-url" content="<?=htmlspecialchars(ws_public_url())?>">
     <meta name="ibbs-ws-token" content="<?=htmlspecialchars($ws_token)?>">
@@ -123,6 +132,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     <script src="assets/libs/sweetalert2.all.min.js"></script>
     <script src="assets/ibbs-alerts.js"></script>
     <script src="assets/ibbs-tour.js"></script>
+    <script src="assets/ibbs-password-toggle.js"></script>
     
     <style>
         /* Animaciones para SPA */
@@ -152,10 +162,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         .chat-main { flex: 1; display: flex; flex-direction: column; background: var(--cream); position: relative; }
         .chat-item { padding: 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .7rem; cursor: pointer; transition: background .2s; }
         .chat-item:hover { background: var(--cream); }
-        .chat-item.active-chat { background: #fff; border-left: 3px solid var(--lime2); box-shadow: inset 0 2px 4px rgba(0,0,0,.02); }
+        .chat-item.active-chat { background: var(--paper); border-left: 3px solid var(--lime2); box-shadow: inset 0 2px 4px rgba(0,0,0,.02); }
         .msg-bubble { max-width: 75%; padding: .8rem 1rem; border-radius: 14px; font-size: .88rem; box-shadow: 0 2px 6px rgba(0,0,0,.04); position: relative; }
         .msg-mine { background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
-        .msg-other { background: #fff; border: 1px solid var(--border); color: var(--ink); border-bottom-left-radius: 4px; }
+        .msg-other { background: var(--paper); border: 1px solid var(--border); color: var(--ink); border-bottom-left-radius: 4px; }
         
         /* Alertas Premium */
         .alert-box {
@@ -166,6 +176,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         
         /* Ajuste de foto de perfil */
         .user-ava img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+        /* ── Modo oscuro — ajustes propios de este portal ── */
+        html[data-theme="dark"] .msg-mine { background: #1a4d2e; color: #eafbe8; }
+        html[data-theme="dark"] .alert-box { background: rgba(217,119,6,.14); }
     </style>
 </head>
 <body>
@@ -238,6 +252,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <h2 class="page-title">Panel de Control <em>Resumen de gestión docente</em></h2>
             </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
+                <button id="themeToggle" onclick="toggleTheme()" title="Modo claro / oscuro" aria-label="Cambiar tema">
+                    <svg class="t-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    <svg class="t-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
+                </button>
                 <div class="user-pill">
                     <div class="user-ava">
                         <?php if($foto_perfil): ?>
@@ -509,7 +527,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <div class="card chat-layout">
                 <!-- Lista de Foros -->
                 <div class="chat-sidebar">
-                    <div style="padding: 1.2rem; border-bottom: 1px solid var(--border); background: #fff;">
+                    <div style="padding: 1.2rem; border-bottom: 1px solid var(--border); background: var(--paper);">
                         <h3 style="font-family:'Playfair Display',serif; font-size: 1rem; color: var(--ink);">Salas Activas</h3>
                     </div>
                     <div style="flex: 1; overflow-y: auto;">
@@ -526,7 +544,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 
                 <!-- Área de Mensajes -->
                 <div class="chat-main">
-                    <div style="padding: 1.2rem; background: #fff; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .8rem; z-index: 10;">
+                    <div style="padding: 1.2rem; background: var(--paper); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .8rem; z-index: 10;">
                         <div style="width: 38px; height: 38px; border-radius: 50%; background: rgba(57,255,20,.15); color: var(--lime2); display: flex; align-items: center; justify-content: center;">
                             <i class="fas fa-users"></i>
                         </div>
@@ -538,7 +556,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     
                     <div id="chat-messages-container" style="flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem;"></div>
 
-                    <div style="padding: 1.2rem; background: #fff; border-top: 1px solid var(--border);">
+                    <div style="padding: 1.2rem; background: var(--paper); border-top: 1px solid var(--border);">
                         <div id="reply-indicator" style="display: none; font-size: .75rem; color: var(--muted); background: var(--cream); padding: .4rem .8rem; border-radius: 6px; margin-bottom: .8rem; align-items: center; justify-content: space-between; border: 1px solid var(--border);">
                             <span><i class="fas fa-reply" style="margin-right: 4px;"></i> Respondiendo a <strong id="reply-to-name" style="color:var(--ink);"></strong></span>
                             <button type="button" onclick="cancelarRespuesta()" style="background:none; border:none; color:var(--red); cursor:pointer;"><i class="fas fa-times"></i></button>
@@ -607,7 +625,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink); margin-bottom: .3rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">Chat del Staff</h2>
             <p style="font-size:.85rem;color:var(--muted);margin:.8rem 0 1.2rem;">Avisos de dirección y preguntas directas entre administración y docentes — visible para todo el staff, sin necesidad de estar en una materia.</p>
             <div class="card" style="height:60vh;min-height:400px;display:flex;flex-direction:column;">
-                <div id="staffchat-box" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;background:#fafafa;">
+                <div id="staffchat-box" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;background:var(--paper);">
                     <div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span> Cargando chat...</div>
                 </div>
                 <div id="staffchat-reply-indicator" style="display:none;padding:.5rem 1.2rem;background:var(--cream);border-top:1px solid var(--border);font-size:.8rem;color:var(--muted);align-items:center;justify-content:space-between;">
@@ -834,7 +852,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         
                         <div class="field field-full">
                             <label>Archivo Adjunto (Opcional - PDF, Word, Excel, PPT, Zip, Img)</label>
-                            <input type="file" name="archivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.zip,.rar" style="padding: .5rem; background: #fff; cursor: pointer;">
+                            <input type="file" name="archivo" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.zip,.rar" style="padding: .5rem; background: var(--paper); cursor: pointer;">
                         </div>
 
                         <div class="field field-full">
@@ -1332,7 +1350,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 
         function crearMensajeStaffChatHTML(msg, isReply) {
             const isMe = msg.usuario_id === <?= (int)$user_id ?>;
-            const bg = isMe ? 'background:#f0fdf4;border:1px solid #bbf7d0;' : 'background:#ffffff;border:1px solid var(--border);';
+            const bg = isMe ? 'background:var(--bubble-mine-bg);border:1px solid var(--bubble-mine-border);' : 'background:var(--paper);border:1px solid var(--border);';
             const dateStr = new Date(msg.fecha).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
             const replyBtn = !isReply ? `<button type="button" onclick="setReplyStaffChat(${msg.id}, '${hStaffChat(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--ink);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;text-decoration:underline;">Responder</button>` : '';
             const delBtn = msg.puede_borrar ? `<button type="button" onclick="borrarMensajeStaffChat(${msg.id})" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:.8rem;margin-top:.4rem;margin-left:.8rem;padding:0;text-decoration:underline;">Borrar</button>` : '';
@@ -1342,7 +1360,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         <strong style="font-size:.9rem;color:var(--ink);">${hStaffChat(msg.usuario_nombre)} ${roleBadgeStaffChat(msg.rol)}</strong>
                         <span style="font-size:.75rem;color:var(--muted);">${dateStr}</span>
                     </div>
-                    <p style="margin:0;font-size:.9rem;color:#333;white-space:pre-wrap;line-height:1.4;">${hStaffChat(msg.mensaje)}</p>
+                    <p style="margin:0;font-size:.9rem;color:var(--ink);white-space:pre-wrap;line-height:1.4;">${hStaffChat(msg.mensaje)}</p>
                     ${replyBtn}${delBtn}
                 </div>`;
         }
@@ -1515,25 +1533,43 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 
         // ── Tutorial guiado (manual intuitivo del docente) ─────────
         window.IBBS_TOUR_DOCENTE = {
-            storageKey: 'ibbs_tour_docente_v1',
+            storageKey: 'ibbs_tour_docente_v2',
             steps: [
-                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un vistazo rápido a tus materias, entregas pendientes de revisar y avisos.' },
-                { selector: '[data-tour="nav-materias"]', title: 'Mis Cursos', text: 'Mirá las materias que tenés asignadas y la lista de alumnos inscritos en cada una.' },
-                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Subí el material de clase (documentos, videos, recursos) para que tus alumnos lo vean.' },
-                { selector: '[data-tour="nav-entregas"]', title: 'Cargar Notas', text: 'Revisá las tareas entregadas por tus alumnos y cargá sus calificaciones.' },
-                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Conversá con tus alumnos sobre cada materia: dudas, avisos y anuncios.' },
-                { selector: '[data-tour="nav-chat-staff"]', title: 'Chat del Staff', text: 'Canal privado para coordinar con administración y otros docentes de la institución.' },
-                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Subí tus propios libros (gratuitos o de pago) para que los alumnos los vean en su catálogo.' },
+                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un vistazo rápido a tus materias, las entregas de tus alumnos pendientes de revisar y los avisos de la institución. Vamos a recorrer juntos todo lo que podés hacer — cerrá esta tarjeta con la "×" para seguir.' },
+                { selector: '[data-tour="nav-materias"]', title: 'Mis Cursos', text: 'Mirá las materias que tenés asignadas este período y la lista de alumnos inscritos en cada una, con su horario.' },
+                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Subí el material de cada materia (documentos, presentaciones, videos, clases grabadas o en vivo) para que tus alumnos lo vean cuando quieran.' },
+                { selector: '[data-tour="nav-entregas"]', title: 'Cargar Notas', text: 'Revisá las tareas que entregaron tus alumnos, dejales una observación si hace falta y cargá la calificación — la ven reflejada al instante en su portal.' },
+                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Respondé las dudas de tus alumnos sobre cada materia y compartí avisos importantes del curso.' },
+                { selector: '[data-tour="nav-chat-staff"]', title: 'Chat del Staff', text: 'Canal privado para coordinar con administración y otros docentes de la institución, sin depender de ninguna materia en particular.' },
+                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Subí tus propios libros, gratuitos o de pago, con portada y descripción — aparecen automáticamente en el catálogo que ven tus alumnos.' },
                 <?php if (in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
-                { selector: '[data-tour="nav-admin-docentes"]', title: 'Asignar Materias', text: 'Como administrador, desde acá asignás qué materias imparte cada docente.' },
+                { selector: '[data-tour="nav-admin-docentes"]', title: 'Asignar Materias', text: 'Como administrador, desde acá asignás qué materias imparte cada docente de la institución.' },
                 <?php endif; ?>
-                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tus datos personales y tu contraseña desde acá.' },
-                { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras, volvé a ver este tutorial haciendo clic acá. ¡Éxitos con tus cursos!' }
+                { selector: '#themeToggle', title: 'Modo claro / oscuro', text: 'Si preferís una vista con fondo oscuro (útil de noche o para cuidar la vista), tocá este interruptor. Tu elección se guarda y la vas a ver así la próxima vez que entres.' },
+                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tu foto, tus datos personales y tu contraseña. Al escribir una contraseña vas a ver un ícono de ojo al lado del campo — tocalo si querés revisar lo que escribiste.' },
+                { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras volver a ver este recorrido completo, tocá acá. ¡Éxitos con tus cursos!' }
             ]
         };
         document.addEventListener('DOMContentLoaded', function () {
             IbbsTour.start(Object.assign({ auto: true }, window.IBBS_TOUR_DOCENTE));
         });
+
+        // ── Modo claro / oscuro ─────────────────────────────────────
+        function applyTheme(dark) {
+            if (dark) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+                document.documentElement.style.background = '';
+            }
+        }
+        function toggleTheme() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const newDark = !isDark;
+            localStorage.setItem('ibbs_theme', newDark ? 'dark' : 'light');
+            applyTheme(newDark);
+        }
+        (function(){ applyTheme(localStorage.getItem('ibbs_theme') === 'dark'); })();
     </script>
 </body>
 </html>

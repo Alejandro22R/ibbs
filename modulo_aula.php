@@ -127,7 +127,7 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
         <button onclick="cancelReply()" style="background:none;border:none;color:#dc2626;cursor:pointer;font-weight:bold;font-size:1.1rem;padding:0;">&times;</button>
       </div>
       <!-- Formulario -->
-      <div style="padding:1rem 1.5rem;background:#fff;border-top:1px solid var(--border);">
+      <div style="padding:1rem 1.5rem;background:var(--paper);border-top:1px solid var(--border);">
         <form id="chat-form" style="display:flex;gap:.8rem;align-items:flex-end;margin:0;">
           <input type="hidden" id="respuesta_a" value="">
           <div style="flex:1;">
@@ -828,7 +828,7 @@ function renderMessages(mensajes) {
 
 function createMessageHTML(msg, isReply) {
   const isMe = msg.usuario_nombre === CURRENT_USER;
-  const bg = isMe ? 'background:#f0fdf4; border:1px solid #bbf7d0;' : 'background:#ffffff; border:1px solid var(--border);';
+  const bg = isMe ? 'background:var(--bubble-mine-bg); border:1px solid var(--bubble-mine-border);' : 'background:var(--paper); border:1px solid var(--border);';
 
   let badge = '';
   if (msg.rol === 'profesor') {
@@ -849,7 +849,7 @@ function createMessageHTML(msg, isReply) {
             <strong style="font-size:.9rem;color:var(--ink);">${h(msg.usuario_nombre)} ${badge}</strong>
             <span style="font-size:.75rem;color:var(--muted);">${dateStr}</span>
         </div>
-        <p style="margin:0;font-size:.9rem;color:#333;white-space:pre-wrap;line-height:1.4;">${h(msg.mensaje)}</p>
+        <p style="margin:0;font-size:.9rem;color:var(--ink);white-space:pre-wrap;line-height:1.4;">${h(msg.mensaje)}</p>
         ${replyBtn}${delBtn}
     </div>
   `;

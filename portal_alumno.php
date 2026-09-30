@@ -117,6 +117,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <script src="assets/libs/sweetalert2.all.min.js"></script>
     <script src="assets/ibbs-alerts.js"></script>
     <script src="assets/ibbs-tour.js"></script>
+    <script src="assets/ibbs-password-toggle.js"></script>
 
     <!-- Tailwind CSS con Configuración de Tema IBBS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1293,18 +1294,18 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 
         // ── Tutorial guiado (manual intuitivo del alumno) ──────────
         window.IBBS_TOUR_ALUMNO = {
-            storageKey: 'ibbs_tour_alumno_v1',
+            storageKey: 'ibbs_tour_alumno_v2',
             steps: [
-                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un resumen rápido de tus materias, tareas pendientes y avisos importantes cada vez que entrás.' },
-                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Acá encontrás el material de clase que tus profesores van subiendo: documentos, videos y recursos de cada materia.' },
-                { selector: '[data-tour="nav-materias"]', title: 'Mis Materias', text: 'Mirá las materias en las que estás inscrito/a este período, con tu profesor y el horario de cada una.' },
-                { selector: '[data-tour="nav-tareas"]', title: 'Tareas', text: 'Entregá tus tareas y trabajos desde acá. El número rojo te avisa cuántas tenés pendientes por entregar.' },
-                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Espacio para preguntar y conversar con tu profesor y compañeros sobre cada materia.' },
-                { selector: '[data-tour="nav-notas"]', title: 'Calificaciones', text: 'Consultá tus notas por materia apenas el profesor las publique.' },
-                { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Solicitá y descargá tus constancias de estudio cuando las necesites.' },
-                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explorá libros gratuitos y de pago que tus profesores han subido para vos.' },
-                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tus datos personales y tu contraseña desde acá.' },
-                { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras, volvé a ver este tutorial haciendo clic acá. ¡Éxitos en tus estudios!' }
+                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un resumen rápido de tus materias, tus tareas pendientes y los avisos importantes de la institución, cada vez que entrás. Vamos a recorrer juntos todo lo que podés hacer en el sistema — cerrá esta tarjeta con la "×" para pasar al siguiente punto.' },
+                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Acá tus profesores suben el material de cada materia: documentos, presentaciones, videos y clases grabadas o en vivo. Podés descargarlo o verlo cuantas veces necesites para repasar.' },
+                { selector: '[data-tour="nav-materias"]', title: 'Mis Materias', text: 'Mirá el detalle de cada materia en la que estás inscrito/a este período: el profesor a cargo, el horario y el estado de tu inscripción.' },
+                { selector: '[data-tour="nav-tareas"]', title: 'Tareas', text: 'Subí tus trabajos y tareas antes de la fecha límite adjuntando el archivo pedido. El número en rojo te avisa cuántas tenés pendientes por entregar; una vez el profesor la revise, la nota aparece junto a la tarea.' },
+                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Espacio de preguntas y respuestas por cada materia: escribile a tu profesor o a tus compañeros si tenés dudas sobre un tema de clase.' },
+                { selector: '[data-tour="nav-notas"]', title: 'Calificaciones', text: 'Consultá tus notas por materia y por corte apenas el profesor las publique, sin tener que esperar el boletín oficial.' },
+                { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Solicitá tus constancias de estudio, notas o récord académico, adjuntando el comprobante de pago cuando corresponda. Desde acá seguís el estado de tu trámite y descargás el documento cuando esté listo.' },
+                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explorá los libros que tus profesores fueron subiendo: los gratuitos se descargan directo, y en los de pago te vamos a pedir tu comprobante antes de darte acceso.' },
+                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tu foto, tus datos personales y tu contraseña. Al escribir una contraseña en cualquier parte del sistema vas a ver un ícono de ojo al lado — tocalo si querés revisar lo que escribiste antes de guardar.' },
+                { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras volver a ver este recorrido completo, tocá acá. ¡Éxitos en tus estudios!' }
             ]
         };
         document.addEventListener('DOMContentLoaded', function () {

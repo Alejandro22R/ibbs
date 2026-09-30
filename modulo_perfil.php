@@ -225,7 +225,7 @@ async function guardarPregs() {
     </div>
   </div>
   <div class="card-body">
-    <div id="alertPinSync" style="background:#fef9c3;border:1px solid #fde047;border-radius:9px;padding:.7rem 1rem;font-size:.82rem;color:#854d0e;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:.8rem;flex-wrap:wrap;">
+    <div id="alertPinSync" class="warn-pill" style="justify-content:space-between;margin-bottom:1rem;">
       <span>⚠ Si el modal de confirmación no acepta tu contraseña, haz clic en <strong>Sincronizar</strong> para vincular tu contraseña actual como PIN.</span>
       <button class="btn btn-sm btn-secondary" onclick="mostrarSync()" style="flex-shrink:0;">Sincronizar</button>
     </div>

@@ -298,6 +298,10 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 .field label{display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#555;margin-bottom:.4rem;}
 .field input,.field select{width:100%;padding:.8rem 1rem;border:1.5px solid #ddd;border-radius:10px;font-size:.92rem;font-family:'Nunito',sans-serif;background:#fff;outline:none;transition:border .2s,box-shadow .2s;color:#1a4d2e;}
 .field input:focus,.field select:focus{border-color:#39ff14;box-shadow:0 0 0 3px rgba(57,255,20,.12);}
+.ibbs-pw-wrap{position:relative;width:100%;}
+.ibbs-pw-wrap input{padding-right:2.6rem !important;width:100%;}
+.ibbs-pw-eye{position:absolute;top:50%;right:.6rem;transform:translateY(-50%);background:none;border:none;padding:.25rem;cursor:pointer;color:#999;opacity:.7;display:flex;align-items:center;justify-content:center;line-height:0;}
+.ibbs-pw-eye:hover{opacity:1;color:#1a4d2e;}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
 .btn{width:100%;padding:.95rem;border:none;border-radius:10px;font-size:.95rem;font-weight:700;cursor:pointer;font-family:'Nunito',sans-serif;transition:all .2s;margin-top:.5rem;letter-spacing:.2px;}
 .btn-primary{background:#1a4d2e;color:#39ff14;}
@@ -518,6 +522,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
   </div>
 </div>
 
+<script src="assets/ibbs-password-toggle.js"></script>
 <script>
 function show(id){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
 

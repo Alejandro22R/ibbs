@@ -943,7 +943,7 @@ qué sirve.
   pidió) — no cierra el tutorial. Para salir antes de terminar hay un
   enlace aparte, "Saltar tutorial".
 - Se muestra **una sola vez** por rol (se guarda en `localStorage`:
-  `ibbs_tour_alumno_v1` / `ibbs_tour_docente_v1`) para no ser invasivo en
+  `ibbs_tour_alumno_v2` / `ibbs_tour_docente_v2`) para no ser invasivo en
   cada ingreso — pero queda un botón "Ver Tutorial" (ícono `?`) fijo en
   el menú lateral de ambos portales para repasarlo cuando quieran
   (`IbbsTour.replay(...)`).
@@ -956,7 +956,77 @@ qué sirve.
 Para agregar un paso nuevo: agregar `data-tour="nombre"` al botón del
 menú y sumar `{ selector: '[data-tour="nombre"]', title: '...', text: '...' }`
 al arreglo `window.IBBS_TOUR_ALUMNO` / `window.IBBS_TOUR_DOCENTE` al
-final del `<script>` de cada portal.
+final del `<script>` de cada portal. (`v2`: los textos se ampliaron para
+explicar qué se puede *hacer* en cada sección — entregar una tarea,
+pedir una constancia, subir un libro — y no solo el nombre del botón; el
+docente además tiene un paso nuevo señalando el interruptor de modo
+oscuro.)
+
+## Ícono de "ojo" en los campos de contraseña (`assets/ibbs-password-toggle.js`)
+
+Antes, al escribir una contraseña (login, registro, recuperación,
+"Mi Perfil", alta de usuario, restaurar backup…) no había forma de ver lo
+que se estaba tecleando. Ahora `assets/ibbs-password-toggle.js` envuelve
+automáticamente **cualquier** `<input type="password">` de la página con
+un botón de ojo que alterna entre ocultar/mostrar, sin tener que tocar
+cada formulario a mano — con que el script esté cargado alcanza. Usa SVG
+inline (no depende de FontAwesome, porque `login.php` no lo carga).
+
+Ya está incluido en `layout/foot.php` (cubre todos los `modulo_*.php`:
+usuarios, perfil, backup), en `login.php`, y en ambos portales
+(`portal_alumno.php`, `portal_docente.php`). Un módulo nuevo con campos
+de contraseña no necesita hacer nada extra si ya incluye
+`layout/foot.php`; si es una página independiente, basta con agregar
+`<script src="assets/ibbs-password-toggle.js"></script>` y los estilos
+`.ibbs-pw-wrap`/`.ibbs-pw-eye` (ya están en `assets/ibbs.css` si la
+página la carga, o hay que copiarlos como se hizo en `login.php`).
+
+## Modo oscuro: ahora también en el portal del docente, y varios parches de contraste
+
+El modo oscuro (`html[data-theme="dark"]`, con el interruptor luna/sol)
+ya existía para el panel de administración (`layout/head.php` +
+`layout/foot.php` + `assets/ibbs.css`), pero tenía huecos:
+
+- **`portal_docente.php` no lo tenía en absoluto** (`data-theme="light"`
+  quedaba fijo en el `<html>`, sin botón para cambiarlo) a pesar de cargar
+  el mismo `assets/ibbs.css`. Se le agregó el mismo interruptor y la misma
+  lógica (`applyTheme`/`toggleTheme` + `localStorage.ibbs_theme`) que ya
+  usa el administrador, más ajustes propios para sus burbujas de chat
+  (`.msg-mine`, que usaba `var(--ink)` como fondo — una variable que en
+  modo oscuro se vuelve **clara**, dejando texto blanco casi invisible;
+  ahora usa un verde fijo) y sus paneles con fondo blanco fijo (headers de
+  Chat del Staff, caja de Foros, input de archivo adjunto).
+- Varios `background:#fff` / `#fafafa` / `#ffffff` quedaron **escritos a
+  mano en `style="..."` inline** en vez de usar las variables del tema
+  (`modulo_aula.php`, `modulo_chat_general.php`, la burbuja del Chat del
+  Staff), así que el modo oscuro nunca los tocaba — se reemplazaron por
+  `var(--paper)` y dos variables nuevas (`--bubble-mine-bg`,
+  `--bubble-mine-border`) que sí cambian con el tema.
+- Los `<input>`/`<select>`/`<textarea>` con un `background:#fff` inline
+  (p. ej. el de confirmar contraseña al reiniciar la base en
+  `modulo_backup.php`) tampoco cambiaban, porque un estilo inline le gana
+  a cualquier regla externa salvo que use `!important`. La regla ya
+  existente en `assets/ibbs.css` que oscurece todos los campos de
+  formulario ahora lleva `!important`, así que **cualquier** input queda
+  bien en modo oscuro sin tener que perseguir cada caso a mano.
+- Se agregó una clase reutilizable `.warn-pill` (aviso ámbar) con su
+  variante oscura, y se usa en el aviso de "restaurar reemplazará los
+  datos" (`modulo_backup.php`) y en el de sincronizar el PIN
+  (`modulo_perfil.php`), que antes eran cajas amarillas fijas sin
+  contraparte oscura.
+- Lo que **no** se tocó a propósito: la vista previa de certificados/notas
+  (`modulo_herramientas.php`) y el récord académico (`modulo_record.php`)
+  siguen forzando fondo blanco y texto negro — ahí es intencional, porque
+  simulan una hoja impresa. Las ventanas de SweetAlert2 (`Ibbs.confirm`,
+  `.error`, etc.) también mantienen siempre los mismos colores de marca
+  (crema/verde) en claro u oscuro — es el mismo diseño consistente que ya
+  tenían antes.
+- El portal del alumno (`portal_alumno.php`) sigue sin interruptor de
+  modo oscuro: está armado con Tailwind y nunca tuvo esa infraestructura
+  (su menú lateral siempre fue oscuro por diseño, pero el contenido es
+  claro fijo). Agregarle un modo oscuro real implicaría reescribir sus
+  clases con variantes `dark:` de Tailwind — no se hizo en esta pasada
+  para no tocar de más; si se quiere, es un trabajo aparte.
 
 ## Convenciones para módulos nuevos
 

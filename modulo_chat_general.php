@@ -14,7 +14,7 @@ if(!in_array($_rol,['superadmin','admin','profesor'])){
     <h3>💬 Chat del Staff</h3>
     <span style="font-size:.78rem;color:var(--muted);">Administración y docentes — visible para todo el staff</span>
   </div>
-  <div id="chat-box" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;background:#fafafa;">
+  <div id="chat-box" style="flex:1;overflow-y:auto;padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.6rem;background:var(--paper);">
     <div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span> Cargando chat...</div>
   </div>
 
@@ -83,7 +83,7 @@ function renderChatStaff(mensajes) {
 
 function crearMensajeStaffHTML(msg, isReply) {
   const isMe = msg.usuario_id === MI_USUARIO_ID_STAFF;
-  const bg = isMe ? 'background:#f0fdf4;border:1px solid #bbf7d0;' : 'background:#ffffff;border:1px solid var(--border);';
+  const bg = isMe ? 'background:var(--bubble-mine-bg);border:1px solid var(--bubble-mine-border);' : 'background:var(--paper);border:1px solid var(--border);';
   const dateStr = new Date(msg.fecha).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
   const replyBtn = !isReply ? `<button type="button" onclick="setReplyStaff(${msg.id}, '${hStaff(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;">Responder</button>` : '';
   const delBtn = msg.puede_borrar ? `<button type="button" onclick="borrarMensajeStaff(${msg.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;margin-top:.4rem;margin-left:.8rem;padding:0;">Borrar</button>` : '';
@@ -94,7 +94,7 @@ function crearMensajeStaffHTML(msg, isReply) {
             <strong style="font-size:.9rem;color:var(--ink);">${hStaff(msg.usuario_nombre)} ${roleBadgeStaff(msg.rol)}</strong>
             <span style="font-size:.75rem;color:var(--muted);">${dateStr}</span>
         </div>
-        <p style="margin:0;font-size:.9rem;color:#333;white-space:pre-wrap;line-height:1.4;">${hStaff(msg.mensaje)}</p>
+        <p style="margin:0;font-size:.9rem;color:var(--ink);white-space:pre-wrap;line-height:1.4;">${hStaff(msg.mensaje)}</p>
         ${replyBtn}${delBtn}
     </div>`;
 }
