@@ -1,9 +1,10 @@
 <?php
 /**
  * IBBS — Actualizar perfil del alumno (portal_alumno.php → Configuración
- * de Perfil). Análogo a actualizar_perfil_docente.php pero sobre la
- * tabla `alumnos`, con las columnas reales (correo, foto — el
- * formulario antes mandaba email/foto_perfil, que no existen).
+ * de Perfil), sobre la tabla `alumnos` con sus columnas reales (correo,
+ * foto — el formulario antes mandaba email/foto_perfil, que no existen).
+ * El perfil de docente/admin se actualiza vía api/ajax.php (perfil_update /
+ * perfil_pwd), reusado desde portal_docente.php.
  */
 require_once __DIR__.'/config/bootstrap.php';
 

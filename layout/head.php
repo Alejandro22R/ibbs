@@ -27,18 +27,25 @@ function can($perm){
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token())?>">
 <?php if (ws_enabled()):
-    // Si la página fijó $ws_materia_id ANTES de este include (ej.
-    // modulo_aula.php con el foro de una materia puntual), el token
-    // incluye ese canal — solo si materia_puede_ver() lo permite de
-    // verdad (ws_token_for_materia lo valida). El resto de las
-    // páginas solo necesita el canal implícito de su propio usuario
-    // (notificaciones), que el servidor Node ya arma con el uid.
+    // Canales base: 'staff' para todo el mundo salvo alumno (chat
+    // general admin↔docentes, modulo_chat_general.php) — así llega la
+    // notificación en vivo desde cualquier página, no solo estando
+    // adentro del chat. Si la página fijó $ws_materia_id ANTES de este
+    // include (ej. modulo_aula.php con el foro de una materia
+    // puntual), se suma también ese canal — solo si materia_puede_ver()
+    // lo permite de verdad (ws_token_for_materia lo valida).
+    $_wsCanalesBase = $_rol !== 'alumno' ? ['staff'] : [];
     if (!empty($ws_materia_id)) {
         $_wsCon = db();
-        $_wsToken = $_wsCon ? ws_token_for_materia($_wsCon, $_uid, $_rol, $_u, (int)$ws_materia_id) : ws_token_mint($_uid, $_rol, $_u);
-        if ($_wsCon) mysqli_close($_wsCon);
+        if ($_wsCon) {
+            $_wsCanalesMateria = materia_puede_ver($_wsCon, $_uid, $_rol, (int)$ws_materia_id) ? ['materia:'.(int)$ws_materia_id] : [];
+            mysqli_close($_wsCon);
+        } else {
+            $_wsCanalesMateria = [];
+        }
+        $_wsToken = ws_token_mint($_uid, $_rol, $_u, array_merge($_wsCanalesBase, $_wsCanalesMateria));
     } else {
-        $_wsToken = ws_token_mint($_uid, $_rol, $_u);
+        $_wsToken = ws_token_mint($_uid, $_rol, $_u, $_wsCanalesBase);
     }
 ?>
 <meta name="ibbs-ws-url" content="<?=htmlspecialchars(ws_public_url())?>">
@@ -96,7 +103,14 @@ function can($perm){
     <li><a href="modulo_grabaciones.php" class="sb-link <?=$active_link==='grabaciones'?'act':''?>"><i class="bx bx-video"></i><span class="sb-lbl">Clases Grabadas</span></a></li>
     <li><a href="modulo_vivo.php" class="sb-link <?=$active_link==='vivo'?'act':''?>"><i class="bx bx-broadcast"></i><span class="sb-lbl">Clases en Vivo</span></a></li>
     <?php endif; ?>
+    <?php if(in_array($_rol,['superadmin','admin'])): ?>
     <li><a href="modulo_record.php" class="sb-link <?=$active_link==='record'?'act':''?>"><i class="bx bx-bar-chart-alt-2"></i><span class="sb-lbl">Record Académico</span></a></li>
+    <?php endif; ?>
+
+    <?php if(in_array($_rol,['superadmin','admin','profesor'])): ?>
+    <div class="sb-section">Comunicación</div>
+    <li><a href="modulo_chat_general.php" class="sb-link <?=$active_link==='chat_staff'?'act':''?>"><i class="bx bx-conversation"></i><span class="sb-lbl">Chat del Staff</span></a></li>
+    <?php endif; ?>
 
     <?php if(in_array($_rol,['superadmin','admin'])): ?>
     <div class="sb-section">Reportes</div>
@@ -155,11 +169,22 @@ function can($perm){
       <svg class="t-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
     </button>
     <!-- Notification bell -->
-    <button id="notifBell" onclick="window.location='modulo_herramientas.php'" title="Notificaciones"
-      style="position:relative;background:none;border:1.5px solid var(--border);border-radius:9px;padding:.45rem .6rem;cursor:pointer;display:flex;align-items:center;color:var(--ink);">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-      <span id="notifCount" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border-radius:50%;width:17px;height:17px;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;"></span>
-    </button>
+    <div style="position:relative;">
+      <button id="notifBell" onclick="<?= in_array($_rol,['superadmin','admin']) ? "window.location='modulo_herramientas.php'" : 'toggleNotifDrop()' ?>" title="Notificaciones"
+        style="position:relative;background:none;border:1.5px solid var(--border);border-radius:9px;padding:.45rem .6rem;cursor:pointer;display:flex;align-items:center;color:var(--ink);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span id="notifCount" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border-radius:50%;width:17px;height:17px;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;"></span>
+      </button>
+      <?php if(!in_array($_rol,['superadmin','admin'])): ?>
+      <div id="notifDrop" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;max-height:420px;overflow-y:auto;background:var(--paper);border:1.5px solid var(--border);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.14);z-index:200;">
+        <div style="padding:.7rem .9rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+          <strong style="font-size:.85rem;">Notificaciones</strong>
+          <button onclick="marcarTodasLeidasDrop()" style="background:none;border:none;color:var(--lime,#059669);font-size:.72rem;cursor:pointer;">Marcar todas leídas</button>
+        </div>
+        <div id="notifDropList" style="padding:.4rem;"></div>
+      </div>
+      <?php endif; ?>
+    </div>
   </div>
   <div class="user-pill">
     <?php if($_foto && file_exists(__DIR__.'/'.$_foto)): ?>

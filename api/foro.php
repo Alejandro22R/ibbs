@@ -35,7 +35,11 @@ $action = $_GET['action'] ?? '';
 
 /* ════ OBTENER MENSAJES (solo lectura) ═══════════════════════════ */
 if ($action === 'get_mensajes') {
-    $st = mysqli_prepare($con, "SELECT id,materia_id,usuario_id,usuario_nombre,rol,mensaje,respuesta_a,fecha FROM foro_mensajes WHERE materia_id=? ORDER BY fecha ASC");
+    // Trae los últimos 500 (igual que api/chat_general.php) y los
+    // reordena ascendente en PHP — un hilo de materia que lleva años
+    // acumulando mensajes no debería escanear toda la tabla en cada
+    // poll de 5s.
+    $st = mysqli_prepare($con, "SELECT id,materia_id,usuario_id,usuario_nombre,rol,mensaje,respuesta_a,fecha FROM foro_mensajes WHERE materia_id=? ORDER BY fecha DESC LIMIT 500");
     mysqli_stmt_bind_param($st, 'i', $materia_id);
     mysqli_stmt_execute($st);
     $r = mysqli_stmt_get_result($st);
@@ -46,6 +50,7 @@ if ($action === 'get_mensajes') {
         $f['puede_borrar'] = $puedeModerar || ($f['usuario_id'] !== null && $f['usuario_id'] === $uid);
         $mensajes[] = $f;
     }
+    $mensajes = array_reverse($mensajes);
     echo json_encode($mensajes); exit;
 }
 

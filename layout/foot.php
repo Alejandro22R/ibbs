@@ -346,7 +346,8 @@ setTimeout(function() {
 const NOTIF_ICONS = {
   anuncio:'📢', foro:'💬', tarea:'📋', calificacion:'✅',
   clase_vivo:'🔴', grabacion:'🎬', reprobado:'⚠️', asistencia:'⚠️',
-  sistema:'⚙️', info:'ℹ️'
+  sistema:'⚙️', info:'ℹ️', solicitud_alumno:'🧑‍🎓',
+  solicitud_aprobada:'✅', solicitud_rechazada:'⛔'
 };
 let _notifUnread = 0;
 function _notifSetBadge(n){
@@ -420,6 +421,51 @@ setTimeout(async function(){
 
   if (!document.hidden) _notifAbrirStream();
 }, 800);
+
+// Panel desplegable de la campana — solo para profesor/alumno, que no
+// tienen acceso a modulo_herramientas.php (admin/superadmin siguen
+// yendo directo a esa página al clickear la campana).
+async function toggleNotifDrop(){
+  const drop = document.getElementById('notifDrop');
+  if(!drop) return;
+  const abierto = drop.style.display==='block';
+  drop.style.display = abierto ? 'none' : 'block';
+  if(!abierto) await _renderNotifDrop();
+}
+document.addEventListener('click', (e) => {
+  const drop = document.getElementById('notifDrop');
+  if(!drop || drop.style.display!=='block') return;
+  if(!drop.contains(e.target) && e.target.id!=='notifBell' && !e.target.closest('#notifBell')) drop.style.display='none';
+});
+async function _renderNotifDrop(){
+  const box = document.getElementById('notifDropList');
+  if(!box) return;
+  box.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);"><span class="spin"></span></div>';
+  const d = await ajax('notif_list');
+  if(!d?.ok || !d.data.length){
+    box.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem;">Sin notificaciones pendientes.</div>';
+    return;
+  }
+  box.innerHTML = d.data.map(n => `
+    <div id="nd${n.id}" style="padding:.6rem .5rem;border-bottom:1px solid var(--border);">
+      <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.15rem;">${(NOTIF_ICONS[n.tipo]||'ℹ️')} ${n.titulo||''}</div>
+      <div style="font-size:.8rem;color:var(--ink);line-height:1.4;">${n.mensaje||''}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.35rem;">
+        <span style="font-size:.68rem;color:var(--muted);">${n.creado_en?.substring(0,16)||''}</span>
+        <button onclick="_leerNotifDrop(${n.id})" style="background:none;border:none;color:var(--lime,#059669);font-size:.7rem;cursor:pointer;">Marcar leída</button>
+      </div>
+    </div>`).join('');
+}
+async function _leerNotifDrop(id){
+  await ajax('notif_leer',{id});
+  document.getElementById('nd'+id)?.remove();
+  _notifSetBadge(Math.max(0,_notifUnread-1));
+}
+async function marcarTodasLeidasDrop(){
+  await ajax('notif_leer',{id:0});
+  _notifSetBadge(0);
+  await _renderNotifDrop();
+}
 </script>
 
 <style>

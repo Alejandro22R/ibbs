@@ -29,8 +29,8 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
   <div class="tbl-wrap">
     <table id="tblA">
-      <thead><tr><th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyA"><tr class="empty-row"><td colspan="8"><span class="spin"></span></td></tr></tbody>
+      <thead><tr><th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Solicitud</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyA"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -108,9 +108,9 @@ if(!in_array($_rol,['superadmin','admin'])){
 document.addEventListener('ibbs:ready', () => loadAlumnos());
 async function loadAlumnos(){
   const ciudad=document.getElementById('filtCiudad').value.trim();
-  console.log('[IBBS] Calling alumno_list...'); const d=await ajax('alumno_list',{ciudad}); console.log('[IBBS] alumno_list response:', d); if(!d?.ok){ document.getElementById('tbodyA').innerHTML='<tr class="empty-row"><td colspan="8">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  console.log('[IBBS] Calling alumno_list...'); const d=await ajax('alumno_list',{ciudad}); console.log('[IBBS] alumno_list response:', d); if(!d?.ok){ document.getElementById('tbodyA').innerHTML='<tr class="empty-row"><td colspan="9">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
   const tb=document.getElementById('tbodyA');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="8">Sin alumnos.</td></tr>';return;}
+  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="9">Sin alumnos.</td></tr>';return;}
   tb.innerHTML=d.data.map(r=>`<tr>
     <td><strong>${r.cedula}</strong></td>
     <td>
@@ -124,13 +124,36 @@ async function loadAlumnos(){
     <td><span class="badge b-alumno">${r.nm}</span></td>
     <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
     <td>${r.regular=='1'?'<span class="badge b-presente" title="Puede autoinscribirse en materias">Sí</span>':'<span style="color:var(--muted);font-size:.78rem;">No</span>'}</td>
+    <td>${estadoSolicitud(r)}</td>
     <td class="td-actions">
+      ${r.aprobado!==null && r.aprobado=='0' ? `
+        <button class="btn btn-sm btn-success" onclick="aprobarAlumno(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" title="Aceptar solicitud de ingreso">✓ Aceptar</button>
+        <button class="btn btn-sm btn-danger" onclick="rechazarAlumno(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" title="Rechazar solicitud de ingreso">✕ Rechazar</button>
+      ` : ''}
       <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
       <button class="btn btn-sm btn-primary" onclick="editA(${r.id})">Editar</button>
       <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=estudio&alumno_id=${r.id}" target="_blank" title="Constancia de Estudio">📄 Estudio</a>
       <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=notas&alumno_id=${r.id}" target="_blank" title="Constancia de Notas">📄 Notas</a>
       <button class="btn btn-sm btn-danger" onclick="delA(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')">Eliminar</button>
     </td></tr>`).join('');
+}
+function estadoSolicitud(r){
+  if(r.aprobado===null||r.aprobado===undefined) return '<span style="color:var(--muted);font-size:.78rem;">Sin cuenta</span>';
+  if(r.aprobado=='0') return '<span class="badge b-tardanza">Pendiente</span>';
+  if(r.usuario_activo=='0') return '<span class="badge b-inactivo">Rechazado</span>';
+  return '<span class="badge b-activo">Aprobado</span>';
+}
+async function aprobarAlumno(id,n){
+  ibbsConfirm(`¿Aceptar la solicitud de ingreso de "${n}"?`, async ()=>{
+    const d=await ajax('alumno_aprobar',{id});
+    if(d?.ok){toast(d.msg);loadAlumnos();}else Ibbs.error(d?.msg||'Error');
+  });
+}
+async function rechazarAlumno(id,n){
+  ibbsConfirm(`¿Rechazar la solicitud de ingreso de "${n}"? Su cuenta quedará inactiva.`, async ()=>{
+    const d=await ajax('alumno_rechazar',{id});
+    if(d?.ok){toast(d.msg);loadAlumnos();}else Ibbs.error(d?.msg||'Error');
+  });
 }
 async function createAlumno(e){
   e.preventDefault(); const fd=new FormData(e.target); fd.append('action','alumno_create');

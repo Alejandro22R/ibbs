@@ -52,6 +52,7 @@ mysqli_close($con);
 .notif-ico.reprobado{background:#fee2e2;}
 .notif-ico.asistencia{background:#fef9c3;}
 .notif-ico.info{background:#dbeafe;}
+.notif-ico.solicitud_alumno{background:#d1fae5;}
 .notif-body{flex:1;}
 .notif-msg{font-size:.83rem;color:var(--ink);line-height:1.5;}
 .notif-time{font-size:.7rem;color:var(--muted);margin-top:.2rem;}
@@ -240,6 +241,7 @@ async function loadNotifs() {
     asistencia: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
     sistema:    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>',
     info:       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    solicitud_alumno: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>',
   };
   el.innerHTML = d.data.map(n=>`
     <div class="notif-item ${n.leida=='0'?'unread':''}" id="ni${n.id}">
@@ -247,12 +249,27 @@ async function loadNotifs() {
       <div class="notif-body">
         <div class="notif-msg">${n.mensaje}</div>
         <div class="notif-time">${n.creado_en?.substring(0,16)||''}</div>
+        ${n.tipo==='solicitud_alumno' && n.referencia_id ? `
+          <div style="display:flex;gap:.5rem;margin-top:.5rem;">
+            <button class="btn btn-sm btn-success" onclick="aprobarSolicitudNotif(${n.id},${n.referencia_id})">✓ Aceptar ingreso</button>
+            <button class="btn btn-sm btn-danger" onclick="rechazarSolicitudNotif(${n.id},${n.referencia_id})">✕ Rechazar</button>
+          </div>` : ''}
       </div>
       <div style="display:flex;gap:.4rem;align-items:flex-start;flex-shrink:0;">
         ${n.leida=='0'?`<button class="btn btn-sm btn-secondary" onclick="leerNotif(${n.id})">Leída</button>`:''}
         <button class="btn btn-sm btn-danger" onclick="borrarNotif(${n.id})">✕</button>
       </div>
     </div>`).join('');
+}
+async function aprobarSolicitudNotif(notifId, usuarioId) {
+  const d = await ajax('alumno_aprobar', {usuario_id: usuarioId});
+  if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
+}
+async function rechazarSolicitudNotif(notifId, usuarioId) {
+  ibbsConfirm('¿Rechazar esta solicitud de ingreso? El alumno quedará con la cuenta inactiva.', async ()=>{
+    const d = await ajax('alumno_rechazar', {usuario_id: usuarioId});
+    if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
+  });
 }
 async function generarNotifs() {
   const d = await ajax('notif_generar');

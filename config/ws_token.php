@@ -61,8 +61,10 @@ if (!function_exists('ws_token_for_materias')) {
      * resolvió como "las materias de este usuario" y cada una se
      * revalida igual con materia_puede_ver() antes de entrar al token.
      */
-    function ws_token_for_materias($con, $uid, $rol, $usuario, array $materiaIds) {
-        $canales = [];
+    function ws_token_for_materias($con, $uid, $rol, $usuario, array $materiaIds, array $canalesExtra = []) {
+        // 'staff' (chat general admin↔docentes) para todo el mundo
+        // salvo alumno — igual que layout/head.php.
+        $canales = $rol !== 'alumno' ? array_merge(['staff'], $canalesExtra) : $canalesExtra;
         foreach ($materiaIds as $mid) {
             $mid = (int)$mid;
             if ($mid && function_exists('materia_puede_ver') && materia_puede_ver($con, $uid, $rol, $mid)) {

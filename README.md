@@ -308,7 +308,7 @@ rompe ni cambia de comportamiento por default.
   PHP, `/broadcast` entregando tanto a un canal de materia como
   directo a un usuario, y rechazo correcto de secreto/token inválidos.
 
-## Alta de alumno nuevo (autoregistro)
+## Alta de alumno nuevo (autoregistro + aprobación del administrador)
 
 `login.php` ya tenía un registro público de 3 pasos (datos → preguntas
 de seguridad → confirmar), pero el paso final tenía un bug serio: el
@@ -317,22 +317,54 @@ sin importar quién se registrara — cualquier visitante que se
 registraba terminaba con una cuenta de **profesor**, nunca de alumno.
 Se corrigió a `rol='alumno'` (que además ya era el `DEFAULT` de la
 columna en la tabla) y ahora, al crear el usuario, también se crea su
-ficha en `alumnos` (con los nuevos campos Nombre/Apellido del paso 1)
-marcada **`regular=1`** — al ser una cuenta autoservicio, sin staff que
-la revise antes, entra lista para autoinscribirse.
+ficha en `alumnos` (con los nuevos campos Nombre/Apellido del paso 1).
+
+**Cambio de esta tanda — el autoregistro ya no entra "listo" solo:**
+la cuenta y la clave las sigue creando el propio alumno (nadie del
+staff tiene que hacerlo por él), pero ahora queda **pendiente de
+aprobación** hasta que un admin/superadmin la revise:
+- `usuarios.aprobado` (migración `009_alumno_aprobacion.sql`, default
+  `1` para no afectar ninguna cuenta existente ni las que crea el
+  staff) queda en `0` solo para el autoregistro de `login.php`, y
+  `alumnos.regular` también nace en `0` (no puede autoinscribirse en
+  materias hasta que lo aprueben).
+- `login.php` (acción `login`) rechaza el inicio de sesión mientras
+  `aprobado=0`, con un mensaje explicando que la cuenta está en
+  revisión — no es un error, es la cuenta esperando al staff.
+- Al completar el registro se crea una notificación `para_rol='admin'`
+  con `tipo='solicitud_alumno'` y `referencia_id` = el `usuario_id`
+  nuevo, y se empuja por WebSocket a todo admin/superadmin conectado
+  (si hay VPS configurado) para que no dependan de refrescar la
+  página.
+- El panel de notificaciones (campanita, ver más abajo) le muestra a
+  cualquier admin/superadmin dos botones **✓ Aceptar** / **✕
+  Rechazar** directo sobre esa notificación — ninguno de los dos
+  necesita ir a buscar al alumno en otro lado. `modulo_alumnos.php`
+  también lista una columna **Solicitud** (Pendiente/Aprobado/
+  Rechazado/Sin cuenta) con los mismos botones, para control manual
+  de quién está adentro y quién no.
+- **Aceptar** (`alumno_aprobar`): `usuarios.aprobado=1` +
+  `alumnos.regular=1` (ya puede iniciar sesión y autoinscribirse) y le
+  llega una notificación de que fue aprobado.
+- **Rechazar** (`alumno_rechazar`): no se borra la cuenta ni la ficha
+  (por si hay que revisar el caso después) — se pone
+  `usuarios.activo=0`, que ya bloquea el login con el mensaje de
+  "cuenta desactivada", y también se le notifica.
 
 Flujo completo para un alumno nuevo:
-1. Se registra en `login.php` → entra con rol `alumno` y ficha en
-   `alumnos` ya creada y regular.
-2. Inicia sesión → `portal_alumno.php` lo lleva directo a **Mis
-   Materias** en vez del dashboard vacío (`empty($materias)` fuerza esa
-   vista al cargar) para que lo primero que vea sea el selector de
-   materias disponibles.
-3. Se inscribe él mismo (`materia_autoinscribir`) en cualquier materia
+1. Se registra en `login.php` (crea su propio usuario y clave) → queda
+   con rol `alumno`, ficha en `alumnos` y **pendiente de aprobación**.
+2. Un admin/superadmin lo acepta desde la campanita de notificaciones o
+   desde `modulo_alumnos.php`.
+3. Recién ahí puede iniciar sesión → `portal_alumno.php` lo lleva
+   directo a **Mis Materias** en vez del dashboard vacío
+   (`empty($materias)` fuerza esa vista al cargar) para que lo primero
+   que vea sea el selector de materias disponibles.
+4. Se inscribe él mismo (`materia_autoinscribir`) en cualquier materia
    activa que el superadmin/admin haya cargado — al confirmar, se le
    abre automáticamente su constancia de estudio
    (`api/export_constancia.php?tipo=estudio`).
-4. Desde ahí, "Tareas y Asignaciones" (ya existente en el portal) muestra
+5. Desde ahí, "Tareas y Asignaciones" (ya existente en el portal) muestra
    automáticamente las tareas que el profesor cargue para esa materia
    — no hizo falta un módulo nuevo: la consulta ya filtra por
    `materia_alumno.alumno_id`, así que en cuanto se inscribe empieza a
@@ -444,6 +476,107 @@ otra, pero `api/tareas.php` es la más completa (valida el tipo MIME
 real del archivo con `finfo`, no solo la extensión). Unificar ambas
 portales sobre `api/tareas.php`, como ya se hizo con el foro, es buen
 candidato para un próximo pase.
+
+## Chat del Staff (administración ↔ docentes, sin materia)
+
+`modulo_chat_general.php` + `api/chat_general.php` (migración
+`010_chat_staff.sql`, tabla `chat_staff`). Es un foro/chat único,
+global, para que admin/superadmin y profesores puedan hablar entre sí
+(avisos de dirección, preguntas directas al staff) **sin depender de
+estar dentro de una materia puntual** — el chat por materia
+(`modulo_aula.php` → pestaña Foro, `api/foro.php`) sigue funcionando
+exactamente igual que antes, sin cambios de comportamiento.
+
+- Acceso: `superadmin`, `admin`, `profesor`. El rol `alumno` nunca lo
+  ve — ni en el sidebar (`layout/head.php`) ni en el backend
+  (`api/chat_general.php` corta con 403 lógico si el rol no matchea).
+- Mismo diseño de moderación que el foro por materia: cualquiera borra
+  su propio mensaje, admin/superadmin borran cualquiera.
+- Accesible desde el sidebar (sección "Comunicación" → "Chat del
+  Staff") para admin/superadmin, y desde una pestaña nueva dentro de
+  `portal_docente.php` para profesores (no tienen sidebar de módulos
+  sueltos, todo su portal es un solo archivo con vistas).
+- Tiempo real: canal WebSocket `'staff'`, que ahora se suma
+  automáticamente al token de **todo** usuario no-alumno
+  (`ws_token_for_materias()` en `config/ws_token.php`, y el minteo de
+  `layout/head.php`) — no hace falta tocar cada página para que reciba
+  los mensajes en vivo; sin WebSocket configurado, cae a polling cada
+  5s como el resto del chat.
+- Escalabilidad: igual que el chat por materia, `get_mensajes` solo
+  trae los últimos 500 mensajes (`ORDER BY fecha DESC LIMIT 500`,
+  reordenados en PHP) en vez de la tabla entera, con un índice
+  (`idx_fecha` / `idx_materia_fecha`, migración
+  `011_indices_chat_escalabilidad.sql`) para que ese `ORDER BY` no
+  tenga que barrer todas las filas antes de cortar el `LIMIT`.
+
+**Bug corregido de paso:** la primera versión de `get_mensajes` en
+`api/chat_general.php` traía los últimos 500 con `ORDER BY fecha ASC
+LIMIT 500` — eso trae los 500 **más viejos**, no los más recientes; en
+cuanto la tabla pasara de 500 filas el chat se hubiera quedado
+congelado mostrando siempre el mismo historial antiguo y nunca los
+mensajes nuevos. Se corrigió a `DESC LIMIT 500` + `array_reverse()` en
+PHP (el mismo patrón que ya usaba `api/foro.php`, al que se le aplicó
+el mismo límite por la misma razón de escalabilidad).
+
+## Alta de docente nuevo: la crea el administrador, no el propio docente
+
+A diferencia del alumno (que se autoregistra), un docente **nunca crea
+su propia cuenta**. El flujo ahora es:
+
+1. Admin/superadmin va a `modulo_docentes.php` → "Nuevo Docente" y,
+   además de los datos de siempre, define el **usuario** y una
+   **contraseña inicial** para esa persona (hay un botón "🎲 Generar
+   contraseña" si no quiere inventar una).
+2. `docente_create` (en `api/ajax.php`, ahora exige admin/superadmin —
+   antes no verificaba rol en absoluto) valida la contraseña con la
+   misma política que el resto del sistema
+   (`config/password_policy.php` → `ibbs_validar_password()`), revisa
+   que usuario/correo/cédula no estén repetidos, crea primero la fila
+   en `usuarios` (`rol='profesor'`, `aprobado=1` — a un docente que
+   crea el propio admin nunca hace falta aprobarlo) y recién si eso
+   sale bien crea la fila en `docentes` enlazada por `usuario_id` (si
+   falla, se revierte el `usuarios` ya insertado).
+3. Al terminar, el modal muestra el usuario y la contraseña para que el
+   admin se los entregue al docente por el canal que use normalmente
+   (en persona, WhatsApp, etc.) — la contraseña no se guarda en
+   ninguna otra parte ni se vuelve a mostrar después de cerrar ese
+   modal.
+4. El docente inicia sesión con esas credenciales y, desde su propio
+   perfil (`portal_docente.php` → Configuración de Perfil → sección
+   Contraseña, acción `perfil_pwd`), puede cambiarla cuando quiera.
+
+De paso quedaron blindadas varias acciones que **no verificaban rol en
+absoluto** (bastaba con estar logueado, con cualquier rol, para
+llamarlas directo por `fetch`): `docente_create`, `docente_update`,
+`docente_delete`, `docente_list`, `docente_get`, `alumno_create`,
+`alumno_update`, `alumno_delete`, `alumno_list`, `alumno_get` — todas
+ahora exigen `admin`/`superadmin` en el backend, no solo a nivel de
+página. `docente_update` además ahora sincroniza `usuarios.activo`
+cuando se activa/desactiva un docente (antes solo tocaba `docentes.activo`,
+dejando la cuenta de login activa aunque el docente apareciera "inactivo").
+
+`actualizar_perfil_docente.php` se eliminó: nunca funcionó (comparaba
+`$_SESSION['rol']` contra `'docente'`, cuando el rol real siempre es
+`'profesor'`, y usaba columnas `email`/`foto_perfil` que no existen —
+son `correo`/`foto`). El formulario de perfil de `portal_docente.php`
+se reescribió para usar las mismas acciones que ya funcionaban en el
+resto del sistema (`perfil_update`, `perfil_pwd`, `api/upload_foto.php`).
+
+## Notificaciones: panel para roles sin acceso a Herramientas
+
+La campanita ya avisaba con un badge y un toast en vivo a cualquier
+rol, pero al hacer click siempre mandaba a `modulo_herramientas.php` —
+una página exclusiva de admin/superadmin. Para `profesor` y `alumno`
+eso era un callejón sin salida (la propia página los redirigía de
+vuelta a `index.php` sin mostrar nada). Ahora la campanita es distinta
+según el rol (`layout/head.php` + `layout/foot.php`):
+- **admin/superadmin**: sigue yendo directo a `modulo_herramientas.php`
+  (ahí además están los botones Aceptar/Rechazar de solicitudes de
+  alumnos, ver arriba).
+- **profesor/alumno**: abre un panel desplegable propio (sin navegar a
+  ningún lado) que lista sus notificaciones pendientes con "Marcar
+  leída" — reusa las mismas acciones (`notif_list`, `notif_leer`) que
+  ya existían, no hizo falta backend nuevo.
 
 ## Convenciones para módulos nuevos
 

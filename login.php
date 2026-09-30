@@ -1,15 +1,9 @@
 <?php
 require_once __DIR__.'/config/bootstrap.php';
 if (!empty($_SESSION['loggedin'])) { header('Location: index.php'); exit; }
-
-/** Misma política que se exige al recuperar contraseña (rec_newpwd). */
-function ibbs_validar_password($pwd) {
-    if (strlen($pwd) < 8) return 'La contraseña debe tener al menos 8 caracteres.';
-    if (!preg_match('/[A-Z]/', $pwd)) return 'Debe contener al menos una mayúscula.';
-    if (!preg_match('/[a-z]/', $pwd)) return 'Debe contener al menos una minúscula.';
-    if (!preg_match('/[0-9!@#$%^&*()\_+\-=\[\]{};\':",.<>?\/|`~]/', $pwd)) return 'Debe contener al menos un número o carácter especial.';
-    return null;
-}
+// ibbs_validar_password() ahora vive en config/password_policy.php
+// (cargado por el bootstrap) — la usan también modulo_perfil.php y la
+// creación de docentes desde api/ajax.php.
 
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     ob_start(); error_reporting(0);
@@ -31,15 +25,16 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $u = trim($_POST['usuario']??'');
         $p = trim($_POST['password']??'');
         
-        $st = mysqli_prepare($con,"SELECT id,usuario,password_hash,rol,activo,foto FROM usuarios WHERE (usuario=? OR correo=? OR cedula=?) LIMIT 1");
+        $st = mysqli_prepare($con,"SELECT id,usuario,password_hash,rol,activo,aprobado,foto FROM usuarios WHERE (usuario=? OR correo=? OR cedula=?) LIMIT 1");
         mysqli_stmt_bind_param($st,'sss',$u,$u,$u);
         mysqli_stmt_execute($st);
         $r = mysqli_stmt_get_result($st);
         $row = mysqli_fetch_assoc($r);
-        
+
         if (!$row) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Usuario no encontrado.']); exit; }
         if (!$row['activo']) { echo json_encode(['ok'=>false,'msg'=>'Cuenta desactivada.']); exit; }
         if (!password_verify($p,$row['password_hash'])) { login_throttle_fail(); echo json_encode(['ok'=>false,'msg'=>'Contraseña incorrecta.']); exit; }
+        if (!$row['aprobado']) { echo json_encode(['ok'=>false,'msg'=>'Tu cuenta todavía no fue aprobada por la administración. Te avisaremos apenas la revisen.']); exit; }
         
         login_throttle_reset();
         session_regenerate_id(true); // evita fijación de sesión al autenticarse
@@ -120,17 +115,19 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $rh2  = password_hash($tmp['r2'], PASSWORD_BCRYPT);
         // El registro público siempre crea una cuenta de alumno — nunca
         // profesor/admin, esos los crea el staff desde el panel interno.
-        $st = mysqli_prepare($con,"INSERT INTO usuarios(usuario,correo,cedula,password_hash,rol,preg1,resp1_hash,preg2,resp2_hash) VALUES(?,?,?,?,'alumno',?,?,?,?)");
+        // Queda "aprobado=0": no puede iniciar sesión hasta que un
+        // admin/superadmin apruebe la solicitud (ver alumno_aprobar en
+        // api/ajax.php).
+        $st = mysqli_prepare($con,"INSERT INTO usuarios(usuario,correo,cedula,password_hash,rol,aprobado,preg1,resp1_hash,preg2,resp2_hash) VALUES(?,?,?,?,'alumno',0,?,?,?,?)");
         mysqli_stmt_bind_param($st,'ssssssss',$tmp['u'],$tmp['mail'],$tmp['ced'],$hash,$tmp['p1'],$rh1,$tmp['p2'],$rh2);
         if (!mysqli_stmt_execute($st)) {
             echo json_encode(['ok'=>false,'msg'=>mysqli_error($con)]); exit;
         }
         $nuevoUid = mysqli_insert_id($con);
 
-        // Ficha de alumno vinculada — "regular" desde ya, porque es una
-        // cuenta autoservicio: no hay staff que la valide antes, así que
-        // puede autoinscribirse en materias apenas entra.
-        $stA = mysqli_prepare($con,"INSERT INTO alumnos(nombre,apellido,cedula,correo,usuario_id,regular) VALUES(?,?,?,?,?,1)");
+        // Ficha de alumno vinculada — "regular" (puede autoinscribirse)
+        // recién cuando lo aprueben, no antes.
+        $stA = mysqli_prepare($con,"INSERT INTO alumnos(nombre,apellido,cedula,correo,usuario_id,regular) VALUES(?,?,?,?,?,0)");
         mysqli_stmt_bind_param($stA,'ssssi',$tmp['nom'],$tmp['ape'],$tmp['ced'],$tmp['mail'],$nuevoUid);
         if (!mysqli_stmt_execute($stA)) {
             // No dejamos a medio crear una cuenta de alumno sin ficha de alumno.
@@ -139,8 +136,31 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         }
 
         log_audit($con, $nuevoUid, 'ALUMNO_AUTOREGISTRO', "usuario={$tmp['u']}");
+
+        // Avisar a admin/superadmin — aparece en su campana de
+        // notificaciones con botones Aceptar/Rechazar (modulo_herramientas.php).
+        $nombreCompleto = trim($tmp['nom'].' '.$tmp['ape']);
+        $stN = mysqli_prepare($con,"INSERT INTO notificaciones(tipo,titulo,mensaje,para_rol,referencia_id) VALUES('solicitud_alumno',?,?,'admin',?)");
+        $tituloN = "Nueva solicitud de ingreso: $nombreCompleto";
+        $mensajeN = "$nombreCompleto (usuario: {$tmp['u']}, cédula: {$tmp['ced']}) se registró y espera aprobación para poder ingresar.";
+        mysqli_stmt_bind_param($stN,'ssi',$tituloN,$mensajeN,$nuevoUid);
+        mysqli_stmt_execute($stN);
+        $notifId = mysqli_insert_id($con);
+        if (function_exists('ws_broadcast_user')) {
+            // Empuje en vivo a cualquier admin/superadmin que ya esté
+            // conectado por WebSocket — si ninguno lo está, el aviso
+            // real ya quedó guardado en la tabla para cuando entren.
+            $rAdmins = mysqli_query($con, "SELECT id FROM usuarios WHERE rol IN ('admin','superadmin') AND activo=1");
+            while ($fAdmin = mysqli_fetch_assoc($rAdmins)) {
+                ws_broadcast_user((int)$fAdmin['id'], 'notificacion', [
+                    'id' => $notifId, 'tipo' => 'solicitud_alumno', 'titulo' => $tituloN,
+                    'mensaje' => $mensajeN, 'referencia_id' => $nuevoUid, 'creado_en' => date('Y-m-d H:i:s'),
+                ]);
+            }
+        }
+
         unset($_SESSION['reg_tmp']);
-        echo json_encode(['ok'=>true,'msg'=>'¡Cuenta creada! Ya puedes iniciar sesión e inscribirte en tus materias.']);
+        echo json_encode(['ok'=>true,'msg'=>'¡Cuenta creada! Un administrador debe aprobar tu ingreso antes de que puedas iniciar sesión — te avisaremos apenas lo revisen.']);
         exit;
     }
 

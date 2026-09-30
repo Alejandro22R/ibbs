@@ -3,6 +3,12 @@ $page_title = 'Record Académico';
 $page_sub   = 'Historial completo de materias y calificaciones del alumno';
 $active_link = 'record';
 include __DIR__.'/layout/head.php';
+// Esta página no tenía NINGÚN chequeo de rol — cualquier usuario
+// logueado (incluso un alumno que llegara a la URL) podía buscar y ver
+// el expediente completo de cualquier otro alumno. Acceso admin/superadmin.
+if(!in_array($_rol,['superadmin','admin'])){
+    echo '<script>window.location="index.php";</script>'; exit;
+}
 
 // Conexión a la Base de Datos para poblar los alumnos
 $con = db();

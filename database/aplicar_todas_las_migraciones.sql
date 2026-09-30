@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
--- IBBS — TODAS las migraciones en un solo archivo (001 a 008)
+-- IBBS — TODAS las migraciones en un solo archivo (001 a 011)
 -- ═══════════════════════════════════════════════════════════════
 -- Generado para pegar de una sola vez en phpMyAdmin → pestaña SQL
 -- de la base 'ibbs'. Es seguro correrlo aunque ya hayas aplicado
@@ -309,3 +309,86 @@ ALTER TABLE `materias`
 ALTER TABLE `usuarios`
   MODIFY `rol` ENUM('superadmin','admin','profesor','alumno') DEFAULT 'alumno';
 
+-- ───────────────────────────────────────────────────────────────
+-- Archivo: database/migrations/009_alumno_aprobacion.sql
+-- ───────────────────────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════════
+-- IBBS — Migración: aprobación de alumnos autoregistrados
+-- ═══════════════════════════════════════════════════════════════
+-- Cómo aplicar: pegar este archivo completo en phpMyAdmin → pestaña
+-- SQL de la base `ibbs` (o `mysql -u root ibbs < 009_alumno_aprobacion.sql`).
+-- Es seguro volver a correrlo.
+--
+-- `usuarios.aprobado` (nuevo, 1 por defecto — así ninguna cuenta ya
+-- existente ni ninguna creada por el staff queda bloqueada). Solo el
+-- autoregistro público de alumnos (login.php → reg_finish) lo pone en
+-- 0 explícitamente: esa cuenta no puede iniciar sesión hasta que un
+-- superadmin/admin la apruebe (acción alumno_aprobar en api/ajax.php).
+--
+-- `notificaciones.referencia_id` (nuevo, opcional): para que una
+-- notificación de "solicitud de ingreso" pueda cargar el botón
+-- Aceptar/Rechazar sabiendo a qué usuario_id se refiere, sin tener que
+-- adivinarlo del texto del título (como se hacía antes con
+-- 'reprobado'/'asistencia', ver notif_generar en api/ajax.php).
+-- ═══════════════════════════════════════════════════════════════
+
+ALTER TABLE `usuarios`
+  ADD COLUMN IF NOT EXISTS `aprobado` TINYINT(1) NOT NULL DEFAULT 1 AFTER `activo`;
+
+ALTER TABLE `notificaciones`
+  ADD COLUMN IF NOT EXISTS `referencia_id` INT(11) DEFAULT NULL AFTER `materia_id`;
+
+-- ───────────────────────────────────────────────────────────────
+-- Archivo: database/migrations/010_chat_staff.sql
+-- ───────────────────────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════════
+-- IBBS — Migración: chat general entre administración y docentes
+-- ═══════════════════════════════════════════════════════════════
+-- Cómo aplicar: pegar este archivo completo en phpMyAdmin → pestaña
+-- SQL de la base `ibbs` (o `mysql -u root ibbs < 010_chat_staff.sql`).
+-- Es seguro volver a correrlo.
+--
+-- `chat_staff` es un foro sin materia — para que admin/superadmin y
+-- profesores puedan hablar entre sí (avisos de dirección, preguntas al
+-- staff) sin tener que entrar a una materia puntual. Mismo diseño que
+-- `foro_mensajes` (ver 005_foro_usuario_id.sql), pero sin materia_id.
+-- Nunca lo usa el rol alumno — eso lo exige api/chat_general.php.
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS `chat_staff` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `usuario_id` INT(11) DEFAULT NULL,
+  `usuario_nombre` VARCHAR(100) NOT NULL,
+  `rol` VARCHAR(20) NOT NULL DEFAULT 'profesor',
+  `mensaje` TEXT NOT NULL,
+  `respuesta_a` INT(11) DEFAULT NULL,
+  `fecha` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_usuario` (`usuario_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ───────────────────────────────────────────────────────────────
+-- Archivo: database/migrations/011_indices_chat_escalabilidad.sql
+-- ───────────────────────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════════
+-- IBBS — Migración: índices para escalabilidad de los chats
+-- ═══════════════════════════════════════════════════════════════
+-- Cómo aplicar: pegar este archivo completo en phpMyAdmin → pestaña
+-- SQL de la base `ibbs` (o `mysql -u root ibbs < 011_indices_chat_escalabilidad.sql`).
+-- Es seguro volver a correrlo.
+--
+-- api/foro.php (chat por materia) y api/chat_general.php (chat de
+-- staff, nuevo en esta misma tanda) ahora piden los últimos N
+-- mensajes ordenados por fecha (`ORDER BY fecha ... LIMIT 500`) en vez
+-- de traer la tabla entera — pero sin un índice que cubra ese ORDER
+-- BY, MySQL igual tiene que ordenar todas las filas antes de cortar el
+-- LIMIT. Con miles de mensajes acumulados en un solo hilo (staff) o en
+-- una materia de varios años, eso vuelve a ser el mismo problema que
+-- se quiso evitar. Estos índices lo resuelven.
+-- ═══════════════════════════════════════════════════════════════
+
+ALTER TABLE `foro_mensajes`
+  ADD INDEX IF NOT EXISTS `idx_materia_fecha` (`materia_id`,`fecha`);
+
+ALTER TABLE `chat_staff`
+  ADD INDEX IF NOT EXISTS `idx_fecha` (`fecha`);
