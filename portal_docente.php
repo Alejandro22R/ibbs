@@ -118,6 +118,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     <!-- Dependencias externas -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- SweetAlert2 — reemplaza los alert()/confirm() nativos del navegador -->
+    <script src="assets/libs/sweetalert2.all.min.js"></script>
+    <script src="assets/ibbs-alerts.js"></script>
     
     <style>
         /* Animaciones para SPA */
@@ -939,7 +943,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             try {
                 const r = await fetch('api/upload_foto.php', { method: 'POST', body: fd });
                 const d = await r.json();
-                if (!d.ok) { alert(d.msg || 'No se pudo subir la foto.'); return; }
+                if (!d.ok) { Ibbs.error(d.msg || 'No se pudo subir la foto.'); return; }
                 const fallback = document.getElementById('avatar-preview-fallback');
                 if (fallback) fallback.remove();
                 let preview = document.getElementById('avatar-preview');
@@ -950,7 +954,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     input.closest('.view-section').querySelector('div[style*="border-radius: 50%"]').appendChild(preview);
                 }
                 preview.src = d.foto + '?t=' + Date.now();
-            } catch (e) { alert('Error de conexión al subir la foto.'); }
+            } catch (e) { Ibbs.error('Error de conexión al subir la foto.'); }
         }
 
         async function guardarPerfilDocente(e) {
@@ -962,9 +966,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             try {
                 const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
                 const d = await r.json();
-                if (d.ok) alert('✓ Perfil actualizado correctamente.');
-                else alert(d.msg || 'No se pudo actualizar el perfil.');
-            } catch (err) { alert('Error de conexión.'); }
+                if (d.ok) Ibbs.success('Perfil actualizado correctamente.');
+                else Ibbs.error(d.msg || 'No se pudo actualizar el perfil.');
+            } catch (err) { Ibbs.error('Error de conexión.'); }
         }
 
         function validarPasswordDocente(pwd) {
@@ -980,10 +984,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const actual = document.getElementById('dp-actual').value;
             const nueva = document.getElementById('dp-nueva').value;
             const repetir = document.getElementById('dp-repetir').value;
-            if (!actual || !nueva) { alert('Completá todos los campos.'); return; }
+            if (!actual || !nueva) { Ibbs.warn('Completá todos los campos.'); return; }
             const err = validarPasswordDocente(nueva);
-            if (err) { alert(err); return; }
-            if (nueva !== repetir) { alert('Las contraseñas nuevas no coinciden.'); return; }
+            if (err) { Ibbs.warn(err); return; }
+            if (nueva !== repetir) { Ibbs.warn('Las contraseñas nuevas no coinciden.'); return; }
             const fd = new FormData();
             fd.append('action', 'perfil_pwd');
             fd.append('actual', actual);
@@ -994,10 +998,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
                 const d = await r.json();
                 if (d.ok) {
-                    alert('✓ Contraseña actualizada correctamente.');
+                    Ibbs.success('Contraseña actualizada correctamente.');
                     e.target.reset();
-                } else alert(d.msg || 'No se pudo actualizar la contraseña.');
-            } catch (err) { alert('Error de conexión.'); }
+                } else Ibbs.error(d.msg || 'No se pudo actualizar la contraseña.');
+            } catch (err) { Ibbs.error('Error de conexión.'); }
         }
 
         function irAlChatMateria(materiaId) {
@@ -1030,9 +1034,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 
             fetch('calificar_entrega.php', { method: 'POST', body: new FormData(form) })
             .then(res => res.json()).then(data => {
-                if(data.ok) { closeModal('modal-calificar'); setTimeout(() => location.reload(), 500); } 
-                else { alert(data.msg); btn.disabled = false; btn.innerHTML = 'Guardar'; }
-            }).catch(err => { alert("Error de servidor."); btn.disabled = false; btn.innerHTML = 'Guardar'; });
+                if(data.ok) { closeModal('modal-calificar'); Ibbs.success('Calificación guardada.'); setTimeout(() => location.reload(), 900); }
+                else { Ibbs.error(data.msg); btn.disabled = false; btn.innerHTML = 'Guardar'; }
+            }).catch(err => { Ibbs.error("Error de servidor."); btn.disabled = false; btn.innerHTML = 'Guardar'; });
         }
 
         function submitNuevaTarea(e) {
@@ -1041,21 +1045,21 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo...';
 
             fetch('crear_tarea.php', { method: 'POST', body: new FormData(form) })
-            .then(res => res.json()).then(data => {
-                if(data.ok) { 
-                    closeModal('modal-nueva-tarea'); 
-                    alert("Actividad/Tarea publicada con éxito."); 
-                    form.reset(); 
-                    location.reload(); 
-                } else { 
-                    alert(data.msg); 
-                    btn.disabled = false; 
-                    btn.innerHTML = '<i class="fas fa-upload"></i> Publicar Actividad'; 
+            .then(res => res.json()).then(async data => {
+                if(data.ok) {
+                    closeModal('modal-nueva-tarea');
+                    form.reset();
+                    await Ibbs.success('Actividad/Tarea publicada con éxito.');
+                    location.reload();
+                } else {
+                    Ibbs.error(data.msg);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-upload"></i> Publicar Actividad';
                 }
-            }).catch(err => { 
-                alert("Error crítico al subir."); 
-                btn.disabled = false; 
-                btn.innerHTML = '<i class="fas fa-upload"></i> Publicar Actividad'; 
+            }).catch(err => {
+                Ibbs.error("Error crítico al subir.");
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-upload"></i> Publicar Actividad';
             });
         }
 
@@ -1072,10 +1076,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             btn.disabled = true; btn.innerHTML = '...';
 
             fetch('asignar_materia.php', { method: 'POST', body: new FormData(form) })
-            .then(res => res.json()).then(data => {
-                if(data.ok) { closeModal('modal-asignar-materia'); alert("Materia vinculada con éxito."); location.reload(); } 
-                else { alert(data.msg); btn.disabled = false; btn.innerHTML = 'Vincular Materia'; }
-            }).catch(err => { alert("Error de conexión."); btn.disabled = false; });
+            .then(res => res.json()).then(async data => {
+                if(data.ok) { closeModal('modal-asignar-materia'); await Ibbs.success("Materia vinculada con éxito."); location.reload(); }
+                else { Ibbs.error(data.msg); btn.disabled = false; btn.innerHTML = 'Vincular Materia'; }
+            }).catch(err => { Ibbs.error("Error de conexión."); btn.disabled = false; });
         }
         <?php endif; ?>
 
@@ -1181,7 +1185,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         }
 
         async function borrarMensajeForo(id) {
-            if (!confirm('¿Borrar este mensaje?')) return;
+            const rr = await Ibbs.confirm({title:'¿Borrar este mensaje?', text:'Esta acción no se puede deshacer.', confirm:'Sí, borrar', danger:true});
+            if (!rr.isConfirmed) return;
             try {
                 const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
                 const r = await fetch(`api/foro.php?action=delete_mensaje&materia_id=${materiaActivaChatId}`, {
@@ -1191,7 +1196,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 });
                 const result = await r.json();
                 if (result.success) cargarMensajesForo();
-                else alert(result.error || 'No se pudo borrar el mensaje.');
+                else Ibbs.error(result.error || 'No se pudo borrar el mensaje.');
             } catch (e) { console.error(e); }
         }
 
@@ -1209,7 +1214,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 body: JSON.stringify({ mensaje, respuesta_a, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
             })
             .then(res => res.json())
-            .then(data => { if (data.success) cargarMensajesForo(); else alert(data.error || 'No se pudo enviar el mensaje.'); })
+            .then(data => { if (data.success) cargarMensajesForo(); else Ibbs.error(data.error || 'No se pudo enviar el mensaje.'); })
             .catch(err => console.error(err));
         }
 
@@ -1303,7 +1308,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         };
 
         async function borrarMensajeStaffChat(id) {
-            if (!confirm('¿Borrar este mensaje?')) return;
+            const rr = await Ibbs.confirm({title:'¿Borrar este mensaje?', text:'Esta acción no se puede deshacer.', confirm:'Sí, borrar', danger:true});
+            if (!rr.isConfirmed) return;
             try {
                 const _csrf = document.querySelector('meta[name="csrf-token"]');
                 const r = await fetch('api/chat_general.php?action=delete_mensaje', {
@@ -1312,7 +1318,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 });
                 const result = await r.json();
                 if (result.success) { lastCountStaffChat = -1; loadChatStaffPortal(); }
-                else alert(result.error || 'No se pudo borrar el mensaje.');
+                else Ibbs.error(result.error || 'No se pudo borrar el mensaje.');
             } catch (e) { console.error(e); }
         }
 
@@ -1332,7 +1338,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 });
                 const result = await r.json();
                 if (result.success) { lastCountStaffChat = -1; loadChatStaffPortal(); }
-                else alert(result.error || 'No se pudo enviar el mensaje.');
+                else Ibbs.error(result.error || 'No se pudo enviar el mensaje.');
             } catch (e) { console.error(e); }
         });
 

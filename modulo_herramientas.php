@@ -1,12 +1,13 @@
 <?php
 $page_title  = 'Herramientas';
-$page_sub    = 'Notificaciones · Certificados · Historial';
+$page_sub    = 'Notificaciones · Solicitudes · Certificados';
 $active_link = 'herramientas';
 include __DIR__.'/layout/head.php';
 // Acceso admin o superadmin
 if(!in_array($_rol,['superadmin','admin'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
+$esSuper = $_rol === 'superadmin';
 
 $con = db();
 // Pre-fetch alumnos para los selects de certificados e importaciones
@@ -17,25 +18,34 @@ mysqli_close($con);
 ?>
 
 <!-- Sub-tabs nav -->
-<div style="display:flex;gap:.5rem;margin-bottom:1.4rem;background:var(--paper);border:1.5px solid var(--border);border-radius:12px;padding:.35rem;">
+<div class="tools-tabnav">
   <?php
   $tabs=[
-    ['notif','', 'Notificaciones'],
-    ['cert', '', 'Certificados'],
-    ['audit','', 'Historial de acciones'],
+    ['notif','<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>', 'Notificaciones'],
+    ['solicitudes','<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>', 'Solicitudes'],
+    ['cert', '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>', 'Certificados'],
   ];
+  if($esSuper) $tabs[]=['audit','<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14.5 14.5"/><circle cx="12" cy="12" r="10"/></svg>','Historial de acciones'];
   foreach($tabs as [$id,$ico,$lbl]):
   ?>
   <button class="tool-tab <?=$id==='notif'?'active':''?>" data-tab="<?=$id?>" onclick="switchTool('<?=$id?>')">
-    <?=$lbl?>
+    <span class="tool-tab-ico"><?=$ico?></span><?=$lbl?>
+    <?php if($id==='solicitudes'):?><span class="tool-tab-badge" id="badgeSolicitudes" style="display:none;">0</span><?php endif;?>
   </button>
   <?php endforeach; ?>
 </div>
 
 <style>
-.tool-tab{flex:1;padding:.6rem .8rem;border:none;background:transparent;border-radius:8px;font-size:.83rem;font-weight:600;color:var(--muted);cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif;}
-.tool-tab.active{background:var(--ink);color:var(--lime);}
-.tool-pane{display:none;}.tool-pane.active{display:block;}
+.tools-tabnav{display:flex;gap:.4rem;margin-bottom:1.4rem;background:var(--paper);border:1.5px solid var(--border);border-radius:14px;padding:.4rem;flex-wrap:wrap;}
+.tool-tab{flex:1;min-width:140px;display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.7rem .9rem;border:none;background:transparent;border-radius:10px;font-size:.83rem;font-weight:700;color:var(--muted);cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif;position:relative;}
+.tool-tab:hover{background:rgba(0,0,0,.03);color:var(--ink);}
+.tool-tab.active{background:var(--ink);color:var(--lime);box-shadow:0 4px 14px rgba(0,0,0,.15);}
+.tool-tab-ico{width:16px;height:16px;flex-shrink:0;display:flex;}
+.tool-tab-ico svg{width:100%;height:100%;}
+.tool-tab-badge{background:#dc2626;color:#fff;font-size:.66rem;font-weight:800;border-radius:20px;padding:.1rem .45rem;line-height:1.4;min-width:18px;text-align:center;}
+.tool-tab.active .tool-tab-badge{background:#39ff14;color:#1a4d2e;}
+.tool-pane{display:none;}.tool-pane.active{display:block;animation:toolFade .25s ease;}
+@keyframes toolFade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
 .cal-head{text-align:center;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);padding:.4rem 0;}
 .cal-day{min-height:80px;border-radius:8px;padding:.4rem .5rem;background:var(--paper);border:1.5px solid var(--border);font-size:.75rem;transition:background .15s;}
@@ -58,6 +68,37 @@ mysqli_close($con);
 .notif-body{flex:1;}
 .notif-msg{font-size:.83rem;color:var(--ink);line-height:1.5;}
 .notif-time{font-size:.7rem;color:var(--muted);margin-top:.2rem;}
+
+/* ── Solicitudes pendientes ── */
+.sol-section{margin-bottom:1.4rem;}
+.sol-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;}
+.sol-section-head h4{font-family:'Playfair Display',serif;font-size:1rem;display:flex;align-items:center;gap:.5rem;}
+.sol-count{background:var(--ink);color:var(--lime);font-size:.68rem;font-weight:800;border-radius:20px;padding:.15rem .55rem;}
+.sol-row{display:flex;gap:.9rem;align-items:center;padding:.85rem 1rem;border-bottom:1px solid var(--border);}
+.sol-row:last-child{border-bottom:none;}
+.sol-ava{width:38px;height:38px;border-radius:50%;background:var(--cream);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-weight:700;flex-shrink:0;}
+.sol-body{flex:1;min-width:0;}
+.sol-title{font-size:.86rem;font-weight:700;color:var(--ink);}
+.sol-sub{font-size:.75rem;color:var(--muted);margin-top:.1rem;}
+.sol-empty{text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.83rem;}
+
+/* ── Buscador de alumnos (Certificados) ── */
+.cert-search-box{border:1.5px solid var(--border);border-radius:10px;background:var(--paper);overflow:hidden;}
+.cert-search-inputs{display:flex;gap:.5rem;padding:.6rem;border-bottom:1px solid var(--border);background:var(--cream);}
+.cert-search-inputs input{flex:1;padding:.55rem .7rem;border:1.5px solid var(--border);border-radius:8px;font-size:.8rem;outline:none;background:#fff;}
+.cert-search-inputs input:focus{border-color:var(--lime2);}
+.cert-alumno-list{max-height:260px;overflow-y:auto;}
+.cert-alumno-row{display:flex;align-items:center;gap:.7rem;padding:.65rem .8rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;}
+.cert-alumno-row:last-child{border-bottom:none;}
+.cert-alumno-row:hover{background:var(--cream);}
+.cert-alumno-row.sel{background:var(--ink);}
+.cert-alumno-row.sel .cert-ava{background:var(--lime);color:var(--ink);}
+.cert-alumno-row.sel .cert-nombre{color:var(--lime);}
+.cert-alumno-row.sel .cert-ci{color:rgba(57,255,20,.6);}
+.cert-ava{width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.85rem;font-weight:700;flex-shrink:0;}
+.cert-nombre{font-size:.82rem;font-weight:700;color:var(--ink);}
+.cert-ci{font-size:.72rem;color:var(--muted);}
+.cert-empty{text-align:center;padding:1.6rem 1rem;color:var(--muted);font-size:.8rem;}
 </style>
 
 <!-- ── NOTIFICACIONES ── -->
@@ -83,32 +124,76 @@ mysqli_close($con);
   </div>
 </div>
 
+<!-- ── SOLICITUDES PENDIENTES ── -->
+<div id="pane-solicitudes" class="tool-pane">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.6rem;">
+    <div>
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;">Solicitudes pendientes</h3>
+      <p style="font-size:.78rem;color:var(--muted);">Todo lo que espera tu revisión: ingresos, inscripciones y compras de libros, en un solo lugar.</p>
+    </div>
+    <button class="btn btn-secondary" onclick="loadSolicitudes()">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Actualizar
+    </button>
+  </div>
+
+  <div class="sol-section">
+    <div class="sol-section-head">
+      <h4>🧑‍🎓 Ingresos de alumnos <span class="sol-count" id="cntSolAlumnos">0</span></h4>
+    </div>
+    <div class="card"><div id="listSolAlumnos"><div class="sol-empty"><span class="spin"></span></div></div></div>
+  </div>
+
+  <div class="sol-section">
+    <div class="sol-section-head">
+      <h4>📋 Inscripciones a materias <span class="sol-count" id="cntSolMaterias">0</span></h4>
+    </div>
+    <div class="card"><div id="listSolMaterias"><div class="sol-empty"><span class="spin"></span></div></div></div>
+  </div>
+
+  <div class="sol-section">
+    <div class="sol-section-head">
+      <h4>📚 Compras de libros <span class="sol-count" id="cntSolLibros">0</span></h4>
+    </div>
+    <div class="card"><div id="listSolLibros"><div class="sol-empty"><span class="spin"></span></div></div></div>
+  </div>
+</div>
+
 <!-- ── CERTIFICADOS PDF ── -->
 <div id="pane-cert" class="tool-pane">
   <div style="display:grid;grid-template-columns:340px 1fr;gap:1.4rem;align-items:start;">
     <div class="card">
       <div class="card-head"><h3>Generar certificado</h3></div>
       <div class="card-body">
-        <div class="field" style="margin-bottom:.6rem;">
+        <div class="field" style="margin-bottom:1rem;">
           <label>Buscar alumno</label>
-          <div style="display:flex;gap:.5rem;margin-bottom:.5rem;">
-            <input type="text" id="fCertNombre" placeholder="Nombre o apellido…" oninput="filtrarCertAlumno()"
-              style="flex:1;padding:.6rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.83rem;outline:none;background:var(--paper);">
-            <input type="text" id="fCertCedula" placeholder="Cédula…" oninput="filtrarCertAlumno()"
-              style="width:130px;padding:.6rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.83rem;outline:none;background:var(--paper);">
+          <input type="hidden" id="certAlumno">
+          <div class="cert-search-box">
+            <div class="cert-search-inputs">
+              <input type="text" id="fCertNombre" placeholder="Nombre o apellido…" oninput="filtrarCertAlumno()">
+              <input type="text" id="fCertCedula" placeholder="Cédula…" style="max-width:110px;" oninput="filtrarCertAlumno()">
+            </div>
+            <div class="cert-alumno-list" id="certAlumnoList">
+              <?php if(!$lista_alumnos): ?>
+              <div class="cert-empty">No hay alumnos activos registrados.</div>
+              <?php endif; ?>
+              <?php foreach($lista_alumnos as $a):
+                $ini = mb_strtoupper(mb_substr($a['nombre'],0,1));
+              ?>
+              <div class="cert-alumno-row" data-id="<?=$a['id']?>"
+                data-nombre="<?=htmlspecialchars(strtolower($a['nombre'].' '.$a['apellido']))?>"
+                data-cedula="<?=htmlspecialchars($a['cedula'])?>"
+                data-ciudad="<?=htmlspecialchars($a['ciudad']??'')?>"
+                onclick="seleccionarCertAlumno(this)">
+                <div class="cert-ava"><?=htmlspecialchars($ini)?></div>
+                <div>
+                  <div class="cert-nombre"><?=htmlspecialchars($a['apellido'].', '.$a['nombre'])?></div>
+                  <div class="cert-ci">CI: <?=htmlspecialchars($a['cedula'])?></div>
+                </div>
+              </div>
+              <?php endforeach; ?>
+            </div>
           </div>
-          <select id="certAlumno" onchange="previewCert(this.value)" size="5"
-            style="width:100%;border:1.5px solid var(--border);border-radius:8px;font-size:.83rem;padding:.3rem;background:var(--paper);outline:none;">
-            <option value="">— Elige un alumno —</option>
-            <?php foreach($lista_alumnos as $a): ?>
-            <option value="<?=$a['id']?>"
-              data-nombre="<?=htmlspecialchars(strtolower($a['nombre'].' '.$a['apellido']))?>"
-              data-cedula="<?=htmlspecialchars($a['cedula'])?>"
-              data-ciudad="<?=htmlspecialchars($a['ciudad']??'')?>">
-              <?=htmlspecialchars($a['apellido'].', '.$a['nombre'])?> — CI: <?=htmlspecialchars($a['cedula'])?>
-            </option>
-            <?php endforeach; ?>
-          </select>
         </div>
         <div class="field" style="margin-bottom:1rem;">
           <label>Tipo de documento</label>
@@ -137,12 +222,14 @@ mysqli_close($con);
   </div>
 </div>
 
-<!-- ── HISTORIAL DE ACCIONES ── -->
+<?php if($esSuper): ?>
+<!-- ── HISTORIAL DE ACCIONES ── (solo superadmin: es un log técnico de
+     auditoría, no algo que un admin de dirección necesite revisar) -->
 <div id="pane-audit" class="tool-pane">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.6rem;">
     <div>
       <h3 style="font-family:'Playfair Display',serif;font-size:1.1rem;">Historial de acciones</h3>
-      <p style="font-size:.78rem;color:var(--muted);">Registro de actividad del sistema (últimas 100 acciones)</p>
+      <p style="font-size:.78rem;color:var(--muted);">Registro técnico de actividad del sistema (últimas 100 acciones) — visible solo para superadmin.</p>
     </div>
     <button class="btn btn-secondary" onclick="loadAudit()">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -166,6 +253,7 @@ mysqli_close($con);
     </div>
   </div>
 </div>
+<?php endif; ?>
 
 <script>
 // ── TAB SWITCHING ────────────────────────────────────────────
@@ -173,6 +261,7 @@ function switchTool(id) {
   document.querySelectorAll('.tool-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===id));
   document.querySelectorAll('.tool-pane').forEach(p=>p.classList.toggle('active',p.id==='pane-'+id));
   if(id==='notif') loadNotifs();
+  if(id==='solicitudes') loadSolicitudes();
   if(id==='audit') loadAudit();
 }
 
@@ -192,27 +281,26 @@ function notaALetras(num) {
   return `${num}`;
 }
 
-// Filtrar Alumnos del buscador para certificados
+// Buscador de alumnos (Certificados) — filtra las filas del listado
 function filtrarCertAlumno() {
   const qNombre = (document.getElementById('fCertNombre')?.value || '').toLowerCase();
   const qCedula = (document.getElementById('fCertCedula')?.value || '').toLowerCase();
-  const select  = document.getElementById('certAlumno');
-  const options = select.options;
-
-  for (let i = 1; i < options.length; i++) {
-    const opt = options[i];
-    const txt = opt.getAttribute('data-nombre').toLowerCase();
-    const cedula = opt.getAttribute('data-cedula').toLowerCase();
-
+  document.querySelectorAll('#certAlumnoList .cert-alumno-row').forEach(row => {
+    const txt = row.dataset.nombre.toLowerCase();
+    const cedula = row.dataset.cedula.toLowerCase();
     const matchN = !qNombre || txt.includes(qNombre);
     const matchC = !qCedula || cedula.includes(qCedula);
+    row.style.display = (matchN && matchC) ? '' : 'none';
+  });
+}
 
-    if (matchN && matchC) {
-      opt.style.display = '';
-    } else {
-      opt.style.display = 'none';
-    }
-  }
+let certAlumnoMeta = {ciudad:'Ciudad Bolívar'};
+function seleccionarCertAlumno(el) {
+  document.getElementById('certAlumno').value = el.dataset.id;
+  certAlumnoMeta = {ciudad: el.dataset.ciudad || 'Ciudad Bolívar'};
+  document.querySelectorAll('#certAlumnoList .cert-alumno-row').forEach(r=>r.classList.remove('sel'));
+  el.classList.add('sel');
+  previewCert(el.dataset.id);
 }
 
 // ── NOTIFICACIONES ───────────────────────────────────────────
@@ -337,6 +425,116 @@ async function borrarNotif(id) {
   document.getElementById('ni'+id)?.remove();
 }
 
+// ── SOLICITUDES PENDIENTES (ingresos + inscripciones + compras) ──
+function hSol(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
+
+async function loadSolicitudes() {
+  const [dAlumnos, dMaterias, dLibros] = await Promise.all([
+    ajax('alumno_list', {}),
+    ajax('list', {estado:'pendiente'}, 'api/materia_solicitud.php'),
+    ajax('compra_list', {estado:'pendiente'}, 'api/biblioteca.php'),
+  ]);
+
+  const alumnosPend = (dAlumnos?.ok ? dAlumnos.data : []).filter(a => a.aprobado === '0' || a.aprobado === 0);
+  renderSolAlumnos(alumnosPend);
+
+  const materiasPend = dMaterias?.ok ? dMaterias.data : [];
+  renderSolMaterias(materiasPend);
+
+  const librosPend = dLibros?.ok ? dLibros.data : [];
+  renderSolLibros(librosPend);
+
+  const total = alumnosPend.length + materiasPend.length + librosPend.length;
+  const badge = document.getElementById('badgeSolicitudes');
+  if (badge) { badge.style.display = total > 0 ? 'inline-flex' : 'none'; badge.textContent = total > 9 ? '9+' : total; }
+}
+
+function renderSolAlumnos(rows) {
+  document.getElementById('cntSolAlumnos').textContent = rows.length;
+  const el = document.getElementById('listSolAlumnos');
+  if (!rows.length) { el.innerHTML = '<div class="sol-empty">Sin solicitudes de ingreso pendientes.</div>'; return; }
+  el.innerHTML = rows.map(r => `
+    <div class="sol-row">
+      <div class="sol-ava">${hSol((r.nombre||'?').charAt(0).toUpperCase())}</div>
+      <div class="sol-body">
+        <div class="sol-title">${hSol(r.apellido)}, ${hSol(r.nombre)}</div>
+        <div class="sol-sub">CI: ${hSol(r.cedula)} · ${hSol(r.correo||'')}</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-shrink:0;">
+        <button class="btn btn-sm btn-success" onclick="solAprobarAlumno(${r.id},'${hSol(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')">✓ Aceptar</button>
+        <button class="btn btn-sm btn-danger" onclick="solRechazarAlumno(${r.id},'${hSol(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')">✕ Rechazar</button>
+      </div>
+    </div>`).join('');
+}
+async function solAprobarAlumno(id, nombre) {
+  const d = await ajax('alumno_aprobar', {id});
+  if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
+}
+async function solRechazarAlumno(id, nombre) {
+  const rr = await Ibbs.confirm({title:'¿Rechazar solicitud?', text:`Se rechazará el ingreso de <b>${nombre}</b>.`, confirm:'Sí, rechazar', danger:true});
+  if (!rr.isConfirmed) return;
+  const d = await ajax('alumno_rechazar', {id});
+  if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
+}
+
+function renderSolMaterias(rows) {
+  document.getElementById('cntSolMaterias').textContent = rows.length;
+  const el = document.getElementById('listSolMaterias');
+  if (!rows.length) { el.innerHTML = '<div class="sol-empty">Sin solicitudes de inscripción pendientes.</div>'; return; }
+  el.innerHTML = rows.map(r => `
+    <div class="sol-row">
+      <div class="sol-ava">${hSol((r.alumno_nombre||'?').charAt(0).toUpperCase())}</div>
+      <div class="sol-body">
+        <div class="sol-title">${hSol(r.alumno_apellido)}, ${hSol(r.alumno_nombre)}</div>
+        <div class="sol-sub">Quiere inscribirse en <b>${hSol(r.materia_nombre)}</b> · ${(r.fecha||'').substring(0,16)}</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-shrink:0;flex-wrap:wrap;">
+        <button class="btn btn-sm btn-secondary" onclick="window.open('${r.comprobante}','_blank')">🧾 Ver</button>
+        <button class="btn btn-sm btn-success" onclick="solAprobarMateria(${r.id})">✓ Aceptar</button>
+        <button class="btn btn-sm btn-danger" onclick="solRechazarMateria(${r.id})">✕ Rechazar</button>
+      </div>
+    </div>`).join('');
+}
+async function solAprobarMateria(id) {
+  const d = await ajax('aprobar', {id}, 'api/materia_solicitud.php');
+  if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
+}
+async function solRechazarMateria(id) {
+  const rr = await Ibbs.confirm({title:'¿Rechazar inscripción?', text:'Revisá bien el comprobante antes de confirmar.', confirm:'Sí, rechazar', danger:true});
+  if (!rr.isConfirmed) return;
+  const d = await ajax('rechazar', {id}, 'api/materia_solicitud.php');
+  if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
+}
+
+function renderSolLibros(rows) {
+  document.getElementById('cntSolLibros').textContent = rows.length;
+  const el = document.getElementById('listSolLibros');
+  if (!rows.length) { el.innerHTML = '<div class="sol-empty">Sin compras de libros pendientes.</div>'; return; }
+  el.innerHTML = rows.map(r => `
+    <div class="sol-row">
+      <div class="sol-ava">${hSol((r.alumno_nombre||'?').charAt(0).toUpperCase())}</div>
+      <div class="sol-body">
+        <div class="sol-title">${hSol(r.alumno_apellido)}, ${hSol(r.alumno_nombre)}</div>
+        <div class="sol-sub">Quiere comprar <b>${hSol(r.libro_titulo)}</b> · $${parseFloat(r.precio_pagado).toFixed(2)} · ${(r.fecha||'').substring(0,16)}</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-shrink:0;flex-wrap:wrap;">
+        <button class="btn btn-sm btn-secondary" onclick="window.open('${r.comprobante}','_blank')">🧾 Ver</button>
+        <button class="btn btn-sm btn-success" onclick="solAprobarLibro(${r.id})">✓ Activar</button>
+        <button class="btn btn-sm btn-danger" onclick="solRechazarLibro(${r.id})">✕ Rechazar</button>
+      </div>
+    </div>`).join('');
+}
+async function solAprobarLibro(id) {
+  const d = await ajax('compra_aprobar', {id}, 'api/biblioteca.php');
+  if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
+}
+async function solRechazarLibro(id) {
+  const rr = await Ibbs.confirm({title:'¿Rechazar compra?', text:'Revisá bien el comprobante antes de confirmar.', confirm:'Sí, rechazar', danger:true});
+  if (!rr.isConfirmed) return;
+  const d = await ajax('compra_rechazar', {id}, 'api/biblioteca.php');
+  if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
+}
+
 // ── CERTIFICADOS PDF ─────────────────────────────────────────
 let certData=null;
 async function previewCert(id){
@@ -348,11 +546,7 @@ async function previewCert(id){
   certData=d.data;
   const {alumno,materias,fecha}=d.data;
   
-  // Encontrar el option para extraer metadata adicional
-  const selObj = document.getElementById('certAlumno');
-  const actOpt = selObj.options[selObj.selectedIndex];
-  const ciudad = actOpt ? actOpt.getAttribute('data-ciudad') : 'Ciudad Bolívar';
-  certData.alumno.ciudad = ciudad || 'Ciudad Bolívar';
+  certData.alumno.ciudad = certAlumnoMeta.ciudad || 'Ciudad Bolívar';
 
   const conNota=materias.filter(m=>m.nota_final!==null);
   const aprobadas=conNota.filter(m=>parseFloat(m.nota_final)>=15).length;
@@ -673,7 +867,7 @@ async function generarCert() {
 }
 
 // Load notifications - fallback triggers
-document.addEventListener('ibbs:ready', ()=>loadNotifs());
+document.addEventListener('ibbs:ready', ()=>{ loadNotifs(); loadSolicitudes(); });
 window.addEventListener('load', ()=>{ 
   setTimeout(()=>{
     const el = document.getElementById('notifList');

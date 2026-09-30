@@ -873,7 +873,10 @@ if($action==='cert_datos'){
 
 // ════ AUDIT LOG ══════════════════════════════════════════════
 if($action==='audit_list'){
-    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    // Log técnico de auditoría — antes lo veía cualquier admin desde
+    // modulo_herramientas.php; queda igual que modulo_historial.php
+    // (historial_actividad), exclusivo de superadmin.
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     mysqli_query($con,"CREATE TABLE IF NOT EXISTS audit_log (id INT AUTO_INCREMENT PRIMARY KEY,usuario_id INT,accion VARCHAR(100),detalle TEXT,ip VARCHAR(45),creado_en DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");
     $r=mysqli_query($con,"SELECT al.*,u.usuario FROM audit_log al LEFT JOIN usuarios u ON u.id=al.usuario_id ORDER BY al.creado_en DESC LIMIT 100");
     $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;

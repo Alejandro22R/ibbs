@@ -113,6 +113,10 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <!-- Enlace a estilos globales IBBS (opcional si están en la misma carpeta) -->
     <link rel="stylesheet" href="assets/ibbs.css">
 
+    <!-- SweetAlert2 — reemplaza los alert()/confirm() nativos del navegador -->
+    <script src="assets/libs/sweetalert2.all.min.js"></script>
+    <script src="assets/ibbs-alerts.js"></script>
+
     <!-- Tailwind CSS con Configuración de Tema IBBS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -827,7 +831,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 csrf_invalido: 'La sesión del formulario expiró — probá guardar de nuevo.',
                 error: 'Ocurrió un error al actualizar el perfil.',
             };
-            if (textos[msg]) alert(textos[msg]);
+            if (textos[msg]) { msg === 'perfil_actualizado' ? Ibbs.success(textos[msg]) : Ibbs.error(textos[msg]); }
             if (msg.startsWith('perfil_') || msg === 'correo_duplicado' || msg === 'faltan_campos') {
                 const btn = document.getElementById('navBtnPerfil');
                 if (btn) switchView('perfil', btn);
@@ -923,11 +927,12 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             .then(data => {
                 if(data.ok) {
                     closeModalEntrega();
-                    setTimeout(() => location.reload(), 500); 
-                } else { alert(data.msg); }
+                    Ibbs.success('Entrega enviada correctamente.');
+                    setTimeout(() => location.reload(), 1200);
+                } else { Ibbs.error(data.msg); }
             })
             .catch(err => {
-                alert("Hubo un error al enviar la tarea.");
+                Ibbs.error("Hubo un error al enviar la tarea.");
                 console.error(err);
             })
             .finally(() => {
@@ -958,10 +963,10 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         async function autoInscribirme() {
             const sel = document.getElementById('selAutoInsc');
             const mid = sel ? sel.value : '';
-            if (!mid) { alert('Selecciona una materia primero.'); return; }
+            if (!mid) { Ibbs.warn('Selecciona una materia primero.'); return; }
             const fileInput = document.getElementById('fileComprobante');
             const file = fileInput && fileInput.files[0];
-            if (!file) { alert('Adjuntá la captura de tu pago móvil o transferencia para poder inscribirte.'); return; }
+            if (!file) { Ibbs.warn('Adjuntá la captura de tu pago móvil o transferencia para poder inscribirte.'); return; }
             const btn = document.getElementById('btnAutoInsc');
             btn.disabled = true; btn.textContent = 'Enviando…';
             try {
@@ -974,13 +979,13 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 const r = await fetch('api/materia_solicitud.php', { method: 'POST', body: fd });
                 const d = await r.json();
                 if (d.ok) {
-                    alert(d.msg);
+                    await Ibbs.success(d.msg);
                     location.reload();
                 } else {
-                    alert(d.msg || 'No se pudo enviar la solicitud.');
+                    Ibbs.error(d.msg || 'No se pudo enviar la solicitud.');
                     btn.disabled = false; btn.textContent = 'Enviar solicitud';
                 }
-            } catch (e) { console.error(e); alert('Error de conexión.'); btn.disabled = false; btn.textContent = 'Enviar solicitud'; }
+            } catch (e) { console.error(e); Ibbs.error('Error de conexión.'); btn.disabled = false; btn.textContent = 'Enviar solicitud'; }
         }
 
         // ── BIBLIOTECA ────────────────────────────────────────────
@@ -1077,7 +1082,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             const id = document.getElementById('comprarLibroId').value;
             const libro = _bibCatalogo.find(l => l.id == id);
             const file = document.getElementById('comprobanteLibroInput').files[0];
-            if (libro && parseFloat(libro.precio) > 0 && !file) { alert('Adjuntá la captura de tu pago para poder enviar la solicitud.'); return; }
+            if (libro && parseFloat(libro.precio) > 0 && !file) { Ibbs.warn('Adjuntá la captura de tu pago para poder enviar la solicitud.'); return; }
             const btn = document.getElementById('btnConfirmarCompra');
             btn.disabled = true; btn.textContent = 'Enviando…';
             try {
@@ -1089,9 +1094,14 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 fd.append('csrf_token', m ? m.content : '');
                 const r = await fetch('api/biblioteca.php', { method: 'POST', body: fd });
                 const d = await r.json();
-                alert(d.msg || (d.ok ? 'Listo.' : 'No se pudo procesar la solicitud.'));
-                if (d.ok) { cerrarModalComprar(); loadBiblioteca(); }
-            } catch (e) { console.error(e); alert('Error de conexión.'); }
+                if (d.ok) {
+                    cerrarModalComprar();
+                    await Ibbs.success(d.msg || 'Listo.');
+                    loadBiblioteca();
+                } else {
+                    Ibbs.error(d.msg || 'No se pudo procesar la solicitud.');
+                }
+            } catch (e) { console.error(e); Ibbs.error('Error de conexión.'); }
             btn.disabled = false; btn.textContent = 'Enviar solicitud de compra';
         }
 
@@ -1224,7 +1234,8 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         }
 
         async function borrarMensajeForo(id) {
-            if (!confirm('¿Borrar este mensaje?')) return;
+            const rr = await Ibbs.confirm({title:'¿Borrar este mensaje?', text:'Esta acción no se puede deshacer.', confirm:'Sí, borrar', danger:true});
+            if (!rr.isConfirmed) return;
             try {
                 const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
                 const r = await fetch(`api/foro.php?action=delete_mensaje&materia_id=${materiaActivaChatId}`, {
@@ -1234,7 +1245,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 });
                 const result = await r.json();
                 if (result.success) cargarMensajesForo();
-                else alert(result.error || 'No se pudo borrar el mensaje.');
+                else Ibbs.error(result.error || 'No se pudo borrar el mensaje.');
             } catch (e) { console.error(e); }
         }
 
@@ -1253,7 +1264,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 body: JSON.stringify({ mensaje, respuesta_a, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
             })
             .then(res => res.json())
-            .then(data => { if (data.success) cargarMensajesForo(); else alert(data.error || 'No se pudo enviar el mensaje.'); })
+            .then(data => { if (data.success) cargarMensajesForo(); else Ibbs.error(data.error || 'No se pudo enviar el mensaje.'); })
             .catch(err => console.error(err));
         }
 

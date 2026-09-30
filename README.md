@@ -778,6 +778,79 @@ Migración `013_biblioteca.sql` (tablas `libros`, `libro_compras`,
   opción de pago automático que, al confirmar, llame directo a la misma
   lógica de `compra_aprobar` en vez de esperar la revisión manual.
 
+## Auto-reparación de esquema (login que se quedaba cargando)
+
+Un admin reportó que el login se quedaba colgado en "Entrando…" para
+siempre. Causa real: el `SELECT` del login pedía `usuarios.aprobado`
+(migración 009) — si esa migración nunca se pegó a mano en la base de
+datos real, `mysqli_prepare()` devuelve `false`, el `bind_param()`
+sobre ese `false` tira un error fatal sin devolver ningún JSON, y el
+botón del login queda deshabilitado para siempre porque nada vuelve a
+habilitarlo. Afectaba a **cualquier rol**, no solo alumno.
+
+Arreglado en dos capas, ambas en `config/`:
+- **`config/schema_autoheal.php`**, enganchado desde `db()`
+  (`config/database.php`): antes de devolver cualquier conexión, corre
+  una vez el `ADD COLUMN`/`CREATE TABLE IF NOT EXISTS` de cada
+  migración 004 a la más reciente (`aprobado`, `referencia_id`,
+  `chat_staff`, `materia_solicitudes`, `libros`, `libro_compras`,
+  `datos_pago`...). El resultado se recuerda con un archivo marcador en
+  `storage/` (`IBBS_SCHEMA_VERSION` al principio del archivo) para no
+  repetir ~20 consultas en cada request una vez que ya está al día.
+  Nadie tiene que volver a pegar una migración en phpMyAdmin a mano —
+  subí ese número cuando agregues DDL nuevo ahí.
+- **`login.php`**: `post()` ya no puede tirar una excepción sin
+  atrapar — cualquier respuesta que no sea JSON válido (o que ni
+  siquiera llegue) vuelve como `{ok:false, msg:...}`, así que el botón
+  siempre se rehabilita y se ve un mensaje real en vez de una pantalla
+  colgada, sea cual sea la causa.
+
+## SweetAlert2 en todas partes (adiós a los `alert()`/`confirm()` nativos)
+
+`portal_alumno.php` y `portal_docente.php` arman su propio HTML aparte
+del sistema de `layout/head.php`+`layout/foot.php` (donde ya vivía el
+helper `Ibbs` sobre SweetAlert2 desde hacía varias tandas) — así que
+seguían usando `alert()`/`confirm()` nativos del navegador ("localhost
+dice..."), rompiendo la estética del resto de la app en el módulo más
+usado por alumnos y docentes.
+
+Nuevo archivo compartido **`assets/ibbs-alerts.js`** (standalone, sin
+depender de `ajax()`/`toast()` de `layout/foot.php`): define el mismo
+objeto `Ibbs` (`.confirm()`, `.error()`, `.success()`, `.warn()`) con
+la misma paleta institucional, e inyecta sus propios estilos. Se
+incluye junto con `assets/libs/sweetalert2.all.min.js` en el `<head>`
+de ambos portales. Se reemplazaron **todos** los `alert()`/`confirm()`
+nativos de `portal_alumno.php` y `portal_docente.php` (perfil, subir
+foto, cambiar contraseña, entregar tarea, autoinscripción, comprar un
+libro, foro de clase, chat del staff...) por sus equivalentes `Ibbs.*`.
+No queda ningún `alert()`/`confirm()` nativo en todo el proyecto —
+verificado con una búsqueda global.
+
+## Módulo de Herramientas: rediseño y "Solicitudes" consolidadas
+
+- **Historial de acciones** (el log técnico crudo de auditoría) dejó
+  de mostrarse a un `admin` normal — es información de programador/a,
+  no algo que alguien de dirección necesite revisar a diario. La
+  pestaña y su acción de backend (`audit_list` en `api/ajax.php`)
+  ahora son exclusivas de `superadmin`, igual que `modulo_historial.php`
+  (que usa una acción distinta, `historial_actividad`, ya blindada
+  antes — ambas cubiertas ahora).
+- **Buscador de alumnos** (pestaña Certificados): el viejo `<select
+  size="5">` nativo del navegador se reemplazó por una lista de
+  tarjetas con avatar/inicial, nombre y cédula — mismo look que el
+  resto de la app — con el mismo filtro en vivo por nombre/cédula de
+  antes.
+- **Nueva pestaña "Solicitudes"**: consolida en un solo lugar las tres
+  colas de aprobación que antes solo se veían dispersas en la
+  campanita de notificaciones — ingresos de alumnos pendientes,
+  inscripciones a materias con comprobante de pago, y compras de
+  libros con comprobante — cada una con su contador, su botón "Ver
+  comprobante" y Aceptar/Rechazar en el momento, reutilizando las
+  mismas acciones (`alumno_aprobar/rechazar`, `api/materia_solicitud.php`,
+  `api/biblioteca.php`) ya construidas en tandas anteriores. La pestaña
+  lleva un contador en vivo (rojo si hay pendientes) que se actualiza
+  apenas se abre el módulo, sin tener que entrar a la pestaña.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,
