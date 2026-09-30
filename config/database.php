@@ -18,6 +18,8 @@
 // no controlado.
 mysqli_report(MYSQLI_REPORT_OFF);
 
+require_once __DIR__.'/schema_autoheal.php';
+
 if (!function_exists('db')) {
     function db() {
         $host = getenv('IBBS_DB_HOST') ?: 'localhost';
@@ -28,6 +30,11 @@ if (!function_exists('db')) {
         $c = mysqli_connect($host, $user, $pass, $name);
         if (!$c) return false;
         mysqli_set_charset($c, 'utf8mb4');
+        // Autorepara columnas/tablas de migraciones que nadie corrió a
+        // mano (ver config/schema_autoheal.php) — corre una sola vez
+        // por request, así que el login (y todo lo demás) nunca vuelve
+        // a quedarse colgado por una migración pendiente.
+        ibbs_autoheal_schema($c);
         return $c;
     }
 }

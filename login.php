@@ -522,13 +522,26 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 function show(id){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
 
 async function post(action,data){
-  const fd=new FormData();
-  fd.append('action',action);
-  const _csrf=document.querySelector('meta[name="csrf-token"]');
-  if(_csrf) fd.append('csrf_token',_csrf.content);
-  Object.keys(data).forEach(k=>fd.append(k,data[k]));
-  const r=await fetch('login.php',{method:'POST',body:fd});
-  return r.json();
+  // Nunca dejar tirando una excepción: un botón "Entrando…" que queda
+  // colgado para siempre (sin volver a habilitarse) es peor que
+  // mostrar un mensaje de error genérico. Si el servidor devuelve algo
+  // que no es JSON válido (por ejemplo, un error fatal de PHP por una
+  // migración de base de datos que faltaba — ver
+  // config/schema_autoheal.php, que ahora debería evitar justamente
+  // eso) esto lo atrapa acá en vez de romper el flujo de quien llamó.
+  try {
+    const fd=new FormData();
+    fd.append('action',action);
+    const _csrf=document.querySelector('meta[name="csrf-token"]');
+    if(_csrf) fd.append('csrf_token',_csrf.content);
+    Object.keys(data).forEach(k=>fd.append(k,data[k]));
+    const r=await fetch('login.php',{method:'POST',body:fd});
+    const raw=await r.text();
+    try { return JSON.parse(raw); }
+    catch(e){ return {ok:false,msg:'El servidor respondió algo inesperado. Recarga la página e intenta de nuevo.'}; }
+  } catch(e) {
+    return {ok:false,msg:'No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.'};
+  }
 }
 
 function setErr(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display=msg?'block':'none';}
