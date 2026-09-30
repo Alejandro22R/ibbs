@@ -909,6 +909,43 @@ transcodificar la página, rompiendo el script entero en ese momento.
 Se corrigió a la forma segura (`̀-ͯ`), que no depende de que
 nadie en el camino preserve bytes multi-byte intactos.
 
+## Asistencia por Foto también en el portal del docente
+
+Hasta ahora, "Registro por Foto" (subir la hoja física de asistencia y
+que el OCR la lea) solo vivía en `modulo_asistencias.php`, restringido a
+`superadmin`/`admin` — el profesor no tenía forma de cargar la asistencia
+de su propia clase ni de ver lo que ya había subido. El backend
+(`api/asistencia_ocr.php`) ya estaba listo para el rol `profesor` desde
+que se construyó (`hoja_list` ya filtraba por las materias que el
+docente dicta), pero nunca se expuso del lado del profesor.
+
+Se agregó una vista nueva **Asistencia** en `portal_docente.php` (sidebar
+→ Asistencia) con el mismo flujo que ya tenía el administrador: elegís
+materia (solo aparecen las tuyas) y fecha, subís la foto, el sistema la
+lee con Tesseract.js y precarga quién asistió/faltó, vos revisás y
+corregís antes de "Guardar asistencia", y más abajo una lista de "Hojas
+cargadas recientemente" para ver lo que ya se subió (foto, fecha,
+cuántos detectó, quién la cargó). El motor de OCR (redimensionar la
+imagen, leerla, comparar contra el roster por cédula o por nombre con
+tolerancia a errores de lectura) es el mismo — se portó tal cual a
+`portal_docente.php` en vez de reescribirlo, para no perder nada de esa
+lógica ya afinada.
+
+Dos ajustes de backend hicieron falta:
+- `api/ajax.php` → `materia_get` (el roster completo con cédula, que el
+  OCR necesita para comparar) estaba reservado a `superadmin`/`admin`.
+  Ahora un `profesor` también puede pedirlo, pero **solo de una materia
+  que él mismo dicta** (`materia_puede_ver()`) — mismo criterio de
+  seguridad que ya usaba `asistencia_ocr.php`, solo que ahora se aplica
+  también acá.
+- Nada más: `hoja_guardar` y `hoja_list` en `api/asistencia_ocr.php` ya
+  soportaban el rol profesor de antes, sin necesitar ningún cambio.
+
+Nota explícita del pedido: la asistencia de una clase *virtual* (con
+cámara y voz, dentro de Aula Virtual) queda para cuando se construya esa
+modalidad — esto es solo para la hoja física que hoy se toma en el
+salón.
+
 ## Biblioteca embebida en el portal del docente (ya no abre otra pestaña)
 
 El botón "Biblioteca" del portal del docente (`portal_docente.php`)

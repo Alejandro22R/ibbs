@@ -175,12 +175,16 @@ if($action==='materia_delete'){
     echo json_encode(['ok'=>true,'msg'=>'Eliminada.']); exit;
 }
 if($action==='materia_get'){
-    // Devuelve el roster completo (con cédula) — solo lo usan
-    // modulo_materias.php y modulo_asistencias.php, ambos admin/superadmin;
-    // sin este chequeo, cualquier alumno podía pedir la cédula de todos
-    // sus compañeros de cualquier materia con solo cambiar el id.
-    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    // Devuelve el roster completo (con cédula) — lo usan modulo_materias.php,
+    // modulo_asistencias.php y ahora también el registro de asistencia por
+    // foto del propio portal del docente. Un profesor solo puede pedir el
+    // roster de una materia que él mismo dicta (materia_puede_ver); sin
+    // este chequeo, cualquier alumno podía pedir la cédula de todos sus
+    // compañeros de cualquier materia con solo cambiar el id.
     $id=(int)($_POST['id']??0);
+    if(!in_array($_rol,['superadmin','admin']) && !($_rol==='profesor' && materia_puede_ver($con,$uid,$_rol,$id))){
+        echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;
+    }
     $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM materias WHERE id=$id"));
     if(!$f){echo json_encode(['ok'=>false,'msg'=>'No encontrada.']);exit;}
     $rd=mysqli_query($con,"SELECT d.id,d.nombre,d.apellido FROM docentes d JOIN materia_docente md ON md.docente_id=d.id WHERE md.materia_id=$id");
