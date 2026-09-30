@@ -116,6 +116,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <!-- SweetAlert2 — reemplaza los alert()/confirm() nativos del navegador -->
     <script src="assets/libs/sweetalert2.all.min.js"></script>
     <script src="assets/ibbs-alerts.js"></script>
+    <script src="assets/ibbs-tour.js"></script>
 
     <!-- Tailwind CSS con Configuración de Tema IBBS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -243,16 +244,16 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto relative z-10">
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mb-3 px-3">Menú Principal</p>
             
-            <button id="navBtnDashboard" onclick="switchView('dashboard', this)" class="nav-btn active w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button id="navBtnDashboard" data-tour="nav-dashboard" onclick="switchView('dashboard', this)" class="nav-btn active w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-home w-5 text-center"></i> <span class="font-medium text-sm">Inicio</span>
             </button>
-            <button onclick="switchView('aula', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button data-tour="nav-aula" onclick="switchView('aula', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-desktop w-5 text-center"></i> <span class="font-medium text-sm">Aula Virtual</span>
             </button>
-            <button id="navBtnMaterias" onclick="switchView('materias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button id="navBtnMaterias" data-tour="nav-materias" onclick="switchView('materias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-book w-5 text-center"></i> <span class="font-medium text-sm">Mis Materias</span>
             </button>
-            <button onclick="switchView('tareas', this)" class="nav-btn w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button data-tour="nav-tareas" onclick="switchView('tareas', this)" class="nav-btn w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-tasks w-5 text-center"></i> <span class="font-medium text-sm">Tareas</span>
                 </div>
@@ -260,22 +261,25 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <span class="bg-ibbs-lime text-ibbs-ink text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm"><?= $pendientes_count ?></span>
                 <?php endif; ?>
             </button>
-            <button onclick="switchView('chat', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button data-tour="nav-chat" onclick="switchView('chat', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-comments w-5 text-center"></i> <span class="font-medium text-sm">Foros de Clase</span>
             </button>
-            <button onclick="switchView('notas', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button data-tour="nav-notas" onclick="switchView('notas', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-chart-line w-5 text-center"></i> <span class="font-medium text-sm">Calificaciones</span>
             </button>
-            <button onclick="switchView('constancias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button data-tour="nav-constancias" onclick="switchView('constancias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-file-signature w-5 text-center"></i> <span class="font-medium text-sm">Constancias</span>
             </button>
-            <button onclick="switchView('biblioteca', this); loadBiblioteca();" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button data-tour="nav-biblioteca" onclick="switchView('biblioteca', this); loadBiblioteca();" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-book w-5 text-center"></i> <span class="font-medium text-sm">Biblioteca</span>
             </button>
 
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-6 mb-3 px-3">Cuenta</p>
-            <button id="navBtnPerfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+            <button id="navBtnPerfil" data-tour="nav-perfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-user-cog w-5 text-center"></i> <span class="font-medium text-sm">Mi Perfil</span>
+            </button>
+            <button type="button" data-tour="nav-replay" onclick="IbbsTour.replay(window.IBBS_TOUR_ALUMNO)" class="ibbstour-replay nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <i class="fas fa-circle-question w-5 text-center"></i> <span class="font-medium text-sm">Ver Tutorial</span>
             </button>
         </nav>
 
@@ -1286,6 +1290,26 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 if (data && parseInt(data.materia_id) === parseInt(materiaActivaChatId)) cargarMensajesForo();
             });
         }
+
+        // ── Tutorial guiado (manual intuitivo del alumno) ──────────
+        window.IBBS_TOUR_ALUMNO = {
+            storageKey: 'ibbs_tour_alumno_v1',
+            steps: [
+                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un resumen rápido de tus materias, tareas pendientes y avisos importantes cada vez que entrás.' },
+                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Acá encontrás el material de clase que tus profesores van subiendo: documentos, videos y recursos de cada materia.' },
+                { selector: '[data-tour="nav-materias"]', title: 'Mis Materias', text: 'Mirá las materias en las que estás inscrito/a este período, con tu profesor y el horario de cada una.' },
+                { selector: '[data-tour="nav-tareas"]', title: 'Tareas', text: 'Entregá tus tareas y trabajos desde acá. El número rojo te avisa cuántas tenés pendientes por entregar.' },
+                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Espacio para preguntar y conversar con tu profesor y compañeros sobre cada materia.' },
+                { selector: '[data-tour="nav-notas"]', title: 'Calificaciones', text: 'Consultá tus notas por materia apenas el profesor las publique.' },
+                { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Solicitá y descargá tus constancias de estudio cuando las necesites.' },
+                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explorá libros gratuitos y de pago que tus profesores han subido para vos.' },
+                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tus datos personales y tu contraseña desde acá.' },
+                { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras, volvé a ver este tutorial haciendo clic acá. ¡Éxitos en tus estudios!' }
+            ]
+        };
+        document.addEventListener('DOMContentLoaded', function () {
+            IbbsTour.start(Object.assign({ auto: true }, window.IBBS_TOUR_ALUMNO));
+        });
     </script>
 </body>
 </html>

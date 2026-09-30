@@ -122,6 +122,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     <!-- SweetAlert2 — reemplaza los alert()/confirm() nativos del navegador -->
     <script src="assets/libs/sweetalert2.all.min.js"></script>
     <script src="assets/ibbs-alerts.js"></script>
+    <script src="assets/ibbs-tour.js"></script>
     
     <style>
         /* Animaciones para SPA */
@@ -182,41 +183,44 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         </a>
         
         <nav class="sb-nav">
-            <button onclick="switchView('dashboard', this)" class="sb-link act">
+            <button data-tour="nav-dashboard" onclick="switchView('dashboard', this)" class="sb-link act">
                 <i class="fas fa-th-large"></i> <span class="sb-lbl">Inicio</span>
             </button>
-            
+
             <div class="sb-section">Mi Gestión</div>
-            
-            <button onclick="switchView('materias', this)" class="sb-link">
+
+            <button data-tour="nav-materias" onclick="switchView('materias', this)" class="sb-link">
                 <i class="fas fa-book"></i> <span class="sb-lbl">Mis Cursos</span>
             </button>
-            <button onclick="switchView('aula', this)" class="sb-link">
+            <button data-tour="nav-aula" onclick="switchView('aula', this)" class="sb-link">
                 <i class="fas fa-desktop"></i> <span class="sb-lbl">Aula Virtual</span>
             </button>
-            <button onclick="switchView('entregas', this)" class="sb-link">
+            <button data-tour="nav-entregas" onclick="switchView('entregas', this)" class="sb-link">
                 <i class="fas fa-pencil-alt"></i> <span class="sb-lbl">Cargar Notas</span>
             </button>
-            <button onclick="switchView('chat', this)" class="sb-link">
+            <button data-tour="nav-chat" onclick="switchView('chat', this)" class="sb-link">
                 <i class="fas fa-comments"></i> <span class="sb-lbl">Foros de Clase</span>
             </button>
-            <button onclick="switchView('chat-staff', this)" class="sb-link">
+            <button data-tour="nav-chat-staff" onclick="switchView('chat-staff', this)" class="sb-link">
                 <i class="fas fa-bullhorn"></i> <span class="sb-lbl">Chat del Staff</span>
             </button>
-            <button onclick="switchView('biblioteca', this); cargarMisLibrosDocente();" class="sb-link">
+            <button data-tour="nav-biblioteca" onclick="switchView('biblioteca', this); cargarMisLibrosDocente();" class="sb-link">
                 <i class="fas fa-book"></i> <span class="sb-lbl">Biblioteca</span>
             </button>
 
             <?php if(in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
             <div class="sb-section" style="margin-top: .5rem;">Administración</div>
-            <button onclick="switchView('admin-docentes', this)" class="sb-link">
+            <button data-tour="nav-admin-docentes" onclick="switchView('admin-docentes', this)" class="sb-link">
                 <i class="fas fa-users-cog"></i> <span class="sb-lbl">Asignar Materias</span>
             </button>
             <?php endif; ?>
         </nav>
 
         <div class="sb-bottom">
-            <button onclick="switchView('perfil', this)" class="sb-link">
+            <button type="button" data-tour="nav-replay" onclick="IbbsTour.replay(window.IBBS_TOUR_DOCENTE)" class="ibbstour-replay sb-link">
+                <i class="fas fa-circle-question"></i> <span class="sb-lbl">Ver Tutorial</span>
+            </button>
+            <button data-tour="nav-perfil" onclick="switchView('perfil', this)" class="sb-link">
                 <i class="fas fa-user-circle"></i> <span class="sb-lbl">Mi Perfil</span>
             </button>
             <a href="cerrar_sesion.php" class="sb-link">
@@ -1508,6 +1512,28 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const d = await r.json();
             if (d.ok) { Ibbs.success(d.msg); cargarMisLibrosDocente(); } else Ibbs.error(d.msg || 'Error');
         }
+
+        // ── Tutorial guiado (manual intuitivo del docente) ─────────
+        window.IBBS_TOUR_DOCENTE = {
+            storageKey: 'ibbs_tour_docente_v1',
+            steps: [
+                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un vistazo rápido a tus materias, entregas pendientes de revisar y avisos.' },
+                { selector: '[data-tour="nav-materias"]', title: 'Mis Cursos', text: 'Mirá las materias que tenés asignadas y la lista de alumnos inscritos en cada una.' },
+                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Subí el material de clase (documentos, videos, recursos) para que tus alumnos lo vean.' },
+                { selector: '[data-tour="nav-entregas"]', title: 'Cargar Notas', text: 'Revisá las tareas entregadas por tus alumnos y cargá sus calificaciones.' },
+                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Conversá con tus alumnos sobre cada materia: dudas, avisos y anuncios.' },
+                { selector: '[data-tour="nav-chat-staff"]', title: 'Chat del Staff', text: 'Canal privado para coordinar con administración y otros docentes de la institución.' },
+                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Subí tus propios libros (gratuitos o de pago) para que los alumnos los vean en su catálogo.' },
+                <?php if (in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
+                { selector: '[data-tour="nav-admin-docentes"]', title: 'Asignar Materias', text: 'Como administrador, desde acá asignás qué materias imparte cada docente.' },
+                <?php endif; ?>
+                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tus datos personales y tu contraseña desde acá.' },
+                { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras, volvé a ver este tutorial haciendo clic acá. ¡Éxitos con tus cursos!' }
+            ]
+        };
+        document.addEventListener('DOMContentLoaded', function () {
+            IbbsTour.start(Object.assign({ auto: true }, window.IBBS_TOUR_DOCENTE));
+        });
     </script>
 </body>
 </html>

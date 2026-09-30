@@ -909,6 +909,55 @@ transcodificar la página, rompiendo el script entero en ese momento.
 Se corrigió a la forma segura (`̀-ͯ`), que no depende de que
 nadie en el camino preserve bytes multi-byte intactos.
 
+## Biblioteca embebida en el portal del docente (ya no abre otra pestaña)
+
+El botón "Biblioteca" del portal del docente (`portal_docente.php`)
+llevaba a `modulo_biblioteca.php` en una pestaña nueva (`target="_blank"`).
+Eso reemplazaba por completo la barra lateral propia del docente (pensada
+solo para sus funciones) por la barra lateral completa de administración
+(Materias, Alumnos, Usuarios, Inscripciones…), casi toda inaccesible o
+irrelevante para un docente — de ahí la sensación de que "se desconfiguraba"
+el estilo.
+
+Ahora Biblioteca es una vista más dentro del SPA del docente
+(`view-biblioteca`, con su propio modal de alta/edición), igual que ya
+pasaba con "Chat del Staff". Reutiliza `api/biblioteca.php` tal cual —
+ese endpoint ya filtraba por `creado_por` para el rol docente, así que no
+hizo falta tocar el backend. El botón del administrador (`layout/head.php`)
+no cambió: ya navegaba en la misma pestaña dentro de su propio tema.
+
+## Tutorial guiado para alumnos y docentes (`assets/ibbs-tour.js`)
+
+Manual de usuario, pero no un PDF: un recorrido corto y visual que la
+misma página va mostrando la primera vez que alguien entra, señalando
+cada botón del menú lateral con una tarjeta que explica en una frase para
+qué sirve.
+
+- **Motor genérico** en `assets/ibbs-tour.js` (`window.IbbsTour`), sin
+  dependencias externas, usado igual por `portal_alumno.php` y
+  `portal_docente.php`. Resalta el botón correspondiente (según un
+  atributo `data-tour="..."` agregado a cada botón del menú) con un
+  recuadro tipo *spotlight* y coloca al lado una tarjeta con el título,
+  el texto corto y contador de pasos ("Paso 3 de 10").
+- El botón **"×"** de la tarjeta avanza al siguiente paso (tal como se
+  pidió) — no cierra el tutorial. Para salir antes de terminar hay un
+  enlace aparte, "Saltar tutorial".
+- Se muestra **una sola vez** por rol (se guarda en `localStorage`:
+  `ibbs_tour_alumno_v1` / `ibbs_tour_docente_v1`) para no ser invasivo en
+  cada ingreso — pero queda un botón "Ver Tutorial" (ícono `?`) fijo en
+  el menú lateral de ambos portales para repasarlo cuando quieran
+  (`IbbsTour.replay(...)`).
+- Si el botón señalado no está visible (p. ej. menú colapsado en
+  celular), la tarjeta se centra en pantalla en vez de fallar.
+- El paso "Asignar Materias" del tutorial del docente solo aparece si
+  ese usuario es superadmin/admin (mismo `in_array($_SESSION['rol'], ...)`
+  que ya decide si el botón se muestra en el menú).
+
+Para agregar un paso nuevo: agregar `data-tour="nombre"` al botón del
+menú y sumar `{ selector: '[data-tour="nombre"]', title: '...', text: '...' }`
+al arreglo `window.IBBS_TOUR_ALUMNO` / `window.IBBS_TOUR_DOCENTE` al
+final del `<script>` de cada portal.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,
