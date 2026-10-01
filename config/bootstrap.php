@@ -11,6 +11,11 @@
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
+// Si existe un .env en la raíz del proyecto (nunca se commitea — ver
+// .gitignore), lo carga antes que nada para que esas variables ya
+// estén disponibles para database.php y mailer.php.
+require_once __DIR__ . '/env_loader.php';
+
 require_once __DIR__ . '/session.php';
 require_once __DIR__ . '/csrf.php';
 require_once __DIR__ . '/rate_limit.php';

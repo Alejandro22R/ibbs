@@ -1210,16 +1210,59 @@ usaba la recuperación por preguntas):
    usado.
 
 **Envío de correo** (`config/mailer.php` + `config/mail_config.php`):
-no hay `composer`/`vendor` en este proyecto (ver más abajo), así que en
+no hay `composer`/`vendor` en este proyecto, así que en
 vez de sumar PHPMailer se escribió un cliente SMTP mínimo por socket
 (EHLO/STARTTLS/AUTH LOGIN/DATA, sin dependencias) que se usa **solo si**
-`config/mail_config.php` tiene un `smtp_host` configurado. Si se deja
-vacío (el valor por defecto), cae automáticamente a la función `mail()`
-de PHP, que funciona sola en la mayoría de VPS/hosting con un MTA local
-ya configurado. Si el correo no llega o cae a spam, hay que completar
-`config/mail_config.php` con una cuenta SMTP real (Gmail con
-"contraseña de aplicación", SendGrid, Mailgun, el correo del propio
-dominio…) — un solo archivo, nada más que tocar.
+hay un `IBBS_SMTP_HOST` configurado. Si no, cae automáticamente a la
+función `mail()` de PHP (funciona sola en VPS con un MTA local ya
+configurado — lo que estaba pasando antes: el enlace se generaba y
+guardaba bien, pero el correo nunca salía porque no hay MTA en este
+hosting).
+
+### Cómo activar el envío real por SMTP (paso a paso con Gmail)
+
+Las credenciales **nunca van escritas en el código ni se suben a
+git** — igual que `config/database.php` con la base de datos, se leen
+de variables de entorno. La forma más simple de definirlas, pensada
+para quien no tiene acceso a configurar Apache/Nginx en el VPS: un
+archivo `.env` de texto plano en la raíz del proyecto (al lado de
+`login.php`), que `config/env_loader.php` carga solo si existe. Ese
+archivo **nunca se commitea** (está en `.gitignore`) — se crea una sola
+vez, directo en el servidor, por FTP/SFTP o el administrador de
+archivos del hosting.
+
+1. **Conseguir una contraseña de aplicación de Gmail** (gratis, 2
+   minutos, no hace falta ninguna cuenta nueva si ya tenés un Gmail
+   para la institución):
+   - Entrá a [myaccount.google.com/security](https://myaccount.google.com/security)
+     con la cuenta de Gmail desde la que querés que salgan los correos.
+   - Activá la **verificación en 2 pasos** si todavía no la tenés
+     activada (Google exige esto para poder generar la contraseña de
+     aplicación).
+   - Buscá **"Contraseñas de aplicaciones"** (o entrá directo a
+     [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)),
+     elegí un nombre cualquiera (ej. "IBBS") y generá una. Google te va
+     a mostrar 16 caracteres sin espacios — copialos, es la única vez
+     que los vas a ver.
+2. **Crear el archivo `.env`** en la raíz del proyecto en el servidor
+   (copiando `.env.example` como base), con estos valores:
+   ```
+   IBBS_SMTP_HOST=smtp.gmail.com
+   IBBS_SMTP_PORT=587
+   IBBS_SMTP_SECURE=tls
+   IBBS_SMTP_USER=tuinstituto@gmail.com
+   IBBS_SMTP_PASS=la contraseña de aplicación de 16 caracteres, sin espacios
+   IBBS_MAIL_FROM=tuinstituto@gmail.com
+   IBBS_MAIL_FROM_NAME=IBBS - Instituto Biblico Bautista del Sur
+   ```
+3. Listo — no hace falta reiniciar nada ni tocar más código.
+   `config/mail_config.php` lee esas variables en cada request. El
+   próximo "Enviarme un enlace por correo" ya debería llegar.
+
+¿Preferís otro proveedor en vez de Gmail (SendGrid, Mailgun, el correo
+de tu propio dominio)? Mismo archivo `.env`, solo cambian los valores
+de `IBBS_SMTP_HOST`/`IBBS_SMTP_PORT`/`IBBS_SMTP_USER`/`IBBS_SMTP_PASS`
+por los que te dé ese proveedor — el código no cambia.
 
 **Seguridad:** freno de 4 solicitudes cada 15 minutos por IP
 (`config/rate_limit.php` → `reset_email_throttle_*`, mismo patrón de
