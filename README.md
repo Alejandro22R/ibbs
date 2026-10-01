@@ -1337,6 +1337,61 @@ autoaplicada) y se manda también como parte de la notificación que ya
 recibía el alumno al calificarle una tarea. El alumno lo ve en su
 portal, debajo de la nota, en la tarjeta de la tarea entregada.
 
+## Fecha límite de corrección del profesor + Plan de Notas
+
+Antes solo existía una fecha límite (`tareas.fecha_limite`, la del
+alumno para entregar) — el profesor podía dejar una entrega sin
+calificar indefinidamente, sin ningún registro de que eso estuviera
+pasando. Se agregó una segunda fecha, propia del profesor, y una
+planilla nueva que junta todas las actividades de una materia.
+
+**Dos fechas, cada una con su dueño** (migración 017,
+`tareas.fecha_limite_correccion` + `tareas.porcentaje`):
+
+- Al publicar una actividad (`portal_docente.php` → Cargar Notas →
+  Subir Actividad), el profesor ahora pone **dos** fechas: cuándo
+  vence la entrega del alumno, y cuándo se compromete él a tenerla
+  corregida — la segunda tiene que ser posterior a la primera
+  (`crear_tarea.php` lo valida, y el formulario avisa en el momento si
+  las fechas no tienen sentido).
+- Pasada la fecha de entrega, `procesar_entrega.php` ya no acepta esa
+  entrega — "la actividad queda anulada", como se pidió. El profesor
+  decide después, al cerrar la nota final de la materia, si eso cuenta
+  como reprobado o no; el sistema no lo decide solo.
+- Si se pasa la fecha de corrección y la entrega sigue sin nota, la
+  tarjeta en "Cargar Notas" muestra un aviso en rojo ("Venció tu fecha
+  límite de corrección") — así queda visible que hay una corrección
+  pendiente y atrasada, sin necesitar un reporte aparte.
+- También se puede poner, opcionalmente, el **%** que esa actividad
+  vale sobre la nota final de la materia — lo usa el Plan de Notas de
+  abajo para el promedio ponderado.
+
+**Plan de Notas — mismo dato, dos vistas distintas según quién mira**
+(`api/plan_notas.php`, nueva sección en el menú de ambos portales):
+
+- **Profesor** (`portal_docente.php` → Plan de Notas): elegís una
+  materia y aparece la planilla completa — una fila por alumno, una
+  columna por actividad con su nota, y una columna final de "Promedio
+  ponderado" calculada con los % de cada actividad. Es la única vista
+  de todo el portal del docente que calcula un promedio a partir de
+  varias notas sueltas.
+- **Alumno** (`portal_alumno.php` → Plan de Notas): un acordeón por
+  materia que, al abrirse, muestra la misma lista de actividades
+  (fecha límite, % que vale) pero **sin ningún número de nota ni
+  promedio** — solo el estado (Entregada / Entregada tarde / Pendiente
+  / Vencida). Es intencional: si el alumno pudiera ver sus notas sueltas
+  y promediarlas él mismo, en la práctica se armaría su propia
+  constancia de notas sin pagarla en administración (ver "Constancias,
+  Boletín y Récord Académico" más arriba) — las notas definitivas
+  siguen viéndose solo en "Calificaciones" (`nota_final`, la que cierra
+  administración/el profesor) y en los trámites pagos.
+- `api/plan_notas.php` separa esto por `accion` (`docente` vs
+  `alumno`) en el propio backend, no solo escondiendo una columna en el
+  frontend — la acción `alumno` ni siquiera consulta la columna `nota`
+  de `entregas`, así que no hay manera de que ese número viaje por la
+  red hacia el navegador del alumno aunque alguien mire las respuestas
+  de la red con las herramientas del navegador.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

@@ -73,12 +73,12 @@ $ws_token = ws_enabled() ? ws_token_for_materias($con, $user_id, $_SESSION['rol'
 
 // Obtener entregas
 if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
-    $query_entregas = "SELECT e.*, t.titulo as tarea_titulo, t.nota_maxima, a.nombre as alumno_nombre, a.apellido as alumno_apellido, m.nombre as materia_nombre 
+    $query_entregas = "SELECT e.*, t.titulo as tarea_titulo, t.nota_maxima, t.fecha_limite_correccion, a.nombre as alumno_nombre, a.apellido as alumno_apellido, m.nombre as materia_nombre
                      FROM entregas e JOIN tareas t ON e.tarea_id = t.id JOIN materias m ON t.materia_id = m.id JOIN alumnos a ON e.alumno_id = a.id
                      ORDER BY e.fecha_entrega DESC";
     $stmt_e = mysqli_prepare($con, $query_entregas);
 } else {
-    $query_entregas = "SELECT e.*, t.titulo as tarea_titulo, t.nota_maxima, a.nombre as alumno_nombre, a.apellido as alumno_apellido, m.nombre as materia_nombre 
+    $query_entregas = "SELECT e.*, t.titulo as tarea_titulo, t.nota_maxima, t.fecha_limite_correccion, a.nombre as alumno_nombre, a.apellido as alumno_apellido, m.nombre as materia_nombre
                      FROM entregas e JOIN tareas t ON e.tarea_id = t.id JOIN materias m ON t.materia_id = m.id JOIN alumnos a ON e.alumno_id = a.id
                      JOIN materia_docente md ON m.id = md.materia_id WHERE md.docente_id = ? ORDER BY e.fecha_entrega DESC";
     $stmt_e = mysqli_prepare($con, $query_entregas);
@@ -283,6 +283,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button data-tour="nav-entregas" onclick="switchView('entregas', this)" class="sb-link">
                 <i class="fas fa-pencil-alt"></i> <span class="sb-lbl">Cargar Notas</span>
             </button>
+            <button data-tour="nav-plan-notas" onclick="switchView('plan-notas', this)" class="sb-link">
+                <i class="fas fa-table-list"></i> <span class="sb-lbl">Plan de Notas</span>
+            </button>
             <button data-tour="nav-chat" onclick="switchView('chat', this)" class="sb-link">
                 <i class="fas fa-comments"></i> <span class="sb-lbl">Foros de Clase</span>
             </button>
@@ -460,6 +463,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <?php foreach($entregas as $e):
                     $tieneNota = $e['nota'] !== null;
                     $aprobada  = $tieneNota && (float)$e['nota'] >= 15;
+                    $vencidaSinCalificar = !$tieneNota && !empty($e['fecha_limite_correccion']) && strtotime($e['fecha_limite_correccion']) < time();
                 ?>
                     <!-- Tarjeta con data-estado para facilitar el filtro -->
                     <div class="card entrega-card" id="entrega-card-<?= $e['id'] ?>" data-estado="<?= $tieneNota ? 'calificada' : 'pendiente' ?>" data-alumno="<?= htmlspecialchars($e['alumno_nombre'].' '.$e['alumno_apellido'], ENT_QUOTES) ?>" data-tarea="<?= htmlspecialchars($e['tarea_titulo'], ENT_QUOTES) ?>" style="border-left: 4px solid <?= !$tieneNota ? 'var(--amber)' : ($aprobada ? 'var(--lime2)' : 'var(--red)') ?>;<?= $tieneNota ? ' opacity: 0.9;' : '' ?>">
@@ -474,6 +478,11 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                                     <?php endif; ?>
                                 </span>
                             </div>
+                            <?php if($vencidaSinCalificar): ?>
+                            <div style="background: rgba(220,38,38,.08); border: 1px solid var(--red); border-radius: 8px; padding: .5rem .7rem; font-size: .75rem; color: var(--red); font-weight: 700; margin-bottom: .8rem;">
+                                <i class="fas fa-triangle-exclamation"></i> Venció tu fecha límite de corrección — calificala cuanto antes.
+                            </div>
+                            <?php endif; ?>
 
                             <h3 style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--ink); margin-bottom:.3rem;"><?= htmlspecialchars($e['tarea_titulo']) ?></h3>
                             <p style="font-size:.8rem; color:var(--muted); margin-bottom: 1rem;">
@@ -516,6 +525,32 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     <p style="color: var(--muted); font-size: .9rem;">No hay entregas registradas aún.</p>
                 </div>
                 <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VISTA: PLAN DE NOTAS                           -->
+        <!-- ============================================== -->
+        <div id="view-plan-notas" class="view-section">
+            <div style="margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);">
+                <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink);">Plan de Notas</h2>
+                <p style="font-size:.85rem;color:var(--muted);margin-top:.2rem;">Todas las actividades de una materia con su % y la nota de cada alumno — el promedio ponderado se calcula solo.</p>
+            </div>
+
+            <div class="field" style="max-width:420px;margin-bottom:1.2rem;">
+                <label>Materia</label>
+                <select id="pnMateria" onchange="cargarPlanNotas()">
+                    <option value="">— Seleccionar materia —</option>
+                    <?php foreach($materias as $m): ?>
+                    <option value="<?=$m['id']?>"><?=htmlspecialchars(($m['codigo']??'').' · '.$m['nombre'])?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="card">
+                <div class="tbl-wrap">
+                    <div id="pnContenedor" style="padding:2rem;text-align:center;color:var(--muted);">Elegí una materia para ver su plan de notas.</div>
+                </div>
             </div>
         </div>
 
@@ -1050,9 +1085,18 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <label>Instrucciones / Descripción</label>
                             <textarea name="descripcion" rows="3" placeholder="Instrucciones para los alumnos..."></textarea>
                         </div>
+                        <div class="field">
+                            <label>Fecha Límite de Entrega (alumno)</label>
+                            <input type="datetime-local" name="fecha_limite" id="nt-fecha-entrega" required onchange="validarFechasNuevaTarea()">
+                        </div>
+                        <div class="field">
+                            <label>Fecha Límite de Corrección (vos)</label>
+                            <input type="datetime-local" name="fecha_limite_correccion" id="nt-fecha-correccion" required onchange="validarFechasNuevaTarea()">
+                        </div>
+                        <p id="nt-fechas-error" style="display:none;grid-column:1/-1;margin:0;color:var(--red);font-size:.8rem;">La fecha de corrección debe ser posterior a la de entrega.</p>
                         <div class="field field-full">
-                            <label>Fecha Límite (Entrega)</label>
-                            <input type="datetime-local" name="fecha_limite" required>
+                            <label>% de la nota final de la materia (opcional)</label>
+                            <input type="number" name="porcentaje" min="0" max="100" step="1" placeholder="Ej. 20 — se usa en el Plan de Notas">
                         </div>
                         <input type="hidden" name="nota_maxima" value="20">
                     </div>
@@ -1366,8 +1410,20 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             }
         }
 
+        // La corrección siempre tiene que quedar después de la entrega —
+        // si no, no habría margen para que el profesor revise nada.
+        function validarFechasNuevaTarea() {
+            const ent = document.getElementById('nt-fecha-entrega').value;
+            const cor = document.getElementById('nt-fecha-correccion').value;
+            const err = document.getElementById('nt-fechas-error');
+            const invalido = ent && cor && new Date(cor) <= new Date(ent);
+            err.style.display = invalido ? 'block' : 'none';
+            return !invalido;
+        }
+
         function submitNuevaTarea(e) {
-            e.preventDefault(); 
+            e.preventDefault();
+            if (!validarFechasNuevaTarea()) { Ibbs.warn('Revisá las fechas límite antes de publicar.'); return; }
             const form = e.target; const btn = form.querySelector('button[type="submit"]');
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo...';
 
@@ -2056,6 +2112,75 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 </div>`).join('');
         }
 
+        // ── PLAN DE NOTAS — planilla de la materia: cada alumno, cada
+        // actividad, su nota, y el promedio ponderado por el % de cada
+        // una (api/plan_notas.php, acción "docente"). Es la única vista
+        // de este portal que calcula y muestra un promedio — el alumno
+        // ve esta misma info pero sin ningún número de nota (ver
+        // api/plan_notas.php para la razón: evitar que se arme su
+        // propia constancia sin pagarla en administración). ──────────
+        function hPN(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+        async function cargarPlanNotas() {
+            const mid = document.getElementById('pnMateria').value;
+            const cont = document.getElementById('pnContenedor');
+            if (!mid) { cont.innerHTML = 'Elegí una materia para ver su plan de notas.'; return; }
+            cont.innerHTML = '<span class="spin"></span>';
+            const fd = new FormData(); fd.append('accion', 'docente'); fd.append('materia_id', mid);
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            let d;
+            try {
+                const r = await fetch('api/plan_notas.php', { method: 'POST', body: fd });
+                d = await r.json();
+            } catch (e) { cont.innerHTML = '<p style="color:var(--red);padding:1rem;">Error de conexión.</p>'; return; }
+            if (!d.ok) { cont.innerHTML = `<p style="color:var(--red);padding:1rem;">${hPN(d.msg || 'Error al cargar.')}</p>`; return; }
+
+            const { tareas, alumnos, notas } = d.data;
+            if (!alumnos.length) { cont.innerHTML = '<p style="padding:1rem;color:var(--muted);">Esta materia todavía no tiene alumnos inscritos.</p>'; return; }
+            if (!tareas.length) { cont.innerHTML = '<p style="padding:1rem;color:var(--muted);">Esta materia todavía no tiene actividades creadas.</p>'; return; }
+
+            const sumaPorcentajes = tareas.reduce((s, t) => s + (parseFloat(t.porcentaje) || 0), 0);
+
+            let html = '<table><thead><tr><th style="text-align:left;">Alumno</th>';
+            tareas.forEach(t => {
+                const pct = t.porcentaje !== null ? `${parseFloat(t.porcentaje)}%` : 'sin %';
+                html += `<th style="text-align:center;min-width:110px;" title="${hPN(t.titulo)}">${hPN(t.titulo.length > 16 ? t.titulo.substring(0,16)+'…' : t.titulo)}<br><span style="font-weight:400;color:var(--muted);font-size:.68rem;">${pct}</span></th>`;
+            });
+            html += '<th style="text-align:center;">Promedio ponderado</th></tr></thead><tbody>';
+
+            alumnos.forEach(a => {
+                html += `<tr><td style="text-align:left;font-weight:700;">${hPN(a.apellido)}, ${hPN(a.nombre)}</td>`;
+                let sumaPonderada = 0, pesoEvaluado = 0;
+                tareas.forEach(t => {
+                    const reg = (notas[a.id] && notas[a.id][t.id]) || null;
+                    const nota = reg ? parseFloat(reg.nota) : null;
+                    if (nota === null || isNaN(nota)) {
+                        html += '<td style="text-align:center;color:var(--muted);">—</td>';
+                    } else {
+                        const color = nota >= 15 ? 'var(--lime2)' : 'var(--red)';
+                        html += `<td style="text-align:center;font-weight:700;color:${color};">${nota}</td>`;
+                        const peso = parseFloat(t.porcentaje) || 0;
+                        sumaPonderada += nota * peso;
+                        pesoEvaluado += peso;
+                    }
+                });
+                const promedio = pesoEvaluado > 0 ? (sumaPonderada / pesoEvaluado).toFixed(1) : null;
+                if (promedio === null) {
+                    html += '<td style="text-align:center;color:var(--muted);">Sin notas aún</td>';
+                } else {
+                    const color = promedio >= 15 ? 'var(--lime2)' : 'var(--red)';
+                    html += `<td style="text-align:center;font-weight:700;color:${color};">${promedio} / 20</td>`;
+                }
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+
+            if (sumaPorcentajes !== 100 && sumaPorcentajes !== 0) {
+                html = `<div style="padding:.7rem 1.2rem;background:rgba(217,119,6,.08);color:var(--amber);font-size:.78rem;font-weight:600;border-bottom:1px solid var(--border);"><i class="fas fa-triangle-exclamation"></i> Los % de las actividades suman ${sumaPorcentajes}% (debería sumar 100%) — el promedio de arriba se calcula igual, mejor pero conviene revisar los %.</div>` + html;
+            }
+            cont.innerHTML = html;
+        }
+
         // ── Tutorial guiado (manual intuitivo del docente) ─────────
         window.IBBS_TOUR_DOCENTE = {
             storageKey: 'ibbs_tour_docente_v2',
@@ -2065,6 +2190,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Subí el material de cada materia (documentos, presentaciones, videos, clases grabadas o en vivo) para que tus alumnos lo vean cuando quieran.' },
                 { selector: '[data-tour="nav-asistencia"]', title: 'Asistencia por Foto', text: 'Subí la foto de la hoja de asistencia en papel de tu clase — el sistema la lee y precarga la tabla de presentes/ausentes, vos la revisás y confirmás.' },
                 { selector: '[data-tour="nav-entregas"]', title: 'Cargar Notas', text: 'Revisá las tareas que entregaron tus alumnos, dejales una observación si hace falta y cargá la calificación — la ven reflejada al instante en su portal.' },
+                { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'La planilla completa de una materia: cada alumno, cada actividad con su %, y el promedio ponderado — solo vos ves los números acá, tus alumnos ven la misma lista de actividades pero sin ninguna nota.' },
                 { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Respondé las dudas de tus alumnos sobre cada materia y compartí avisos importantes del curso.' },
                 { selector: '[data-tour="nav-chat-staff"]', title: 'Chat del Staff', text: 'Canal privado para coordinar con administración y otros docentes de la institución, sin depender de ninguna materia en particular.' },
                 { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Subí tus propios libros, gratuitos o de pago, con portada y descripción — aparecen automáticamente en el catálogo que ven tus alumnos.' },

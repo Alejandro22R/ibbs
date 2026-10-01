@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 16);
+define('IBBS_SCHEMA_VERSION', 17);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -181,6 +181,13 @@ if (!function_exists('ibbs_autoheal_schema')) {
             // profesor junto con la nota (felicitar, corregir, o
             // simplemente una observación) — ver calificar_entrega.php.
             "ALTER TABLE `entregas` ADD COLUMN IF NOT EXISTS `observacion` TEXT DEFAULT NULL AFTER `nota`",
+            // 017_tareas_correccion_porcentaje.sql — fecha límite propia
+            // para que el profesor corrija (separada de la fecha límite
+            // de entrega del alumno) y el % que esa actividad vale sobre
+            // la nota final de la materia — ver crear_tarea.php y el
+            // "Plan de Notas" (api/plan_notas.php).
+            "ALTER TABLE `tareas` ADD COLUMN IF NOT EXISTS `fecha_limite_correccion` DATETIME DEFAULT NULL AFTER `fecha_limite`",
+            "ALTER TABLE `tareas` ADD COLUMN IF NOT EXISTS `porcentaje` DECIMAL(5,2) DEFAULT NULL AFTER `nota_maxima`",
         ];
 
         foreach ($ddl as $sql) {

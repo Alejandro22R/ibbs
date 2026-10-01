@@ -26,12 +26,27 @@ $materia_id   = (int)($_POST['materia_id'] ?? 0);
 $titulo       = trim($_POST['titulo'] ?? '');
 $descripcion  = trim($_POST['descripcion'] ?? '');
 $fecha_limite = $_POST['fecha_limite'] ?? '';
+$fecha_limite_correccion = $_POST['fecha_limite_correccion'] ?? '';
+$porcentaje_raw = trim($_POST['porcentaje'] ?? '');
+$porcentaje   = $porcentaje_raw === '' ? null : (float)$porcentaje_raw;
 // Escala fija de 0 a 20 en todo el sistema — no se deja configurar por tarea.
 $nota_maxima  = 20;
 
 // Validación de campos requeridos
-if (!$materia_id || empty($titulo) || empty($fecha_limite)) {
-    echo json_encode(['ok' => false, 'msg' => 'Por favor completa todos los campos obligatorios (Materia, Título y Fecha límite).']);
+if (!$materia_id || empty($titulo) || empty($fecha_limite) || empty($fecha_limite_correccion)) {
+    echo json_encode(['ok' => false, 'msg' => 'Por favor completa todos los campos obligatorios (Materia, Título, Fecha límite de entrega y Fecha límite de corrección).']);
+    exit;
+}
+
+// La fecha límite de corrección (del profesor) tiene que dejar margen
+// después de la fecha límite de entrega (del alumno) — nunca antes ni
+// al mismo tiempo, porque no habría tiempo para revisar nada.
+if (strtotime($fecha_limite_correccion) <= strtotime($fecha_limite)) {
+    echo json_encode(['ok' => false, 'msg' => 'La fecha límite de corrección debe ser posterior a la fecha límite de entrega.']);
+    exit;
+}
+if ($porcentaje !== null && ($porcentaje < 0 || $porcentaje > 100)) {
+    echo json_encode(['ok' => false, 'msg' => 'El porcentaje debe estar entre 0 y 100.']);
     exit;
 }
 
@@ -70,8 +85,8 @@ if (isset($_FILES['archivo']) && $_FILES['archivo']['error'] === UPLOAD_ERR_OK) 
     }
 }
 
-$stmt = mysqli_prepare($con, "INSERT INTO tareas (materia_id, titulo, descripcion, archivo, fecha_limite, nota_maxima) VALUES (?, ?, ?, ?, ?, ?)");
-mysqli_stmt_bind_param($stmt, "issssd", $materia_id, $titulo, $descripcion, $archivo_nombre, $fecha_limite, $nota_maxima);
+$stmt = mysqli_prepare($con, "INSERT INTO tareas (materia_id, titulo, descripcion, archivo, fecha_limite, fecha_limite_correccion, nota_maxima, porcentaje) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+mysqli_stmt_bind_param($stmt, "isssssdd", $materia_id, $titulo, $descripcion, $archivo_nombre, $fecha_limite, $fecha_limite_correccion, $nota_maxima, $porcentaje);
 
 if (mysqli_stmt_execute($stmt)) {
     log_audit($con, $uid, 'TAREA_CREAR', "materia=$materia_id titulo=".mb_substr($titulo,0,80));

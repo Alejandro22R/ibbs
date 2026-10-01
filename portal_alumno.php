@@ -322,6 +322,9 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             <button data-tour="nav-notas" onclick="switchView('notas', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-chart-line w-5 text-center"></i> <span class="font-medium text-sm">Calificaciones</span>
             </button>
+            <button data-tour="nav-plan-notas" onclick="switchView('plan-notas', this); cargarPlanNotasAlumno();" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <i class="fas fa-list-check w-5 text-center"></i> <span class="font-medium text-sm">Plan de Notas</span>
+            </button>
             <button data-tour="nav-constancias" onclick="switchView('constancias', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-file-signature w-5 text-center"></i> <span class="font-medium text-sm">Constancias</span>
             </button>
@@ -677,6 +680,33 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 </div>
             </div>
 
+            <!-- VISTA: PLAN DE NOTAS -->
+            <div id="view-plan-notas" class="view-section hidden space-y-5">
+                <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
+                    <h2 class="text-2xl font-serif text-ibbs-ink">Plan de Notas y Trabajos</h2>
+                </div>
+                <p class="text-sm text-ibbs-muted -mt-2">Todas las actividades de cada materia, con su fecha límite y cuánto vale — para que sepas qué te falta entregar. Las calificaciones las vas a ver en "Calificaciones" una vez que cierre el período.</p>
+
+                <div class="space-y-3" id="planNotasAcordeon">
+                    <?php foreach($materias as $m): ?>
+                    <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden">
+                        <button type="button" onclick="togglePlanNotas(<?= $m['id'] ?>, this)" class="w-full flex items-center justify-between px-5 py-4 text-left font-bold text-ibbs-ink">
+                            <span><?= htmlspecialchars(($m['codigo'] ?? '').' | '.$m['nombre']) ?></span>
+                            <i class="fas fa-chevron-down text-ibbs-muted text-sm transition-transform"></i>
+                        </button>
+                        <div id="pnBody-<?= $m['id'] ?>" class="hidden px-5 pb-4">
+                            <div class="text-center text-ibbs-muted text-sm py-4" id="pnLoad-<?= $m['id'] ?>"><span class="inline-block"><i class="fas fa-spinner fa-spin"></i></span></div>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php if(empty($materias)): ?>
+                    <div class="p-8 text-center bg-ibbs-paper rounded-[14px] border border-dashed border-ibbs-border">
+                        <p class="text-ibbs-muted text-sm">Todavía no estás inscrito en ninguna materia.</p>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+
             <!-- VISTA: AULA VIRTUAL -->
             <div id="view-aula" class="view-section hidden space-y-5">
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
@@ -930,6 +960,69 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 document.body.appendChild(piece);
                 piece.addEventListener('animationend', () => piece.remove());
             }
+        }
+
+        // ── PLAN DE NOTAS — lista de actividades por materia, SIN
+        // ninguna nota (eso solo lo ve el profesor en su propio Plan de
+        // Notas — ver api/plan_notas.php). Acá solo importa saber qué
+        // hay que entregar, para cuándo, y si ya se entregó o se venció.
+        const _pnCargadas = {};
+        function hPNAl(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+        function cargarPlanNotasAlumno() { /* las materias ya están en el acordeón; cada una carga sus actividades al abrirse */ }
+
+        function togglePlanNotas(materiaId, btn) {
+            const body = document.getElementById('pnBody-' + materiaId);
+            const icon = btn.querySelector('i');
+            const abrir = body.classList.contains('hidden');
+            body.classList.toggle('hidden');
+            icon.style.transform = abrir ? 'rotate(180deg)' : 'rotate(0deg)';
+            if (abrir && !_pnCargadas[materiaId]) {
+                _pnCargadas[materiaId] = true;
+                cargarActividadesMateria(materiaId);
+            }
+        }
+
+        const ESTADO_LBL = {
+            entregada: { txt: 'Entregada', cls: 'bg-ibbs-green/10 text-ibbs-green', icon: 'fa-check' },
+            entregada_tarde: { txt: 'Entregada tarde', cls: 'bg-ibbs-amber/10 text-ibbs-amber', icon: 'fa-clock' },
+            pendiente: { txt: 'Pendiente', cls: 'bg-ibbs-amber/10 text-ibbs-amber', icon: 'fa-hourglass-half' },
+            vencida: { txt: 'Vencida — ya no se puede entregar', cls: 'bg-ibbs-red/10 text-ibbs-red', icon: 'fa-triangle-exclamation' },
+        };
+
+        async function cargarActividadesMateria(materiaId) {
+            const body = document.getElementById('pnBody-' + materiaId);
+            const fd = new FormData(); fd.append('accion', 'alumno'); fd.append('materia_id', materiaId);
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            let d;
+            try {
+                const r = await fetch('api/plan_notas.php', { method: 'POST', body: fd });
+                d = await r.json();
+            } catch (e) { body.innerHTML = '<p class="text-sm text-ibbs-red">Error de conexión.</p>'; return; }
+            if (!d.ok) { body.innerHTML = `<p class="text-sm text-ibbs-red">${hPNAl(d.msg || 'Error al cargar.')}</p>`; return; }
+
+            const actividades = d.data.actividades;
+            if (!actividades.length) { body.innerHTML = '<p class="text-sm text-ibbs-muted py-2">Todavía no hay actividades cargadas en esta materia.</p>'; return; }
+
+            body.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse">
+                <thead><tr class="text-ibbs-muted border-b border-ibbs-border">
+                    <th class="py-2 pr-2 font-bold uppercase tracking-wider">Actividad</th>
+                    <th class="py-2 px-2 font-bold uppercase tracking-wider">Fecha límite</th>
+                    <th class="py-2 px-2 font-bold uppercase tracking-wider text-center">%</th>
+                    <th class="py-2 pl-2 font-bold uppercase tracking-wider text-right">Estado</th>
+                </tr></thead>
+                <tbody class="divide-y divide-ibbs-border">
+                ${actividades.map(a => {
+                    const e = ESTADO_LBL[a.estado] || ESTADO_LBL.pendiente;
+                    const fecha = new Date(a.fecha_limite).toLocaleString('es-VE', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+                    return `<tr>
+                        <td class="py-2.5 pr-2 font-bold text-ibbs-ink">${hPNAl(a.titulo)}</td>
+                        <td class="py-2.5 px-2 text-ibbs-muted">${fecha}</td>
+                        <td class="py-2.5 px-2 text-center text-ibbs-muted">${a.porcentaje !== null ? parseFloat(a.porcentaje) + '%' : '—'}</td>
+                        <td class="py-2.5 pl-2 text-right"><span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full font-bold ${e.cls}"><i class="fas ${e.icon}"></i> ${e.txt}</span></td>
+                    </tr>`;
+                }).join('')}
+                </tbody></table></div>`;
         }
 
         // Lógica de vistas y modal conservada pero con colores ajustados
@@ -1392,6 +1485,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 { selector: '[data-tour="nav-tareas"]', title: 'Tareas', text: 'Subí tus trabajos y tareas antes de la fecha límite adjuntando el archivo pedido. El número en rojo te avisa cuántas tenés pendientes por entregar; una vez el profesor la revise, la nota aparece junto a la tarea.' },
                 { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Espacio de preguntas y respuestas por cada materia: escribile a tu profesor o a tus compañeros si tenés dudas sobre un tema de clase.' },
                 { selector: '[data-tour="nav-notas"]', title: 'Calificaciones', text: 'Consultá tus notas por materia y por corte apenas el profesor las publique, sin tener que esperar el boletín oficial.' },
+                { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'Mirá todas las actividades de cada materia, su fecha límite y cuánto vale, para no perderte de nada — las notas en sí las ves en "Calificaciones".' },
                 { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Solicitá tus constancias de estudio, notas o récord académico, adjuntando el comprobante de pago cuando corresponda. Desde acá seguís el estado de tu trámite y descargás el documento cuando esté listo.' },
                 { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explorá los libros que tus profesores fueron subiendo: los gratuitos se descargan directo, y en los de pago te vamos a pedir tu comprobante antes de darte acceso.' },
                 { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tu foto, tus datos personales y tu contraseña. Al escribir una contraseña en cualquier parte del sistema vas a ver un ícono de ojo al lado — tocalo si querés revisar lo que escribiste antes de guardar.' },

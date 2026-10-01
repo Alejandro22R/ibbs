@@ -40,7 +40,7 @@ if (!$tarea_id) {
 
 // La tarea tiene que existir y el alumno tiene que estar inscrito en su
 // materia — si no, no puede haber recibido esa tarea nunca.
-$tInfo = mysqli_fetch_assoc(mysqli_query($con, "SELECT materia_id FROM tareas WHERE id=".(int)$tarea_id." LIMIT 1"));
+$tInfo = mysqli_fetch_assoc(mysqli_query($con, "SELECT materia_id, fecha_limite FROM tareas WHERE id=".(int)$tarea_id." LIMIT 1"));
 if (!$tInfo) {
     echo json_encode(['ok' => false, 'msg' => 'La tarea no existe.']);
     exit;
@@ -48,6 +48,14 @@ if (!$tInfo) {
 $inscrito = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materia_alumno WHERE materia_id=".(int)$tInfo['materia_id']." AND alumno_id=".(int)$alumno_id." LIMIT 1"));
 if (!$inscrito) {
     echo json_encode(['ok' => false, 'msg' => 'No estás inscrito en la materia de esta tarea.']);
+    exit;
+}
+// Pasada la fecha límite, la actividad queda anulada para el alumno —
+// ya no se puede entregar ni actualizar una entrega existente. El
+// profesor decide después qué calificación poner (aprobado/reprobado)
+// al cargar la nota final de la materia.
+if (strtotime($tInfo['fecha_limite']) < time()) {
+    echo json_encode(['ok' => false, 'msg' => 'La fecha límite para entregar esta actividad ya pasó. Ya no se puede enviar ni modificar.']);
     exit;
 }
 
