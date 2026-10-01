@@ -282,8 +282,8 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         <div class="p-6 border-b border-white/10 relative z-10">
             <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-ibbs-lime text-ibbs-ink flex items-center justify-center text-xl font-serif font-bold shadow-[0_0_15px_rgba(57,255,20,0.25)] overflow-hidden">
-                    <?php if(!empty($alumno['foto_perfil'])): ?>
-                        <img src="uploads/perfiles/<?= htmlspecialchars($alumno['foto_perfil']) ?>" alt="Foto" class="w-full h-full object-cover">
+                    <?php if(!empty($alumno['foto'])): ?>
+                        <img src="<?= htmlspecialchars($alumno['foto']) ?>" alt="Foto" class="w-full h-full object-cover">
                     <?php else: ?>
                         <?= htmlspecialchars($inicial) ?>
                     <?php endif; ?>

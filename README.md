@@ -1421,6 +1421,73 @@ guardaba desde que existe la entrega de tareas — lo que faltaba era
 tenerlo a mano en esta vista agrupada nueva, no un mecanismo de guardado
 aparte.)
 
+## Control del administrador sobre notas, búsqueda por nombre y fotos de perfil que no se guardaban
+
+Tres pedidos juntos: consolidar el control de notas del administrador
+(estaba repartido en varios archivos), poder buscar a un alumno por
+nombre en vez de solo por cédula, y un bug de fotos de perfil que no
+persistían al refrescar.
+
+**Notas de la materia, todo en un solo lugar.** El administrador ya
+tenía forma de gestionar notas, pero repartida en tres herramientas
+distintas (`modulo_notas.php`, `modulo_inscripciones.php` y
+`modulo_buscar.php`), cada una con su propio flujo y sin relación
+visible con la ficha de la materia. Ahora `modulo_materias.php` tiene
+una pestaña nueva, **Calificaciones**, dentro del propio modal de
+editar materia: al entrar a una materia se ve de una vez el promedio
+general, cuántos alumnos aprobaron/reprobaron, la nota final que puso
+el profesor por alumno (editable ahí mismo, reutilizando las mismas
+acciones `nota_guardar`/`nota_borrar` de siempre) y el Plan de Notas
+completo de esa materia — qué actividades hay, quién entregó, quién
+está calificado y cómo le fue a cada quien, usando el mismo
+`api/plan_notas.php` que ya usa el profesor. No se tocó el backend de
+permisos: como admin/superadmin ya pasan `materia_puede_gestionar` sin
+restricción, todo esto se arma reutilizando endpoints existentes.
+`modulo_notas.php` y `modulo_inscripciones.php` se dejaron intactos a
+propósito — `modulo_notas.php` sigue siendo la vía de acceso del rol
+`profesor`, que no entra al modal de materias del admin.
+
+**Buscar alumno/docente por nombre.** `modulo_buscar.php` solo
+aceptaba cédula exacta. Se agregó búsqueda en vivo por nombre, apellido
+o cédula (`buscar_personas` en `api/ajax.php`, con debounce de 300ms en
+el front), que muestra una lista de coincidencias para elegir cuando
+hay varias personas con nombres parecidos. Al elegir una, se trae el
+perfil completo (`persona_detalle`): para un alumno, sus materias
+inscritas con nota final, promedio, aprobadas/reprobadas y asistencias;
+para un docente, las materias que dicta y sus asistencias. De paso se
+corrigieron dos bugs reales de la versión anterior: la tabla de
+"Calificaciones" leía un campo `notas` que el backend nunca devolvía
+(siempre aparecía vacía) y el umbral de aprobación usaba una escala de
+0 a 10 (`>=6`) en vez de la escala real de esta app, que es de 0 a 20
+con aprobado desde 15. Ahora además, desde el perfil de un alumno se
+puede entrar al Plan de Notas de cada materia inscrita (actividad por
+actividad, con su nota), sin tener que salir a buscarlo en otro lado.
+
+**Foto de perfil que "se guardaba" pero desaparecía al refrescar.**
+Encontramos dos causas distintas:
+
+- En `portal_alumno.php`, el avatar del sidebar leía un campo que no
+  existe (`foto_perfil`, cuando la columna real es `foto`) con un
+  prefijo de ruta equivocado (`uploads/perfiles/`, cuando la ruta real
+  que guarda `actualizar_perfil.php` es `uploads/fotos/...` completa).
+  La sección "Mi Perfil" del mismo archivo ya usaba el campo correcto,
+  así que el avatar del sidebar quedó alineado con eso.
+- En `layout/head.php` (usado por docente/admin/superadmin) y en
+  `modulo_perfil.php`, el avatar solo se mostraba si
+  `file_exists($ruta)` pasaba, además del campo guardado en sesión/BD.
+  Esa doble condición es innecesaria — si la foto está guardada, hay
+  que mostrarla — y en el servidor real puede fallar por permisos o
+  rutas que no coinciden exactamente con las del entorno de pruebas,
+  dejando la foto "invisible" aunque sí se haya guardado. Se quitó esa
+  verificación extra en ambos archivos.
+
+No se pudo reproducir un bug distinto y adicional específico de
+docente en `portal_docente.php`: su flujo de subida y lectura de foto
+(columna `usuarios.foto`, sin verificación de archivo de por medio) ya
+estaba correcto. Es posible que lo que se vio allí sea el mismo bug de
+`layout/head.php` si esa cuenta llegó a pasar por una página de admin,
+o el de `modulo_perfil.php` si se usó para editar el perfil.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

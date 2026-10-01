@@ -139,7 +139,7 @@ function can($perm){
   </ul>
   <div class="sb-bottom">
     <a href="modulo_perfil.php" class="sb-action" style="text-decoration:none;">
-      <?php if($_foto && file_exists(__DIR__.'/'.$_foto)): ?>
+      <?php if($_foto): ?>
         <img src="<?=htmlspecialchars($_foto)?>" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;">
       <?php else: ?>
         <i class="bx bx-user-circle"></i>
@@ -195,7 +195,7 @@ function can($perm){
     </div>
   </div>
   <div class="user-pill">
-    <?php if($_foto && file_exists(__DIR__.'/'.$_foto)): ?>
+    <?php if($_foto): ?>
       <img src="<?=htmlspecialchars($_foto)?>" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
     <?php else: ?>
       <div class="user-ava"><?=$_ini?></div>

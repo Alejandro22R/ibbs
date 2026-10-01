@@ -621,6 +621,50 @@ if($action==='asistencia_list'){
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
 
+// ════ BÚSQUEDA POR NOMBRE (modulo_buscar.php) ══════════════════
+// Devuelve una lista corta de coincidencias (alumno o docente) para
+// que el admin elija cuál ver — antes solo se podía buscar por cédula
+// exacta, y había que saberla de memoria.
+if($action==='buscar_personas'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $q=trim($_POST['q']??'');
+    if(mb_strlen($q)<2){echo json_encode(['ok'=>true,'data'=>[]]);exit;}
+    $qe='%'.esc($con,$q).'%';
+    $resultados=[];
+    $ra=mysqli_query($con,"SELECT id,nombre,apellido,cedula FROM alumnos
+        WHERE (nombre LIKE '$qe' OR apellido LIKE '$qe' OR cedula LIKE '$qe' OR CONCAT(nombre,' ',apellido) LIKE '$qe')
+        ORDER BY apellido,nombre LIMIT 15");
+    while($f=mysqli_fetch_assoc($ra)) { $f['tipo']='alumno'; $resultados[]=$f; }
+    $rd=mysqli_query($con,"SELECT id,nombre,apellido,cedula FROM docentes
+        WHERE (nombre LIKE '$qe' OR apellido LIKE '$qe' OR cedula LIKE '$qe' OR CONCAT(nombre,' ',apellido) LIKE '$qe')
+        ORDER BY apellido,nombre LIMIT 15");
+    while($f=mysqli_fetch_assoc($rd)) { $f['tipo']='docente'; $resultados[]=$f; }
+    echo json_encode(['ok'=>true,'data'=>$resultados]); exit;
+}
+// Mismo perfil completo que buscar_cedula, pero por id interno (ya
+// elegido de la lista de buscar_personas) en vez de cédula exacta.
+if($action==='persona_detalle'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $id=(int)($_POST['id']??0); $tipo=trim($_POST['tipo']??'');
+    if(!$id||!in_array($tipo,['alumno','docente'],true)){echo json_encode(['ok'=>false,'msg'=>'Datos inválidos.']);exit;}
+    if($tipo==='alumno'){
+        $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM alumnos WHERE id=$id LIMIT 1"));
+        if(!$f){echo json_encode(['ok'=>false,'msg'=>'Alumno no encontrado.']);exit;}
+        $rm=mysqli_query($con,"SELECT m.id,m.nombre,m.codigo,m.estado,ma.nota_final,ma.nota_fecha FROM materias m JOIN materia_alumno ma ON ma.materia_id=m.id WHERE ma.alumno_id=$id ORDER BY m.nombre");
+        $f['materias']=[]; while($m=mysqli_fetch_assoc($rm)) $f['materias'][]=$m;
+        $ra=mysqli_query($con,"SELECT estado,COUNT(*) cnt FROM asistencias WHERE alumno_id=$id AND tipo='alumno' GROUP BY estado");
+        $f['asistencias']=[]; while($a=mysqli_fetch_assoc($ra)) $f['asistencias'][$a['estado']]=(int)$a['cnt'];
+        echo json_encode(['ok'=>true,'tipo'=>'alumno','data'=>$f]); exit;
+    }
+    $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM docentes WHERE id=$id LIMIT 1"));
+    if(!$f){echo json_encode(['ok'=>false,'msg'=>'Docente no encontrado.']);exit;}
+    $rm=mysqli_query($con,"SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado FROM materias m JOIN materia_docente md ON md.materia_id=m.id WHERE md.docente_id=$id ORDER BY m.nombre");
+    $f['materias']=[]; while($m=mysqli_fetch_assoc($rm)) $f['materias'][]=$m;
+    $ra=mysqli_query($con,"SELECT estado,COUNT(*) cnt FROM asistencias WHERE docente_id=$id AND tipo='docente' GROUP BY estado");
+    $f['asistencias']=[]; while($a=mysqli_fetch_assoc($ra)) $f['asistencias'][$a['estado']]=(int)$a['cnt'];
+    echo json_encode(['ok'=>true,'tipo'=>'docente','data'=>$f]); exit;
+}
+
 // ════ BÚSQUEDA CÉDULA ══════════════════════════════════════════
 if($action==='buscar_cedula'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}

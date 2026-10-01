@@ -23,9 +23,8 @@ mysqli_close($con);
   <div class="card" style="text-align:center;">
     <div class="card-body">
       <div id="fotoWrap" style="position:relative;display:inline-block;margin-bottom:1.2rem;">
-        <?php $foto=$u['foto']?'../inicio/'.$u['foto']:null; ?>
         <div id="fotoCircle" style="width:110px;height:110px;border-radius:50%;overflow:hidden;background:var(--ink);display:flex;align-items:center;justify-content:center;margin:0 auto;border:3px solid var(--lime2);cursor:pointer;" onclick="document.getElementById('inputFoto').click()" title="Cambiar foto">
-          <?php if($foto && file_exists(__DIR__.'/'.$u['foto'])): ?>
+          <?php if(!empty($u['foto'])): ?>
             <img id="fotoImg" src="<?=htmlspecialchars($u['foto'])?>" style="width:100%;height:100%;object-fit:cover;">
           <?php else: ?>
             <span id="fotoIni" style="font-family:'DM Serif Display',serif;font-size:2.5rem;color:var(--lime);"><?=strtoupper(mb_substr($u['usuario'],0,1))?></span>

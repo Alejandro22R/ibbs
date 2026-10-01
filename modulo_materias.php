@@ -88,6 +88,7 @@ if(!in_array($_rol,['superadmin','admin'])){
         <button class="tab-btn active" data-tab-group="eM" data-tab="info" onclick="switchTab('eM','info')">Info</button>
         <button class="tab-btn" data-tab-group="eM" data-tab="doc" onclick="switchTab('eM','doc')">Docentes</button>
         <button class="tab-btn" data-tab-group="eM" data-tab="alu" onclick="switchTab('eM','alu')">Alumnos</button>
+        <button class="tab-btn" data-tab-group="eM" data-tab="cal" onclick="switchTab('eM','cal'); loadCalificacionesMateria();">Calificaciones</button>
       </div>
       
       <!-- Tab Info Básica -->
@@ -142,6 +143,44 @@ if(!in_array($_rol,['superadmin','admin'])){
           </table>
         </div>
       </div>
+
+      <!-- Tab Calificaciones — notas finales + Plan de Notas, todo en
+           un solo lugar en vez de tener que ir a otro módulo. -->
+      <div class="tab-pane" data-pane-group="eM" data-pane="cal">
+        <div id="calMateriaResumen" style="margin-bottom:1rem;"></div>
+        <div class="section-label" style="margin-bottom:.5rem;">NOTA FINAL POR ALUMNO</div>
+        <div class="tbl-wrap" style="margin-bottom:1.6rem;">
+          <table>
+            <thead><tr><th style="text-align:left;">Alumno</th><th style="text-align:center;">Nota final</th><th style="text-align:center;">Resultado</th><th style="width:90px;"></th></tr></thead>
+            <tbody id="tbCalAlumnos"><tr class="empty-row"><td colspan="4"><span class="spin"></span></td></tr></tbody>
+          </table>
+        </div>
+        <div class="section-label" style="margin-bottom:.5rem;">PLAN DE NOTAS (ACTIVIDADES DEL PROFESOR)</div>
+        <div id="calMateriaPlan" style="color:var(--muted);font-size:.85rem;">Cargando…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: editar nota final de un alumno, desde la pestaña Calificaciones -->
+<div class="modal-backdrop" id="mCalNotaFinal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-head">
+      <h3>Nota Final</h3>
+      <button class="modal-close" onclick="closeModal('mCalNotaFinal')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cnfAid">
+      <p id="cnfAlumnoNombre" style="font-weight:700;color:var(--ink);margin-bottom:1rem;text-align:center;"></p>
+      <div class="field" style="margin-bottom:1rem;">
+        <label>Calificación (0-20, aprueba con 15)</label>
+        <input type="number" id="cnfNota" min="0" max="20" step="0.1" style="font-size:1.8rem;text-align:center;font-weight:700;padding:1rem;">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger btn-sm" id="cnfBtnBorrar" style="margin-right:auto;" onclick="borrarNotaFinalMateria()">Borrar nota</button>
+      <button class="btn btn-secondary" onclick="closeModal('mCalNotaFinal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarNotaFinalMateria()">Guardar</button>
     </div>
   </div>
 </div>
@@ -294,6 +333,141 @@ function filtrarMaterias() {
     const matchC = !qC || tr.textContent.toLowerCase().includes(qC);
     tr.style.display = (matchN && matchC) ? '' : 'none';
   });
+}
+
+// ══════════════════════════════════════════════════════════════
+// PESTAÑA "CALIFICACIONES" — todo lo que antes vivía repartido entre
+// modulo_notas.php (nota final) y el Plan de Notas del propio profesor
+// (api/plan_notas.php), ahora junto acá adentro de la misma materia:
+// el administrador ve y gestiona (view + modify) sin tener que saltar
+// de módulo en módulo.
+// ══════════════════════════════════════════════════════════════
+function hCalM(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+async function loadCalificacionesMateria() {
+  if (!_mid) return;
+  await cargarNotasFinalesMateria();
+  await cargarPlanNotasMateria();
+}
+
+async function cargarNotasFinalesMateria() {
+  const resumen = document.getElementById('calMateriaResumen');
+  const tbody = document.getElementById('tbCalAlumnos');
+  resumen.innerHTML = '<span class="spin"></span>';
+  const d = await ajax('notas_tabla_materia', { materia_id: _mid });
+  if (!d?.ok) { resumen.innerHTML = `<p style="color:var(--red);">${hCalM(d?.msg || 'Error al cargar.')}</p>`; return; }
+
+  const { alumnos, aprobados, reprobados, sin } = d.data;
+  const conNota = alumnos.filter(a => a.nota_final !== null);
+  const promedio = conNota.length ? (conNota.reduce((s, a) => s + parseFloat(a.nota_final), 0) / conNota.length).toFixed(1) : '—';
+
+  resumen.innerHTML = `<div class="stats">
+    <div class="scard c1"><div><div class="scard-val">${alumnos.length}</div><div class="scard-key">Inscritos</div></div></div>
+    <div class="scard c3"><div><div class="scard-val">${aprobados}</div><div class="scard-key">Aprobados</div></div></div>
+    <div class="scard c4"><div><div class="scard-val">${reprobados}</div><div class="scard-key">Reprobados</div></div></div>
+    <div class="scard c2"><div><div class="scard-val">${sin}</div><div class="scard-key">Sin nota</div></div></div>
+    <div class="scard c1"><div><div class="scard-val">${promedio}</div><div class="scard-key">Promedio</div></div></div>
+  </div>`;
+
+  if (!alumnos.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Esta materia todavía no tiene alumnos inscritos.</td></tr>'; return; }
+  tbody.innerHTML = alumnos.map(a => {
+    const tieneNota = a.nota_final !== null;
+    const aprobada = tieneNota && parseFloat(a.nota_final) >= 15;
+    return `<tr>
+      <td style="text-align:left;font-weight:700;">${hCalM(a.apellido)}, ${hCalM(a.nombre)}</td>
+      <td style="text-align:center;font-family:'DM Serif Display',serif;font-size:1.1rem;color:${tieneNota ? (aprobada?'#16a34a':'#dc2626') : 'var(--muted)'};">${tieneNota ? parseFloat(a.nota_final).toFixed(1) : '—'}</td>
+      <td style="text-align:center;"><span class="badge ${!tieneNota ? '' : (aprobada?'b-presente':'b-ausente')}">${!tieneNota ? 'Sin nota' : (aprobada?'Aprobado':'Reprobado')}</span></td>
+      <td style="text-align:center;"><button class="btn btn-sm btn-secondary" onclick="abrirNotaFinalMateria(${a.id},'${hCalM(a.apellido+', '+a.nombre).replace(/'/g,"\\'")}',${tieneNota ? a.nota_final : 'null'})"><i class="bx bx-pencil"></i></button></td>
+    </tr>`;
+  }).join('');
+}
+
+function abrirNotaFinalMateria(alumnoId, nombre, notaActual) {
+  document.getElementById('cnfAid').value = alumnoId;
+  document.getElementById('cnfAlumnoNombre').textContent = nombre;
+  document.getElementById('cnfNota').value = notaActual !== null ? notaActual : '';
+  document.getElementById('cnfBtnBorrar').style.display = notaActual !== null ? 'inline-flex' : 'none';
+  openModal('mCalNotaFinal');
+}
+
+async function guardarNotaFinalMateria() {
+  const nota = parseFloat(document.getElementById('cnfNota').value);
+  if (isNaN(nota) || nota < 0 || nota > 20) { Ibbs.error('Ingresa una nota entre 0 y 20.'); return; }
+  const d = await ajax('nota_guardar', {
+    materia_id: _mid, alumno_id: document.getElementById('cnfAid').value,
+    nota, fecha: new Date().toISOString().slice(0,10),
+  });
+  if (d?.ok) { toast(d.msg); closeModal('mCalNotaFinal'); cargarNotasFinalesMateria(); }
+  else toast(d?.msg || 'Error', 'err');
+}
+
+async function borrarNotaFinalMateria() {
+  const rr = await Ibbs.confirm({title:'¿Borrar nota?', text:'Esta acción eliminará la nota final del alumno en esta materia.', confirm:'Sí, borrar', danger:true});
+  if (!rr.isConfirmed) return;
+  const d = await ajax('nota_borrar', { materia_id: _mid, alumno_id: document.getElementById('cnfAid').value });
+  if (d?.ok) { toast(d.msg); closeModal('mCalNotaFinal'); cargarNotasFinalesMateria(); }
+  else toast(d?.msg || 'Error', 'err');
+}
+
+// Plan de Notas (actividades del profesor) — mismo endpoint que ya usa
+// portal_docente.php; el admin ya tiene permiso sobre cualquier materia.
+async function cargarPlanNotasMateria() {
+  const cont = document.getElementById('calMateriaPlan');
+  cont.innerHTML = '<span class="spin"></span>';
+  const fd = new FormData(); fd.append('accion', 'docente'); fd.append('materia_id', _mid);
+  const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+  let d;
+  try {
+    const r = await fetch('api/plan_notas.php', { method: 'POST', body: fd });
+    d = await r.json();
+  } catch (e) { cont.innerHTML = '<p style="color:var(--red);">Error de conexión.</p>'; return; }
+  if (!d.ok) { cont.innerHTML = `<p style="color:var(--red);">${hCalM(d.msg || 'Error al cargar.')}</p>`; return; }
+
+  const { tareas, alumnos, notas, stats } = d.data;
+  if (!tareas.length) { cont.innerHTML = '<p style="color:var(--muted);">El profesor todavía no cargó ninguna actividad en esta materia.</p>'; return; }
+
+  const totalAlumnos = alumnos.length;
+  let resumen = '<div style="display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem;">';
+  tareas.forEach(t => {
+    const st = (stats && stats[t.id]) || { entregados: 0, calificados: 0 };
+    const pct = t.porcentaje !== null ? `${parseFloat(t.porcentaje)}%` : 'sin % asignado';
+    resumen += `<div style="padding:.6rem .8rem;border:1px solid var(--border);border-radius:8px;background:var(--cream);min-width:200px;">
+      <div style="font-weight:700;font-size:.82rem;color:var(--ink);">${hCalM(t.titulo)}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem;">${pct} · ${st.entregados}/${totalAlumnos||'?'} entregaron · ${st.calificados}/${totalAlumnos||'?'} calificadas</div>
+    </div>`;
+  });
+  resumen += '</div>';
+
+  if (!alumnos.length) { cont.innerHTML = resumen + '<p style="color:var(--muted);">Esta materia todavía no tiene alumnos inscritos.</p>'; return; }
+
+  let tabla = '<div class="tbl-wrap"><table><thead><tr><th style="text-align:left;">Alumno</th>';
+  tareas.forEach(t => {
+    tabla += `<th style="text-align:center;min-width:100px;" title="${hCalM(t.titulo)}">${hCalM(t.titulo.length>14?t.titulo.substring(0,14)+'…':t.titulo)}</th>`;
+  });
+  tabla += '<th style="text-align:center;">Promedio</th></tr></thead><tbody>';
+  alumnos.forEach(a => {
+    tabla += `<tr><td style="text-align:left;font-weight:700;">${hCalM(a.apellido)}, ${hCalM(a.nombre)}</td>`;
+    let sumaPonderada = 0, pesoEvaluado = 0;
+    tareas.forEach(t => {
+      const reg = (notas[a.id] && notas[a.id][t.id]) || null;
+      const nota = reg ? parseFloat(reg.nota) : null;
+      if (nota === null || isNaN(nota)) { tabla += '<td style="text-align:center;color:var(--muted);">—</td>'; }
+      else {
+        const color = nota >= 15 ? '#16a34a' : '#dc2626';
+        tabla += `<td style="text-align:center;font-weight:700;color:${color};">${nota}</td>`;
+        const peso = parseFloat(t.porcentaje) || 0;
+        sumaPonderada += nota * peso; pesoEvaluado += peso;
+      }
+    });
+    const promedio = pesoEvaluado > 0 ? (sumaPonderada / pesoEvaluado).toFixed(1) : null;
+    tabla += promedio === null
+      ? '<td style="text-align:center;color:var(--muted);">—</td>'
+      : `<td style="text-align:center;font-weight:700;color:${promedio>=15?'#16a34a':'#dc2626'};">${promedio}</td>`;
+    tabla += '</tr>';
+  });
+  tabla += '</tbody></table></div>';
+
+  cont.innerHTML = resumen + tabla;
 }
 </script>
 
