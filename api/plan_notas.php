@@ -52,17 +52,25 @@ if ($accion === 'docente') {
     while ($f = mysqli_fetch_assoc($ra)) $alumnos[] = $f;
 
     // notas[alumno_id][tarea_id] = {nota, observacion}
+    // stats[tarea_id] = {entregados, calificados} — para que el profesor
+    // vea, aunque todavía nadie haya entregado, que la actividad existe
+    // y cuánto le falta por completarse (antes solo aparecía algo acá
+    // una vez que había al menos una entrega calificada).
     $notas = [];
+    $stats = [];
+    foreach ($tareas as $t) $stats[$t['id']] = ['entregados' => 0, 'calificados' => 0];
     if ($tareas && $alumnos) {
         $rn = mysqli_query($con, "SELECT e.alumno_id, e.tarea_id, e.nota, e.observacion
                                    FROM entregas e JOIN tareas t ON t.id=e.tarea_id
                                    WHERE t.materia_id=$materia_id");
         while ($f = mysqli_fetch_assoc($rn)) {
             $notas[$f['alumno_id']][$f['tarea_id']] = ['nota' => $f['nota'], 'observacion' => $f['observacion']];
+            $stats[$f['tarea_id']]['entregados']++;
+            if ($f['nota'] !== null) $stats[$f['tarea_id']]['calificados']++;
         }
     }
 
-    echo json_encode(['ok'=>true, 'data'=>['tareas'=>$tareas, 'alumnos'=>$alumnos, 'notas'=>$notas]]);
+    echo json_encode(['ok'=>true, 'data'=>['tareas'=>$tareas, 'alumnos'=>$alumnos, 'notas'=>$notas, 'stats'=>$stats]]);
     exit;
 }
 

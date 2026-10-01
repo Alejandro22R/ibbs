@@ -1392,6 +1392,35 @@ planilla nueva que junta todas las actividades de una materia.
   red hacia el navegador del alumno aunque alguien mire las respuestas
   de la red con las herramientas del navegador.
 
+## Plan de Notas: resumen por actividad, y "Calificadas" agrupada por alumno
+
+Dos ajustes de usabilidad sobre lo que se armó la vez pasada (fecha de
+corrección + Plan de Notas), ambos en `portal_docente.php`:
+
+**El profesor no veía reflejada una actividad recién creada hasta que
+alguien la entregara.** El Plan de Notas armaba la planilla a partir de
+`entregas` — si una actividad todavía no tenía ni una sola entrega, no
+aparecía en ningún lado. Ahora `api/plan_notas.php` devuelve también
+`stats` (cuántos entregaron y cuántos están calificados por cada
+actividad, sobre el total de inscritos), y el Plan de Notas muestra
+arriba de la planilla un resumen con una tarjetita por actividad —
+visible aunque todavía nadie haya entregado nada o la materia no tenga
+alumnos inscritos — para que el profesor siempre pueda confirmar que lo
+que publicó está ahí y cuánto le falta por completarse.
+
+**La pestaña "Calificadas" de Cargar Notas** mostraba una tarjeta
+grande por cada entrega calificada — con varias notas por alumno,
+ocupaba muchísimo espacio para encontrar a alguien puntual. Ahora esa
+pestaña agrupa por alumno: una fila con su nombre y cuántas aprobó de
+cuántas tiene, y al hacer clic se despliega la lista de sus actividades
+calificadas con la nota de cada una, el mensaje que le dejaste (si hay)
+y el **archivo que él entregó, para descargar** — justo para evitar la
+discusión de "yo entregué otra cosa": queda ahí mismo, al lado de la
+nota, sin tener que ir a buscarlo en otro lado. (El archivo en sí ya se
+guardaba desde que existe la entrega de tareas — lo que faltaba era
+tenerlo a mano en esta vista agrupada nueva, no un mecanismo de guardado
+aparte.)
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

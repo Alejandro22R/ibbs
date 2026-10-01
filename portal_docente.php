@@ -466,7 +466,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     $vencidaSinCalificar = !$tieneNota && !empty($e['fecha_limite_correccion']) && strtotime($e['fecha_limite_correccion']) < time();
                 ?>
                     <!-- Tarjeta con data-estado para facilitar el filtro -->
-                    <div class="card entrega-card" id="entrega-card-<?= $e['id'] ?>" data-estado="<?= $tieneNota ? 'calificada' : 'pendiente' ?>" data-alumno="<?= htmlspecialchars($e['alumno_nombre'].' '.$e['alumno_apellido'], ENT_QUOTES) ?>" data-tarea="<?= htmlspecialchars($e['tarea_titulo'], ENT_QUOTES) ?>" style="border-left: 4px solid <?= !$tieneNota ? 'var(--amber)' : ($aprobada ? 'var(--lime2)' : 'var(--red)') ?>;<?= $tieneNota ? ' opacity: 0.9;' : '' ?>">
+                    <div class="card entrega-card" id="entrega-card-<?= $e['id'] ?>" data-estado="<?= $tieneNota ? 'calificada' : 'pendiente' ?>" data-alumno="<?= htmlspecialchars($e['alumno_nombre'].' '.$e['alumno_apellido'], ENT_QUOTES) ?>" data-tarea="<?= htmlspecialchars($e['tarea_titulo'], ENT_QUOTES) ?>" data-nota="<?= $tieneNota ? htmlspecialchars($e['nota']) : '' ?>" data-aprobada="<?= $aprobada ? '1' : '0' ?>" data-archivo="<?= $e['archivo'] ? htmlspecialchars('uploads/entregas/'.$e['archivo']) : '' ?>" data-obs="<?= htmlspecialchars($e['observacion'] ?? '', ENT_QUOTES) ?>" style="border-left: 4px solid <?= !$tieneNota ? 'var(--amber)' : ($aprobada ? 'var(--lime2)' : 'var(--red)') ?>;<?= $tieneNota ? ' opacity: 0.9;' : '' ?>">
                         <div class="card-body" style="display: flex; flex-direction: column; height: 100%;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: .8rem;">
                                 <span class="badge" style="background:var(--cream); color:var(--muted); border:1px solid var(--border);"><?= htmlspecialchars($e['materia_nombre']) ?></span>
@@ -526,6 +526,11 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 </div>
                 <?php endif; ?>
             </div>
+
+            <!-- Pestaña "Calificadas": lista por alumno en vez de una
+                 tarjeta grande por cada entrega — mucho menos espacio
+                 cuando un alumno ya tiene varias notas cargadas. -->
+            <div id="calificadas-agrupadas" style="display:none;"></div>
         </div>
 
         <!-- ============================================== -->
@@ -1195,16 +1200,80 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             }
         }
 
+        // Agrupa las entregas ya calificadas por alumno — un nombre por
+        // fila en vez de una tarjeta grande por cada nota, y al hacer
+        // clic se despliega la actividad, la nota y el archivo que
+        // entregó (para bajarlo si hay alguna duda de qué mandó).
+        function hCal(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+
+        function renderCalificadasAgrupadas() {
+            const cont = document.getElementById('calificadas-agrupadas');
+            const cards = [...document.querySelectorAll('.entrega-card[data-estado="calificada"]')];
+            if (!cards.length) {
+                cont.innerHTML = '<div style="padding:3rem 1rem;text-align:center;border:2px dashed var(--border);border-radius:14px;"><i class="fas fa-filter" style="font-size:2.2rem;color:var(--border);margin-bottom:.8rem;display:block;"></i><p style="color:var(--muted);font-size:.9rem;">Todavía no calificaste ninguna entrega.</p></div>';
+                return;
+            }
+
+            const porAlumno = {};
+            cards.forEach(c => {
+                const nombre = c.dataset.alumno;
+                (porAlumno[nombre] = porAlumno[nombre] || []).push(c);
+            });
+
+            cont.innerHTML = Object.keys(porAlumno).sort().map((nombre, i) => {
+                const items = porAlumno[nombre];
+                const aprobadas = items.filter(c => c.dataset.aprobada === '1').length;
+                const filas = items.map(c => {
+                    const aprobada = c.dataset.aprobada === '1';
+                    const archivo = c.dataset.archivo;
+                    const obs = c.dataset.obs;
+                    return `<div style="padding:.8rem 1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:180px;">
+                            <div style="font-weight:700;font-size:.88rem;color:var(--ink);">${hCal(c.dataset.tarea)}</div>
+                            ${obs ? `<div style="font-size:.76rem;color:var(--muted);margin-top:.2rem;"><i class="fas fa-comment-dots"></i> ${hCal(obs)}</div>` : ''}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:.6rem;flex-shrink:0;">
+                            <span class="badge ${aprobada ? 'b-presente' : 'b-ausente'}">Nota: ${hCal(c.dataset.nota)} / 20 · ${aprobada ? 'Aprobado' : 'Reprobado'}</span>
+                            ${archivo ? `<a href="${archivo}" target="_blank" class="btn btn-secondary btn-sm"><i class="fas fa-download"></i> Entrega</a>` : '<span style="font-size:.72rem;color:var(--muted);">Sin archivo</span>'}
+                        </div>
+                    </div>`;
+                }).join('');
+
+                return `<div class="card" style="margin-bottom:.8rem;overflow:hidden;">
+                    <button type="button" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'; this.querySelector('i.fa-chevron-down')?.classList.toggle('fa-rotate-180')" style="width:100%;background:none;border:none;cursor:pointer;padding:1rem 1.2rem;display:flex;justify-content:space-between;align-items:center;text-align:left;">
+                        <span style="font-weight:700;color:var(--ink);"><i class="fas fa-user-graduate" style="margin-right:.5rem;color:var(--muted);"></i>${hCal(nombre)}</span>
+                        <span style="display:flex;align-items:center;gap:.8rem;">
+                            <span style="font-size:.76rem;color:var(--muted);">${items.length} actividad${items.length===1?'':'es'} · ${aprobadas}/${items.length} aprobadas</span>
+                            <i class="fas fa-chevron-down" style="color:var(--muted);transition:transform .15s;"></i>
+                        </span>
+                    </button>
+                    <div style="display:none;">${filas}</div>
+                </div>`;
+            }).join('');
+        }
+
         // Script para filtrar Entregas
         function filtrarEntregas(tipo, btn) {
             // Actualizar botones de pestaña
             document.querySelectorAll('#view-entregas .tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            
+
+            const grid = document.getElementById('contenedor-entregas');
+            const agrupadas = document.getElementById('calificadas-agrupadas');
+
+            if (tipo === 'calificadas') {
+                grid.style.display = 'none';
+                agrupadas.style.display = 'block';
+                renderCalificadasAgrupadas();
+                return;
+            }
+            grid.style.display = '';
+            agrupadas.style.display = 'none';
+
             // Mostrar u ocultar tarjetas según el estado
             const cards = document.querySelectorAll('.entrega-card');
             let visibles = 0;
-            
+
             cards.forEach(card => {
                 const estado = card.getAttribute('data-estado');
                 if(tipo === 'todas' || tipo === estado) {
@@ -1214,7 +1283,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     card.style.display = 'none';
                 }
             });
-            
+
             // Si no hay tareas visibles, mostrar estado vacío
             let emptyState = document.getElementById('entregas-vacio');
             if(visibles === 0 && cards.length > 0) {
@@ -1370,6 +1439,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             if (!card) return;
             const eraPendiente = card.dataset.estado === 'pendiente';
             card.dataset.estado = 'calificada';
+            card.dataset.nota = d.nota;
+            card.dataset.aprobada = d.aprobado ? '1' : '0';
+            card.dataset.obs = d.observacion || '';
             card.style.borderLeft = '4px solid ' + (d.aprobado ? 'var(--lime2)' : 'var(--red)');
             card.style.opacity = '0.9';
 
@@ -2135,13 +2207,33 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             } catch (e) { cont.innerHTML = '<p style="color:var(--red);padding:1rem;">Error de conexión.</p>'; return; }
             if (!d.ok) { cont.innerHTML = `<p style="color:var(--red);padding:1rem;">${hPN(d.msg || 'Error al cargar.')}</p>`; return; }
 
-            const { tareas, alumnos, notas } = d.data;
-            if (!alumnos.length) { cont.innerHTML = '<p style="padding:1rem;color:var(--muted);">Esta materia todavía no tiene alumnos inscritos.</p>'; return; }
+            const { tareas, alumnos, notas, stats } = d.data;
             if (!tareas.length) { cont.innerHTML = '<p style="padding:1rem;color:var(--muted);">Esta materia todavía no tiene actividades creadas.</p>'; return; }
+
+            const totalAlumnos = alumnos.length;
+            // Resumen de actividades — se ve siempre, haya o no alumnos
+            // inscritos todavía, y aunque nadie haya entregado nada: así
+            // el profesor ve de una que la actividad que mandó existe y
+            // cuánto le falta por completarse.
+            let resumen = '<div style="padding:1rem 1.2rem;border-bottom:1px solid var(--border);">';
+            resumen += '<div style="font-weight:700;font-size:.85rem;color:var(--ink);margin-bottom:.6rem;">Tus actividades en esta materia</div>';
+            resumen += '<div style="display:flex;flex-wrap:wrap;gap:.6rem;">';
+            tareas.forEach(t => {
+                const st = stats[t.id] || { entregados: 0, calificados: 0 };
+                const pct = t.porcentaje !== null ? `${parseFloat(t.porcentaje)}%` : 'sin % asignado';
+                const completo = totalAlumnos > 0 && st.calificados >= totalAlumnos;
+                resumen += `<div style="padding:.6rem .8rem;border:1px solid var(--border);border-radius:8px;background:${completo ? 'rgba(46,204,16,.06)' : 'var(--cream)'};min-width:200px;">
+                    <div style="font-weight:700;font-size:.82rem;color:var(--ink);">${hPN(t.titulo)}</div>
+                    <div style="font-size:.72rem;color:var(--muted);margin-top:.2rem;">${pct} · ${st.entregados}/${totalAlumnos || '?'} entregaron · ${st.calificados}/${totalAlumnos || '?'} calificadas</div>
+                </div>`;
+            });
+            resumen += '</div></div>';
+
+            if (!alumnos.length) { cont.innerHTML = resumen + '<p style="padding:1rem;color:var(--muted);">Esta materia todavía no tiene alumnos inscritos.</p>'; return; }
 
             const sumaPorcentajes = tareas.reduce((s, t) => s + (parseFloat(t.porcentaje) || 0), 0);
 
-            let html = '<table><thead><tr><th style="text-align:left;">Alumno</th>';
+            let html = resumen + '<div class="tbl-wrap"><table><thead><tr><th style="text-align:left;">Alumno</th>';
             tareas.forEach(t => {
                 const pct = t.porcentaje !== null ? `${parseFloat(t.porcentaje)}%` : 'sin %';
                 html += `<th style="text-align:center;min-width:110px;" title="${hPN(t.titulo)}">${hPN(t.titulo.length > 16 ? t.titulo.substring(0,16)+'…' : t.titulo)}<br><span style="font-weight:400;color:var(--muted);font-size:.68rem;">${pct}</span></th>`;
@@ -2173,7 +2265,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 }
                 html += '</tr>';
             });
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
 
             if (sumaPorcentajes !== 100 && sumaPorcentajes !== 0) {
                 html = `<div style="padding:.7rem 1.2rem;background:rgba(217,119,6,.08);color:var(--amber);font-size:.78rem;font-weight:600;border-bottom:1px solid var(--border);"><i class="fas fa-triangle-exclamation"></i> Los % de las actividades suman ${sumaPorcentajes}% (debería sumar 100%) — el promedio de arriba se calcula igual, mejor pero conviene revisar los %.</div>` + html;
