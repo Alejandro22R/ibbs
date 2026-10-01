@@ -57,8 +57,8 @@ if ($alumno && !empty($alumno['regular'])) {
 }
 
 // Obtener tareas y entregas
-$query_tareas = "SELECT t.*, m.nombre as materia_nombre, e.id as entrega_id, e.nota 
-                 FROM tareas t 
+$query_tareas = "SELECT t.*, m.nombre as materia_nombre, e.id as entrega_id, e.nota, e.observacion
+                 FROM tareas t
                  JOIN materias m ON t.materia_id = m.id
                  JOIN materia_alumno ma ON m.id = ma.materia_id
                  LEFT JOIN entregas e ON t.id = e.tarea_id AND e.alumno_id = ?
@@ -541,10 +541,16 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             </div>
                             <div class="w-full bg-ibbs-cream text-ibbs-ink font-bold py-2.5 rounded-lg border border-ibbs-border flex justify-between px-5 items-center text-sm">
                                 <span>Calificación:</span>
-                                <span class="<?= $t['nota'] !== null ? 'text-ibbs-green' : 'text-ibbs-muted' ?>">
-                                    <?= $t['nota'] !== null ? $t['nota'] . ' / ' . $t['nota_maxima'] : 'Aún sin calificar' ?>
+                                <span class="<?= $t['nota'] === null ? 'text-ibbs-muted' : ($t['nota'] >= 15 ? 'text-ibbs-green' : 'text-ibbs-red') ?>">
+                                    <?= $t['nota'] !== null ? $t['nota'] . ' / 20' . ($t['nota'] >= 15 ? ' · Aprobado' : ' · Reprobado') : 'Aún sin calificar' ?>
                                 </span>
                             </div>
+                            <?php if($t['nota'] !== null && !empty($t['observacion'])): ?>
+                            <div class="w-full mt-2 p-3 rounded-lg text-xs leading-relaxed <?= $t['nota'] >= 15 ? 'bg-ibbs-green/10 text-ibbs-ink' : 'bg-ibbs-amber/10 text-ibbs-ink' ?>">
+                                <strong class="flex items-center gap-1.5 mb-1"><i class="fas <?= $t['nota'] >= 15 ? 'fa-comment-dots' : 'fa-circle-exclamation' ?>"></i> Mensaje del profesor:</strong>
+                                <?= nl2br(htmlspecialchars($t['observacion'])) ?>
+                            </div>
+                            <?php endif; ?>
                         </div>
                         <?php endif; ?>
                     <?php endforeach; ?>

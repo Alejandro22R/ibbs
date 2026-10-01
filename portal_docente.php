@@ -26,9 +26,9 @@ $docentes_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM do
 $materias_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM materias WHERE activo=1"))[0] ?? 0;
 $asistencias_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM asistencias"))[0] ?? 0;
 
-$res_cal = mysqli_query($con, "SELECT 
-    SUM(CASE WHEN nota_final >= 10 THEN 1 ELSE 0 END) as aprobados,
-    SUM(CASE WHEN nota_final < 10 THEN 1 ELSE 0 END) as reprobados,
+$res_cal = mysqli_query($con, "SELECT
+    SUM(CASE WHEN nota_final >= 15 THEN 1 ELSE 0 END) as aprobados,
+    SUM(CASE WHEN nota_final < 15 THEN 1 ELSE 0 END) as reprobados,
     SUM(CASE WHEN nota_final IS NULL THEN 1 ELSE 0 END) as sin_nota
     FROM materia_alumno");
 $calificaciones = mysqli_fetch_assoc($res_cal);
@@ -452,35 +452,47 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <!-- Pestañas de Filtro para las tareas -->
             <div class="tabs-nav" style="margin-bottom: 1.5rem;">
                 <button class="tab-btn active" onclick="filtrarEntregas('todas', this)">Todas</button>
-                <button class="tab-btn" onclick="filtrarEntregas('pendientes', this)">Pendientes (<span style="color:var(--amber); font-weight:bold;"><?= $por_calificar_count ?></span>)</button>
+                <button class="tab-btn" onclick="filtrarEntregas('pendientes', this)">Pendientes (<span id="pendientesCountBadge" style="color:var(--amber); font-weight:bold;"><?= $por_calificar_count ?></span>)</button>
                 <button class="tab-btn" onclick="filtrarEntregas('calificadas', this)">Calificadas</button>
             </div>
 
             <div class="grid-cards" id="contenedor-entregas">
-                <?php foreach($entregas as $e): ?>
+                <?php foreach($entregas as $e):
+                    $tieneNota = $e['nota'] !== null;
+                    $aprobada  = $tieneNota && (float)$e['nota'] >= 15;
+                ?>
                     <!-- Tarjeta con data-estado para facilitar el filtro -->
-                    <div class="card entrega-card" data-estado="<?= $e['nota'] === null ? 'pendiente' : 'calificada' ?>" style="<?= $e['nota'] === null ? 'border-left: 4px solid var(--amber);' : 'border-left: 4px solid var(--lime2); opacity: 0.9;' ?>">
+                    <div class="card entrega-card" id="entrega-card-<?= $e['id'] ?>" data-estado="<?= $tieneNota ? 'calificada' : 'pendiente' ?>" data-alumno="<?= htmlspecialchars($e['alumno_nombre'].' '.$e['alumno_apellido'], ENT_QUOTES) ?>" data-tarea="<?= htmlspecialchars($e['tarea_titulo'], ENT_QUOTES) ?>" style="border-left: 4px solid <?= !$tieneNota ? 'var(--amber)' : ($aprobada ? 'var(--lime2)' : 'var(--red)') ?>;<?= $tieneNota ? ' opacity: 0.9;' : '' ?>">
                         <div class="card-body" style="display: flex; flex-direction: column; height: 100%;">
                             <div style="display: flex; justify-content: space-between; margin-bottom: .8rem;">
                                 <span class="badge" style="background:var(--cream); color:var(--muted); border:1px solid var(--border);"><?= htmlspecialchars($e['materia_nombre']) ?></span>
-                                <?php if($e['nota'] === null): ?>
-                                    <span class="badge b-tardanza"><i class="fas fa-clock"></i> Por Calificar</span>
-                                <?php else: ?>
-                                    <span class="badge b-presente"><i class="fas fa-check"></i> Nota: <?= htmlspecialchars($e['nota']) ?> / <?= htmlspecialchars($e['nota_maxima']) ?></span>
-                                <?php endif; ?>
+                                <span class="badge entrega-badge-estado <?= !$tieneNota ? 'b-tardanza' : ($aprobada ? 'b-presente' : 'b-ausente') ?>">
+                                    <?php if(!$tieneNota): ?>
+                                        <i class="fas fa-clock"></i> Por Calificar
+                                    <?php else: ?>
+                                        <i class="fas <?= $aprobada ? 'fa-check' : 'fa-xmark' ?>"></i> Nota: <?= htmlspecialchars($e['nota']) ?> / 20 · <?= $aprobada ? 'Aprobado' : 'Reprobado' ?>
+                                    <?php endif; ?>
+                                </span>
                             </div>
-                            
+
                             <h3 style="font-family:'Playfair Display',serif; font-size:1.1rem; color:var(--ink); margin-bottom:.3rem;"><?= htmlspecialchars($e['tarea_titulo']) ?></h3>
                             <p style="font-size:.8rem; color:var(--muted); margin-bottom: 1rem;">
                                 <i class="fas fa-user-graduate"></i> Alumno: <strong style="color:var(--ink);"><?= htmlspecialchars($e['alumno_nombre'] . ' ' . $e['alumno_apellido']) ?></strong>
                             </p>
-                            
+
                             <?php if($e['texto_respuesta']): ?>
                             <div style="background: var(--cream); padding: .8rem; border-radius: 8px; font-size: .8rem; color: var(--ink); font-style: italic; margin-bottom: 1rem; border: 1px solid var(--border);">
                                 "<?= nl2br(htmlspecialchars($e['texto_respuesta'])) ?>"
                             </div>
                             <?php endif; ?>
-                            
+
+                            <div class="entrega-obs-wrap" style="<?= empty($e['observacion']) ? 'display:none;' : '' ?>margin-bottom: 1rem;">
+                                <div class="entrega-obs-box" style="background: <?= $aprobada ? 'rgba(46,204,16,.08)' : 'rgba(217,119,6,.08)' ?>; border: 1px solid var(--border); border-radius: 8px; padding: .7rem .8rem; font-size: .78rem; color: var(--ink);">
+                                    <strong style="display:block;margin-bottom:.2rem;"><i class="fas fa-comment-dots"></i> Tu mensaje al alumno:</strong>
+                                    <span class="entrega-obs-text"><?= nl2br(htmlspecialchars($e['observacion'] ?? '')) ?></span>
+                                </div>
+                            </div>
+
                             <div style="margin-top: auto; margin-bottom: 1rem; display: flex; flex-direction: column; gap: .5rem;">
                                 <p style="font-size: .75rem; color: var(--muted); font-weight: 600;"><i class="far fa-calendar-check"></i> Entregado: <?= date('d M Y, h:i A', strtotime($e['fecha_entrega'])) ?></p>
                                 <?php if($e['archivo']): ?>
@@ -489,10 +501,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                                 </a>
                                 <?php endif; ?>
                             </div>
-                            
-                            <button onclick="openModalCalificar(<?= $e['id'] ?>, '<?= htmlspecialchars($e['alumno_nombre'].' '.$e['alumno_apellido'], ENT_QUOTES) ?>', '<?= htmlspecialchars($e['tarea_titulo'], ENT_QUOTES) ?>', <?= $e['nota_maxima'] ?? 20 ?>, <?= $e['nota'] === null ? 'null' : $e['nota'] ?>)" 
-                                    class="btn <?= $e['nota'] === null ? 'btn-primary' : 'btn-secondary' ?>" style="width: 100%; justify-content: center;">
-                                <i class="fas fa-star"></i> <?= $e['nota'] === null ? 'Asignar Calificación' : 'Modificar Calificación' ?>
+
+                            <button class="btn entrega-btn-calificar <?= !$tieneNota ? 'btn-primary' : 'btn-secondary' ?>" style="width: 100%; justify-content: center;"
+                                    onclick="openModalCalificar(<?= $e['id'] ?>, '<?= htmlspecialchars($e['alumno_nombre'].' '.$e['alumno_apellido'], ENT_QUOTES) ?>', '<?= htmlspecialchars($e['tarea_titulo'], ENT_QUOTES) ?>', <?= $e['nota'] === null ? 'null' : $e['nota'] ?>, '<?= htmlspecialchars($e['observacion'] ?? '', ENT_QUOTES) ?>')">
+                                <i class="fas fa-star"></i> <?= !$tieneNota ? 'Asignar Calificación' : 'Modificar Calificación' ?>
                             </button>
                         </div>
                     </div>
@@ -976,14 +988,25 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         <p id="modal-cal-tarea" style="font-size: .9rem; color: var(--ink);"></p>
                     </div>
                     
-                    <div class="field" style="margin-bottom: 1.5rem;">
-                        <label style="text-align: center; font-size: .8rem;">Nota Asignada (Máx <span id="modal-cal-max">20</span>)</label>
-                        <input type="number" id="modal-cal-nota" name="nota" min="0" step="0.1" required style="font-size: 1.8rem; text-align: center; font-weight: 700; padding: 1rem;">
+                    <div class="field" style="margin-bottom: .4rem;">
+                        <label style="text-align: center; font-size: .8rem;">Nota Asignada (sobre 20 — mínimo 15 para aprobar)</label>
+                        <input type="number" id="modal-cal-nota" name="nota" min="0" max="20" step="0.1" required style="font-size: 1.8rem; text-align: center; font-weight: 700; padding: 1rem;" oninput="actualizarEstadoCalificar()">
                     </div>
-                    
+                    <p id="modal-cal-estado" style="text-align:center;font-size:.78rem;font-weight:700;margin-bottom:1.2rem;height:1.1em;"></p>
+
+                    <div class="field" style="margin-bottom: .5rem;">
+                        <label>Mensaje para el alumno (opcional)</label>
+                        <textarea id="modal-cal-obs" name="observacion" rows="3" maxlength="1000" placeholder="Felicitalo, corregilo, o dejale una observación sobre su trabajo…"></textarea>
+                    </div>
+                    <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="rellenarObsCalificar('¡Excelente trabajo! Seguí así.')">👏 Felicitar</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="rellenarObsCalificar('Buen trabajo, pero revisá nuevamente este tema antes del próximo examen.')">✏️ A corregir</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="rellenarObsCalificar('Entrega incompleta — faltan puntos por desarrollar.')">⚠️ Incompleto</button>
+                    </div>
+
                     <div class="modal-foot" style="padding: 0; border: none; background: transparent;">
                         <button type="button" class="btn btn-secondary" onclick="closeModal('modal-calificar')">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Guardar</button>
+                        <button type="submit" class="btn btn-primary" id="btn-guardar-calificacion">Guardar</button>
                     </div>
                 </form>
             </div>
@@ -1027,14 +1050,11 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <label>Instrucciones / Descripción</label>
                             <textarea name="descripcion" rows="3" placeholder="Instrucciones para los alumnos..."></textarea>
                         </div>
-                        <div class="field">
+                        <div class="field field-full">
                             <label>Fecha Límite (Entrega)</label>
                             <input type="datetime-local" name="fecha_limite" required>
                         </div>
-                        <div class="field">
-                            <label>Nota Máxima</label>
-                            <input type="number" name="nota_maxima" value="20" min="1" step="1" required>
-                        </div>
+                        <input type="hidden" name="nota_maxima" value="20">
                     </div>
                     <div class="modal-foot" style="padding: 0; border: none; background: transparent;">
                         <button type="button" class="btn btn-secondary" onclick="closeModal('modal-nueva-tarea')">Cancelar</button>
@@ -1254,18 +1274,32 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         }
 
         // Lógica Formularios y Modales
-        function openModalCalificar(id, alumno, tarea, max, notaActual) {
+        function openModalCalificar(id, alumno, tarea, notaActual, observacionActual) {
             document.getElementById('modal-cal-id').value = id;
             document.getElementById('modal-cal-alumno').innerText = alumno;
             document.getElementById('modal-cal-tarea').innerText = tarea;
-            document.getElementById('modal-cal-max').innerText = max;
-            document.getElementById('modal-cal-nota').max = max;
             document.getElementById('modal-cal-nota').value = notaActual !== null ? notaActual : '';
+            document.getElementById('modal-cal-obs').value = observacionActual || '';
+            actualizarEstadoCalificar();
             openModal('modal-calificar');
         }
 
+        // Nota mínima de 15/20 para aprobar — muestra el estado en vivo
+        // mientras el profesor escribe, antes incluso de guardar.
+        function actualizarEstadoCalificar() {
+            const input = document.getElementById('modal-cal-nota');
+            const lbl = document.getElementById('modal-cal-estado');
+            const v = parseFloat(input.value);
+            if (isNaN(v)) { lbl.textContent = ''; return; }
+            if (v >= 15) { lbl.textContent = '✓ Aprobado'; lbl.style.color = 'var(--lime2)'; }
+            else { lbl.textContent = '✗ Reprobado'; lbl.style.color = 'var(--red)'; }
+        }
+        function rellenarObsCalificar(texto) {
+            document.getElementById('modal-cal-obs').value = texto;
+        }
+
         function submitCalificacion(e) {
-            e.preventDefault(); 
+            e.preventDefault();
             const form = e.target; const btn = form.querySelector('button[type="submit"]');
             btn.disabled = true; btn.innerHTML = 'Guardando...';
 
@@ -1274,9 +1308,62 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             fdCal.append('csrf_token', _csrfCal ? _csrfCal.content : '');
             fetch('calificar_entrega.php', { method: 'POST', body: fdCal })
             .then(res => res.json()).then(data => {
-                if(data.ok) { closeModal('modal-calificar'); Ibbs.success('Calificación guardada.'); setTimeout(() => location.reload(), 900); }
-                else { Ibbs.error(data.msg); btn.disabled = false; btn.innerHTML = 'Guardar'; }
-            }).catch(err => { Ibbs.error("Error de servidor."); btn.disabled = false; btn.innerHTML = 'Guardar'; });
+                if(data.ok) {
+                    closeModal('modal-calificar');
+                    Ibbs.success('Calificación guardada.');
+                    actualizarTarjetaEntrega(data.data);
+                } else { Ibbs.error(data.msg); }
+            }).catch(err => { Ibbs.error("Error de servidor."); })
+            .finally(() => { btn.disabled = false; btn.innerHTML = 'Guardar'; });
+        }
+
+        // Actualiza la tarjeta de la entrega en el momento, sin recargar
+        // la página — antes un location.reload() mandaba al docente de
+        // vuelta al Inicio, perdiendo la pestaña "Cargar Notas" en la que
+        // estaba trabajando.
+        function actualizarTarjetaEntrega(d) {
+            const card = document.getElementById('entrega-card-' + d.entrega_id);
+            if (!card) return;
+            const eraPendiente = card.dataset.estado === 'pendiente';
+            card.dataset.estado = 'calificada';
+            card.style.borderLeft = '4px solid ' + (d.aprobado ? 'var(--lime2)' : 'var(--red)');
+            card.style.opacity = '0.9';
+
+            const badge = card.querySelector('.entrega-badge-estado');
+            badge.className = 'badge entrega-badge-estado ' + (d.aprobado ? 'b-presente' : 'b-ausente');
+            badge.innerHTML = `<i class="fas ${d.aprobado ? 'fa-check' : 'fa-xmark'}"></i> Nota: ${d.nota} / 20 · ${d.aprobado ? 'Aprobado' : 'Reprobado'}`;
+
+            const obsWrap = card.querySelector('.entrega-obs-wrap');
+            const obsText = card.querySelector('.entrega-obs-text');
+            if (d.observacion) {
+                obsText.textContent = d.observacion;
+                obsWrap.style.display = '';
+                obsWrap.querySelector('.entrega-obs-box').style.background = d.aprobado ? 'rgba(46,204,16,.08)' : 'rgba(217,119,6,.08)';
+            } else {
+                obsWrap.style.display = 'none';
+            }
+
+            const btn = card.querySelector('.entrega-btn-calificar');
+            btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary');
+            btn.innerHTML = '<i class="fas fa-star"></i> Modificar Calificación';
+            btn.onclick = function () {
+                openModalCalificar(d.entrega_id, card.dataset.alumno, card.dataset.tarea, d.nota, d.observacion || '');
+            };
+
+            if (eraPendiente) {
+                const counter = document.getElementById('pendientesCountBadge');
+                if (counter) counter.textContent = Math.max(0, (parseInt(counter.textContent, 10) || 0) - 1);
+            }
+
+            // Si está viendo la pestaña "Pendientes", esta tarjeta ya no
+            // pertenece ahí — se re-aplica el filtro activo para que
+            // desaparezca sin tener que recargar nada.
+            const tabActivo = document.querySelector('#view-entregas .tab-btn.active');
+            if (tabActivo) {
+                const tipo = tabActivo.textContent.toLowerCase().includes('pendientes') ? 'pendientes'
+                           : tabActivo.textContent.toLowerCase().includes('calificadas') ? 'calificadas' : 'todas';
+                filtrarEntregas(tipo, tabActivo);
+            }
         }
 
         function submitNuevaTarea(e) {

@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 15);
+define('IBBS_SCHEMA_VERSION', 16);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -177,6 +177,10 @@ if (!function_exists('ibbs_autoheal_schema')) {
                 KEY `idx_usuario` (`usuario_id`),
                 CONSTRAINT `autoheal_pr_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            // 016_entrega_observacion.sql — mensaje opcional del
+            // profesor junto con la nota (felicitar, corregir, o
+            // simplemente una observación) — ver calificar_entrega.php.
+            "ALTER TABLE `entregas` ADD COLUMN IF NOT EXISTS `observacion` TEXT DEFAULT NULL AFTER `nota`",
         ];
 
         foreach ($ddl as $sql) {

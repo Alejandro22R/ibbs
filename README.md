@@ -1291,6 +1291,52 @@ reemplazando nada:
   generan y se borran solos) al entregar una tarea o mandar una
   solicitud de autoinscripción con éxito.
 
+## Calificar una entrega: ya no manda al docente de vuelta al Inicio, escala fija 0-20, y mensaje para el alumno
+
+**Bug reportado:** al calificar una entrega desde "Cargar Notas"
+(`portal_docente.php`), `submitCalificacion()` guardaba la nota y
+después hacía `location.reload()` — una recarga completa de la página,
+que siempre vuelve a mostrar "Inicio" (es la vista marcada `active` por
+defecto en el HTML). El docente perdía la pestaña en la que estaba
+trabajando cada vez que calificaba una entrega.
+
+Se reemplazó el `location.reload()` por una actualización en el momento
+de la tarjeta de esa entrega: la lógica de `calificar_entrega.php`
+devuelve ahora la nota, si quedó aprobada y la observación guardada, y
+`actualizarTarjetaEntrega()` en `portal_docente.php` actualiza el badge
+("Por Calificar" → "Nota: X / 20 · Aprobado/Reprobado"), el color del
+borde de la tarjeta, el contador de "Pendientes" en la pestaña, y vuelve
+a aplicar el filtro activo — todo sin salir de "Cargar Notas", para
+poder seguir calificando una entrega tras otra.
+
+**Escala fija de 0 a 20, aprueba desde 15:** antes `nota_maxima` se
+podía elegir por tarea (quedaba en 20 por defecto, pero el campo era
+editable), y el estado "aprobado" en el dashboard del propio docente
+comparaba contra 10 en vez de 15 — inconsistente con el resto de la
+aplicación (boletines, constancias, récord académico, perfil del
+alumno…), que ya usaba 15 en todas partes. Ahora:
+
+- `calificar_entrega.php` rechaza cualquier nota fuera de 0-20.
+- El formulario de "Nueva Tarea" ya no deja elegir `nota_maxima` — queda
+  fijo en 20 (`crear_tarea.php` también lo fuerza del lado del
+  servidor, por si alguien arma el POST a mano).
+- La tarjeta de cada entrega y la vista "Tareas" del alumno
+  (`portal_alumno.php`) muestran "Aprobado"/"Reprobado" en base a
+  `nota >= 15`, con el borde/badge en verde o rojo según corresponda —
+  antes siempre se veía en verde, aprobada o no.
+- El gráfico de "Calificaciones" del dashboard del docente
+  (`portal_docente.php`) ahora cuenta aprobados/reprobados con el mismo
+  corte de 15 que usa el resto de la app.
+
+**Mensaje del profesor junto a la nota:** el modal de calificar ahora
+tiene un campo de texto opcional ("Mensaje para el alumno") con tres
+atajos de un clic (Felicitar / A corregir / Incompleto) que solo
+rellenan el texto — el profesor lo puede editar antes de guardar. Se
+guarda en la columna nueva `entregas.observacion` (migración 016,
+autoaplicada) y se manda también como parte de la notificación que ya
+recibía el alumno al calificarle una tarea. El alumno lo ve en su
+portal, debajo de la nota, en la tarjeta de la tarea entregada.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

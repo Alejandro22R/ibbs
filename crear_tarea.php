@@ -26,7 +26,8 @@ $materia_id   = (int)($_POST['materia_id'] ?? 0);
 $titulo       = trim($_POST['titulo'] ?? '');
 $descripcion  = trim($_POST['descripcion'] ?? '');
 $fecha_limite = $_POST['fecha_limite'] ?? '';
-$nota_maxima  = (float)($_POST['nota_maxima'] ?? 20);
+// Escala fija de 0 a 20 en todo el sistema — no se deja configurar por tarea.
+$nota_maxima  = 20;
 
 // Validación de campos requeridos
 if (!$materia_id || empty($titulo) || empty($fecha_limite)) {
