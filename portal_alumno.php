@@ -660,7 +660,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                     </td>
                                     <td class="p-4 text-ibbs-muted hidden md:table-cell"><?= date('d M Y', strtotime($n['nota_fecha'])) ?></td>
                                     <td class="p-4 text-right">
-                                        <span class="inline-flex items-center justify-center px-3 py-1 rounded-full font-bold text-xs <?= $n['nota_final'] >= 10 ? 'bg-ibbs-green/10 text-ibbs-green' : 'bg-ibbs-red/10 text-ibbs-red' ?>">
+                                        <span class="inline-flex items-center justify-center px-3 py-1 rounded-full font-bold text-xs <?= $n['nota_final'] >= 15 ? 'bg-ibbs-green/10 text-ibbs-green' : 'bg-ibbs-red/10 text-ibbs-red' ?>">
                                             <?= $n['nota_final'] ?> / 20
                                         </span>
                                     </td>
