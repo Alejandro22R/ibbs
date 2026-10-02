@@ -41,6 +41,24 @@ $res_materias = mysqli_stmt_get_result($stmt_m);
 $materias = [];
 while($row = mysqli_fetch_assoc($res_materias)) $materias[] = $row;
 
+// Para cada materia: próxima clase en vivo (programada o en curso) y cantidad
+// de materiales, para mostrarlos de un vistazo en la tarjeta antes de entrar
+// al Aula Virtual (sin tener que abrirla para saber si hay algo nuevo).
+foreach ($materias as &$m) {
+    $stC = mysqli_prepare($con, "SELECT titulo,fecha_hora,estado FROM clases_vivo
+                                  WHERE materia_id=? AND estado IN ('programada','en_curso')
+                                  ORDER BY (estado='en_curso') DESC, fecha_hora ASC LIMIT 1");
+    mysqli_stmt_bind_param($stC, 'i', $m['id']);
+    mysqli_stmt_execute($stC);
+    $m['proxima_clase'] = mysqli_fetch_assoc(mysqli_stmt_get_result($stC));
+
+    $stMat = mysqli_prepare($con, "SELECT COUNT(*) c FROM aula_materiales WHERE materia_id=?");
+    mysqli_stmt_bind_param($stMat, 'i', $m['id']);
+    mysqli_stmt_execute($stMat);
+    $m['materiales_count'] = (int)(mysqli_fetch_assoc(mysqli_stmt_get_result($stMat))['c'] ?? 0);
+}
+unset($m);
+
 // Token de WebSocket (opcional — ver config/ws_config.php) con un
 // canal por cada materia en la que este alumno puede tener el chat
 // abierto, para que el foro se actualice al instante si hay un VPS
@@ -469,13 +487,23 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
                             <div>Para inscribirte tenés que adjuntar la captura de tu pago móvil o transferencia a la institución. La administración la revisa antes de dejarte adentro de la materia.</div>
                         </div>
-                        <div class="flex flex-col gap-3">
-                            <select id="selAutoInsc" class="border border-ibbs-border rounded-lg px-3 py-2 text-sm bg-white">
-                                <option value="">— Selecciona una materia —</option>
+                        <div class="flex flex-col gap-4">
+                            <input type="hidden" id="selAutoInsc" value="">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 <?php foreach ($materias_disponibles as $md): ?>
-                                <option value="<?= $md['id'] ?>"><?= htmlspecialchars($md['codigo'].' · '.$md['nombre']) ?></option>
+                                <div class="auto-insc-card cursor-pointer rounded-xl border-2 border-ibbs-border bg-white p-4 flex items-center gap-3 transition-all hover:border-ibbs-lime2 hover:-translate-y-0.5"
+                                     data-materia-id="<?= $md['id'] ?>" onclick="seleccionarMateriaAutoInsc(<?= $md['id'] ?>, this)">
+                                    <div class="w-10 h-10 rounded-lg bg-ibbs-ink/5 text-ibbs-ink flex items-center justify-center text-lg flex-shrink-0">
+                                        <i class="fas fa-book"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider"><?= htmlspecialchars($md['codigo']) ?></div>
+                                        <div class="text-sm font-bold text-ibbs-ink truncate"><?= htmlspecialchars($md['nombre']) ?></div>
+                                    </div>
+                                    <i class="fas fa-circle-check ml-auto text-ibbs-lime2 text-lg opacity-0 transition-opacity auto-insc-check"></i>
+                                </div>
                                 <?php endforeach; ?>
-                            </select>
+                            </div>
                             <div class="flex flex-col sm:flex-row gap-3">
                                 <input type="file" id="fileComprobante" accept="image/png,image/jpeg,image/webp" class="flex-1 border border-ibbs-border rounded-lg px-3 py-2 text-xs bg-white file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-ibbs-ink file:text-white file:text-xs file:font-bold">
                                 <button onclick="autoInscribirme()" id="btnAutoInsc" class="btn-ibbs px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Enviar solicitud</button>
@@ -494,16 +522,28 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         </div>
                         <div class="p-5 flex-1 flex flex-col">
                             <h3 class="text-lg font-bold text-ibbs-ink mb-1 leading-tight"><?= htmlspecialchars($m['nombre']) ?></h3>
-                            <p class="text-sm text-ibbs-muted mb-5 flex items-center gap-2">
+                            <p class="text-sm text-ibbs-muted mb-3 flex items-center gap-2">
                                 <i class="fas fa-chalkboard-teacher text-ibbs-lime2"></i> Prof. <?= htmlspecialchars($m['doc_nombre'] . ' ' . $m['doc_apellido']) ?>
                             </p>
+                            <div class="flex flex-col gap-1.5 mb-4">
+                                <?php if ($m['proxima_clase']): ?>
+                                    <?php if ($m['proxima_clase']['estado'] === 'en_curso'): ?>
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-red/10 text-ibbs-red flex items-center gap-1.5 w-fit">🔴 En vivo ahora: <?= htmlspecialchars($m['proxima_clase']['titulo']) ?></span>
+                                    <?php else: ?>
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-blue/10 text-ibbs-blue flex items-center gap-1.5 w-fit">🗓 Clase programada: <?= date('d/m H:i', strtotime($m['proxima_clase']['fecha_hora'])) ?></span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-cream text-ibbs-muted flex items-center gap-1.5 w-fit">Sin clases en vivo programadas</span>
+                                <?php endif; ?>
+                                <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-cream text-ibbs-muted flex items-center gap-1.5 w-fit">📎 <?= $m['materiales_count'] ?> material<?= $m['materiales_count']==1?'':'es' ?> disponible<?= $m['materiales_count']==1?'':'s' ?></span>
+                            </div>
                             <div class="flex gap-2 mt-auto mb-2">
                                 <button onclick="document.querySelector('#sidebar nav button:nth-child(4)').click()" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors">Ver Tareas</button>
                                 <button onclick="irAlChatMateria(<?= $m['id'] ?>)" class="flex-1 btn-ibbs py-2 rounded-lg text-xs font-bold text-center">Foro de Clase</button>
                             </div>
                             <div class="flex gap-2">
-                                <a href="modulo_vivo.php?materia_id=<?= $m['id'] ?>" target="_blank" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🔴 En Vivo</a>
-                                <a href="modulo_grabaciones.php?materia_id=<?= $m['id'] ?>" target="_blank" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🎬 Grabadas</a>
+                                <button onclick="irAlAulaMateria(<?= $m['id'] ?>, 'vivo')" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🔴 En Vivo</button>
+                                <button onclick="irAlAulaMateria(<?= $m['id'] ?>, 'grabadas')" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🎬 Grabadas</button>
                             </div>
                         </div>
                     </div>
@@ -1095,6 +1135,17 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             if(chatTab) chatTab.click();
         }
 
+        function irAlAulaMateria(materiaId, tab) {
+            switchView('aula', document.querySelector('[data-tour="nav-aula"]'));
+            const sel = document.getElementById('aulaAlMateriaSel');
+            sel.value = materiaId;
+            cargarAulaAlMateria();
+            if (tab) {
+                const btn = document.querySelector('.aula-al-tab-btn[data-aulaaltab="' + tab + '"]');
+                if (btn) switchAulaAlTab(tab, btn);
+            }
+        }
+
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobile-overlay');
@@ -1187,6 +1238,18 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         let chatInterval = null;
         const MI_USUARIO_ID = <?= (int)$user_id ?>;
         function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+        function seleccionarMateriaAutoInsc(materiaId, cardEl) {
+            document.getElementById('selAutoInsc').value = materiaId;
+            document.querySelectorAll('.auto-insc-card').forEach(c => {
+                c.classList.remove('border-ibbs-lime2', 'bg-ibbs-lime2/5');
+                c.classList.add('border-ibbs-border');
+                c.querySelector('.auto-insc-check').classList.add('opacity-0');
+            });
+            cardEl.classList.remove('border-ibbs-border');
+            cardEl.classList.add('border-ibbs-lime2', 'bg-ibbs-lime2/5');
+            cardEl.querySelector('.auto-insc-check').classList.remove('opacity-0');
+        }
 
         async function autoInscribirme() {
             const sel = document.getElementById('selAutoInsc');
