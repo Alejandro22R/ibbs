@@ -1488,6 +1488,93 @@ estaba correcto. Es posible que lo que se vio allí sea el mismo bug de
 `layout/head.php` si esa cuenta llegó a pasar por una página de admin,
 o el de `modulo_perfil.php` si se usó para editar el perfil.
 
+## Auditoría del "campus virtual": tabla faltante, bug de ids en el foro y notificaciones en vivo para los portales
+
+Pedido explícito: probar a fondo Clases Grabadas, Foro/Chat por materia,
+Tareas y Entregas, Portal del Alumno y Notificaciones en tiempo real —
+sin tocar Aula Virtual ni Clases en Vivo, que son trabajo en curso de
+otra persona del equipo. Se probó cada flujo de punta a punta (crear,
+guardar, ver desde el otro rol) en vez de solo leer el código, y eso
+encontró tres problemas reales:
+
+**"Clases Grabadas" no tenía tabla.** `api/clases_grabadas.php` espera
+la tabla `clases_grabadas` (documentada en
+`database/migrations/002_clases_grabadas.sql`), pero esa migración
+nunca había quedado enganchada a `config/schema_autoheal.php` —a
+diferencia de casi todas las demás, que sí se auto-aplican solas desde
+hace rato—. En cualquier entorno donde nadie la pegó a mano en
+phpMyAdmin (una instalación nueva, por ejemplo), la pestaña revienta
+apenas alguien intenta publicar o listar un video. Se agregó esa
+`CREATE TABLE IF NOT EXISTS` al arreglo de autoheal (versión de esquema
+17 → 18) y se probó el flujo completo: el profesor publica un link de
+YouTube, el sistema detecta la plataforma y arma el embed, y el alumno
+inscrito lo ve. **Nota para el equipo:** `001_aula_virtual.sql` y
+`003_clases_vivo.sql` tienen exactamente el mismo problema (tampoco
+están en autoheal) — no se tocaron a propósito porque esas dos áreas
+las está trabajando otra persona, pero vale la pena que lo sepan antes
+de que alguien lo pise en un entorno nuevo.
+
+**El foro devolvía el id equivocado al publicar un mensaje.**
+`api/foro.php` leía `mysqli_insert_id($con)` *después* de llamar a
+`log_audit()` y `notificar_materia()` — ambas insertan sus propias
+filas (en `audit_log` y `notificaciones`) usando la misma conexión, y
+`mysqli_insert_id()` siempre devuelve el id de la *última* inserción
+hecha en esa conexión, no la que a uno le interesa. El frontend nunca
+usaba ese id para nada (por eso no se notaba a simple vista), pero sí
+es el tipo de bug que muerde en cuanto alguien construya algo sobre él
+—por ejemplo, para enlazar una respuesta al mensaje recién publicado—.
+Se corrigió leyendo el id inmediatamente después del INSERT real. De
+paso se confirmó que los hilos (`respuesta_a`) sí encadenan bien
+cuando se les pasa el id correcto.
+
+**Tareas y Entregas, y el Portal del Alumno, ya funcionaban de punta a
+punta** (crear tarea con fecha límite y % de ponderación → el alumno
+entrega → el profesor califica → el alumno ve su nota y el mensaje del
+profesor en "Tareas", pero nunca el número en "Plan de Notas" — eso es
+a propósito, ver las secciones de más arriba sobre por qué). No hizo
+falta tocar nada ahí; quedó documentado con pruebas reales en vez de
+solo lectura de código.
+
+### Notificaciones en tiempo real: existían para admin, pero nunca para el profesor ni el alumno
+
+El backend de notificaciones push ya estaba resuelto desde hace rato:
+`api/notificaciones_stream.php` sondea la base cada ~3s sobre una
+conexión abierta (Server-Sent Events) y entrega lo nuevo al instante,
+sin que el navegador tenga que preguntar. El problema es que ese
+mecanismo solo estaba conectado desde `layout/foot.php` — el layout
+compartido de los módulos de administración. `portal_docente.php` y
+`portal_alumno.php` son SPA aparte que arman su propio HTML y nunca
+incluyen ese layout, así que un profesor o un alumno nunca recibía un
+aviso mientras estaba adentro de su portal: solo se enteraba de algo
+nuevo si cerraba sesión y volvía a entrar (pull, no push).
+
+Se armó `assets/ibbs-notif-bell.js`, un módulo aparte (mismo patrón que
+`ibbs-realtime.js`, `ibbs-tour.js`, etc. — standalone, pensado para
+estas dos páginas autocontenidas) con la campana completa: contador de
+no leídas, panel desplegable con "Marcar leída" / "Marcar todas
+leídas", y la conexión SSE en vivo que dispara un aviso (`Ibbs.toast`,
+nuevo método agregado a `assets/ibbs-alerts.js`) apenas llega algo
+nuevo — se probó forzando una notificación real desde el otro rol y
+confirmando que aparece sin recargar la página. `portal_docente.php` ya
+tenía una barra superior fija donde encajarla; `portal_alumno.php` no
+tenía ninguna franja persistente en escritorio (el encabezado con el
+logo solo existía para mobile), así que se la dejó visible siempre —
+único cambio de diseño que hizo falta para este punto.
+
+**Bug de seguridad encontrado de paso (XSS guardado) y corregido:** el
+panel desplegable de notificaciones, tanto el que ya existía en
+`layout/foot.php` como el de `modulo_herramientas.php`, metía
+`titulo`/`mensaje` directo en `innerHTML` sin escapar. El `mensaje` de
+una notificación de foro es, literalmente, el texto que cualquier
+alumno o profesor escribió en su mensaje — cualquiera podía meter una
+etiqueta `<img onerror=...>` en un mensaje de foro y, en cuanto otra
+persona abriera la campana de notificaciones, se ejecutaba. El chat/foro
+en sí nunca tuvo este problema (ya usaba un helper de escape al
+pintar los mensajes); era específico de estos tres lugares que pintan
+notificaciones. Se corrigieron los tres (los dos ya existentes más el
+nuevo de `ibbs-notif-bell.js`), probado con una carga maliciosa real
+para confirmar que ahora queda como texto plano y no se ejecuta.
+
 ## Convenciones para módulos nuevos
 
 Cada módulo del campus (aula, foro, tareas, clases grabadas/en vivo,

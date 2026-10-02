@@ -454,10 +454,14 @@ async function _renderNotifDrop(){
     box.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--muted);font-size:.8rem;">Sin notificaciones pendientes.</div>';
     return;
   }
+  // h() escapa titulo/mensaje antes de meterlos en innerHTML — son
+  // texto libre (ej. el contenido de un mensaje de foro) y sin esto
+  // cualquiera podía guardar HTML/JS en un mensaje y que se ejecutara
+  // acá apenas otro usuario abriera la campana (XSS almacenado).
   box.innerHTML = d.data.map(n => `
     <div id="nd${n.id}" style="padding:.6rem .5rem;border-bottom:1px solid var(--border);">
-      <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.15rem;">${(NOTIF_ICONS[n.tipo]||'ℹ️')} ${n.titulo||''}</div>
-      <div style="font-size:.8rem;color:var(--ink);line-height:1.4;">${n.mensaje||''}</div>
+      <div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:.15rem;">${(NOTIF_ICONS[n.tipo]||'ℹ️')} ${h(n.titulo||'')}</div>
+      <div style="font-size:.8rem;color:var(--ink);line-height:1.4;">${h(n.mensaje||'')}</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.35rem;">
         <span style="font-size:.68rem;color:var(--muted);">${n.creado_en?.substring(0,16)||''}</span>
         <button onclick="_leerNotifDrop(${n.id})" style="background:none;border:none;color:var(--lime,#059669);font-size:.7rem;cursor:pointer;">Marcar leída</button>

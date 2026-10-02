@@ -78,6 +78,11 @@ if ($action === 'post_mensaje' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $st = mysqli_prepare($con, "INSERT INTO foro_mensajes(materia_id,usuario_id,usuario_nombre,rol,mensaje,respuesta_a) VALUES(?,?,?,?,?,?)");
     mysqli_stmt_bind_param($st, 'iisssi', $materia_id, $uid, $usuarioNombre, $_rol, $mensaje, $respuestaA);
     if (!mysqli_stmt_execute($st)) { echo json_encode(['success' => false, 'error' => 'No se pudo publicar el mensaje.']); exit; }
+    // Hay que leer el id ya mismo: log_audit() y notificar_materia()
+    // insertan en audit_log/notificaciones por la misma conexión, y
+    // mysqli_insert_id() siempre devuelve el de la ÚLTIMA inserción —
+    // leerlo después de esas llamadas devolvía el id equivocado.
+    $nuevo_id = mysqli_insert_id($con);
 
     log_audit($con, $uid, 'FORO_MENSAJE', "materia=$materia_id");
     $resumen = mb_strlen($mensaje) > 80 ? mb_substr($mensaje, 0, 80).'…' : $mensaje;
@@ -86,7 +91,7 @@ if ($action === 'post_mensaje' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     // WebSocket activo — el mensaje real siempre se lee de la BD
     // (get_mensajes); esto solo dispara el refresco al instante.
     ws_broadcast_channel('materia:'.$materia_id, 'foro_mensaje', ['materia_id' => $materia_id]);
-    echo json_encode(['success' => true, 'id' => mysqli_insert_id($con)]); exit;
+    echo json_encode(['success' => true, 'id' => $nuevo_id]); exit;
 }
 
 /* ════ BORRAR MENSAJE ═══════════════════════════════════════════

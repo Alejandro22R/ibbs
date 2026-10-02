@@ -119,6 +119,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <script src="assets/ibbs-tour.js"></script>
     <script src="assets/ibbs-password-toggle.js"></script>
     <script src="assets/ibbs-shortcuts.js"></script>
+    <script src="assets/ibbs-notif-bell.js"></script>
 
     <!-- Tailwind CSS con Configuración de Tema IBBS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -358,17 +359,36 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         <!-- Overlay para mobile -->
         <div id="mobile-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-ibbs-ink/60 z-20 hidden md:hidden backdrop-blur-sm transition-opacity"></div>
 
-        <!-- Header Mobile -->
-        <header class="h-16 bg-ibbs-paper border-b border-ibbs-border flex items-center justify-between px-4 md:hidden z-10">
+        <!-- Header: antes solo existía en mobile; ahora queda visible
+             siempre (también en escritorio) porque es el único lugar
+             persistente, en todas las vistas, donde poner la campana
+             de notificaciones — el resto del portal no tiene topbar
+             propio como sí tiene portal_docente.php. -->
+        <header class="h-16 bg-ibbs-paper border-b border-ibbs-border flex items-center justify-between px-4 z-10">
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 rounded-lg bg-ibbs-lime flex items-center justify-center shadow-sm">
                     <i class="fas fa-graduation-cap text-ibbs-ink text-sm"></i>
                 </div>
                 <h1 class="font-serif font-bold text-lg text-ibbs-ink tracking-wide">IBBS</h1>
             </div>
-            <button onclick="toggleSidebar()" class="text-ibbs-muted hover:text-ibbs-ink focus:outline-none p-2 rounded-lg bg-ibbs-cream border border-ibbs-border">
-                <i class="fas fa-bars text-lg"></i>
-            </button>
+            <div class="flex items-center gap-2">
+                <div style="position: relative;">
+                    <button id="notifBell" onclick="toggleNotifDrop()" title="Notificaciones" class="text-ibbs-muted hover:text-ibbs-ink focus:outline-none p-2 rounded-lg bg-ibbs-cream border border-ibbs-border" style="position:relative;">
+                        <i class="fas fa-bell"></i>
+                        <span id="notifCount" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:.55rem;font-weight:700;align-items:center;justify-content:center;line-height:1;"></span>
+                    </button>
+                    <div id="notifDrop" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:300px;max-height:420px;overflow-y:auto;background:#fdfaf4;border:1.5px solid #e0d8c8;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.14);z-index:200;">
+                        <div style="padding:.7rem .9rem;border-bottom:1px solid #e0d8c8;display:flex;justify-content:space-between;align-items:center;">
+                            <strong style="font-size:.85rem;">Notificaciones</strong>
+                            <button onclick="marcarTodasLeidasDrop()" style="background:none;border:none;color:#16a34a;font-size:.72rem;cursor:pointer;">Marcar todas leídas</button>
+                        </div>
+                        <div id="notifDropList" style="padding:.4rem;"></div>
+                    </div>
+                </div>
+                <button onclick="toggleSidebar()" class="md:hidden text-ibbs-muted hover:text-ibbs-ink focus:outline-none p-2 rounded-lg bg-ibbs-cream border border-ibbs-border">
+                    <i class="fas fa-bars text-lg"></i>
+                </button>
+            </div>
         </header>
 
         <!-- Área desplazable de contenido -->

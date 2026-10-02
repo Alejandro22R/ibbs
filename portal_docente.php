@@ -134,6 +134,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     <script src="assets/ibbs-tour.js"></script>
     <script src="assets/ibbs-password-toggle.js"></script>
     <script src="assets/ibbs-shortcuts.js"></script>
+    <script src="assets/ibbs-notif-bell.js"></script>
     
     <style>
         /* Animaciones para SPA */
@@ -333,6 +334,19 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     <svg class="t-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                     <svg class="t-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
                 </button>
+                <div style="position: relative;">
+                    <button id="notifBell" onclick="toggleNotifDrop()" title="Notificaciones" style="position:relative;background:none;border:1.5px solid var(--border);border-radius:9px;padding:.5rem .7rem;cursor:pointer;display:flex;align-items:center;color:var(--ink);">
+                        <i class="fas fa-bell"></i>
+                        <span id="notifCount" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border-radius:50%;width:17px;height:17px;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;"></span>
+                    </button>
+                    <div id="notifDrop" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;max-height:420px;overflow-y:auto;background:var(--paper,#fdfaf4);border:1.5px solid var(--border,#e0d8c8);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.14);z-index:200;">
+                        <div style="padding:.7rem .9rem;border-bottom:1px solid var(--border,#e0d8c8);display:flex;justify-content:space-between;align-items:center;">
+                            <strong style="font-size:.85rem;">Notificaciones</strong>
+                            <button onclick="marcarTodasLeidasDrop()" style="background:none;border:none;color:#16a34a;font-size:.72rem;cursor:pointer;">Marcar todas leídas</button>
+                        </div>
+                        <div id="notifDropList" style="padding:.4rem;"></div>
+                    </div>
+                </div>
                 <div class="user-pill">
                     <div class="user-ava">
                         <?php if($foto_perfil): ?>

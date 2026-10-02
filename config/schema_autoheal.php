@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 17);
+define('IBBS_SCHEMA_VERSION', 18);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -188,6 +188,30 @@ if (!function_exists('ibbs_autoheal_schema')) {
             // "Plan de Notas" (api/plan_notas.php).
             "ALTER TABLE `tareas` ADD COLUMN IF NOT EXISTS `fecha_limite_correccion` DATETIME DEFAULT NULL AFTER `fecha_limite`",
             "ALTER TABLE `tareas` ADD COLUMN IF NOT EXISTS `porcentaje` DECIMAL(5,2) DEFAULT NULL AFTER `nota_maxima`",
+            // 002_clases_grabadas.sql — esta migración (igual que
+            // 001_aula_virtual.sql y 003_clases_vivo.sql) nunca había
+            // quedado enganchada acá, así que una instalación nueva
+            // (o cualquier entorno donde nadie corrió el .sql a mano)
+            // se queda sin la tabla `clases_grabadas` y la pestaña
+            // "Clases Grabadas" revienta en cuanto alguien intenta
+            // listar o publicar un video. Las otras dos (001 y 003)
+            // se dejan afuera a propósito en este cambio.
+            "CREATE TABLE IF NOT EXISTS `clases_grabadas` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `usuario_id` INT(11) NOT NULL COMMENT 'quién la publicó (docente/admin)',
+                `titulo` VARCHAR(150) NOT NULL,
+                `descripcion` VARCHAR(500) DEFAULT NULL,
+                `url` VARCHAR(500) NOT NULL COMMENT 'link original tal como lo pegó el docente',
+                `plataforma` VARCHAR(20) NOT NULL DEFAULT 'otro' COMMENT 'youtube|drive|vimeo|otro',
+                `fecha` DATE DEFAULT NULL COMMENT 'fecha de la clase (no de la publicación)',
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia` (`materia_id`),
+                KEY `idx_usuario` (`usuario_id`),
+                CONSTRAINT `autoheal_cg_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_cg_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         ];
 
         foreach ($ddl as $sql) {

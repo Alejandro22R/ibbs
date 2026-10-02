@@ -71,6 +71,27 @@ const Ibbs = {
       buttonsStyling: false,
     });
   },
+
+  // Aviso pequeño en la esquina, se cierra solo — para cosas que no
+  // interrumpen lo que el usuario está haciendo (ej. una notificación
+  // que acaba de llegar), a diferencia de success()/warn()/error()
+  // que son un modal centrado que hay que mirar.
+  // `msg` va como texto plano (nunca HTML) a propósito: suele ser el
+  // título de una notificación, texto libre que puede venir de lo que
+  // otro usuario escribió (ej. un mensaje de foro) — jamás confiar en
+  // eso como HTML. `icon` es solo un emoji de un mapa fijo, no dato
+  // de usuario, así que ese sí puede ir en el html del ícono.
+  toast(msg, icon='ℹ️') {
+    return Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 4500,
+      timerProgressBar: true,
+      background: '#f5f0e8', color: '#1a4d2e',
+      customClass: { popup: 'ibbs-swal' },
+    }).fire({ text: icon + '  ' + msg });
+  },
 };
 
 // Mismo look & feel de los botones/las burbujas que ya usa layout/foot.php

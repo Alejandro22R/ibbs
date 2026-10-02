@@ -339,7 +339,7 @@ async function loadNotifs() {
     <div class="notif-item ${n.leida=='0'?'unread':''}" id="ni${n.id}">
       <div class="notif-ico ${n.tipo}">${ico[n.tipo]||'🔔'}</div>
       <div class="notif-body">
-        <div class="notif-msg">${n.mensaje}</div>
+        <div class="notif-msg">${h(n.mensaje||'')}</div>
         <div class="notif-time">${n.creado_en?.substring(0,16)||''}</div>
         ${n.tipo==='solicitud_alumno' && n.referencia_id ? `
           <div style="display:flex;gap:.5rem;margin-top:.5rem;">
