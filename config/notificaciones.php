@@ -47,8 +47,18 @@ if (!function_exists('notificar_materia')) {
      * Notifica a todos los docentes y alumnos inscritos en una materia
      * (vía materia_docente / materia_alumno), sin duplicar destinatarios
      * y sin notificar a quien disparó el evento.
+     *
+     * Para los tipos "clave" (tarea nueva, material compartido, clase
+     * grabada agregada) también se le avisa al admin/superadmin — no
+     * están inscritos en la materia, pero quieren tener visibilidad de
+     * la actividad académica sin tener que entrar a revisarla materia
+     * por materia. Deliberadamente NO se incluye 'foro' ni
+     * 'calificacion' acá: son demasiado frecuentes (cada mensaje de
+     * chat, cada nota puntual) y llenarían de ruido la campana del
+     * admin sin aportar nada realmente "clave".
      */
     function notificar_materia($con, $materia_id, $tipo, $titulo, $mensaje, $excluir_uid = null) {
+        static $tiposClaveAdmin = ['tarea', 'material', 'grabacion', 'anuncio'];
         $destinatarios = [];
 
         $st = mysqli_prepare($con, "SELECT d.usuario_id FROM materia_docente md JOIN docentes d ON d.id=md.docente_id WHERE md.materia_id=? AND d.usuario_id IS NOT NULL");
@@ -67,6 +77,12 @@ if (!function_exists('notificar_materia')) {
 
         foreach (array_keys($destinatarios) as $uid) {
             notificar_usuario($con, $uid, $tipo, $titulo, $mensaje, $materia_id);
+        }
+
+        if (in_array($tipo, $tiposClaveAdmin, true)) {
+            $st3 = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,para_rol,materia_id) VALUES(?,?,?,'admin',?)");
+            mysqli_stmt_bind_param($st3, 'sssi', $tipo, $titulo, $mensaje, $materia_id);
+            mysqli_stmt_execute($st3);
         }
     }
 }

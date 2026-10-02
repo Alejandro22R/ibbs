@@ -361,6 +361,7 @@ async function loadNotifs() {
       </div>
       <div style="display:flex;gap:.4rem;align-items:flex-start;flex-shrink:0;">
         ${n.leida=='0'?`<button class="btn btn-sm btn-secondary" onclick="leerNotif(${n.id})">Leída</button>`:''}
+        <button class="btn btn-sm btn-secondary" onclick="archivarNotif(${n.id})" title="Archivar (la guarda, pero sale de esta lista)">🗄️</button>
         <button class="btn btn-sm btn-danger" onclick="borrarNotif(${n.id})">✕</button>
       </div>
     </div>`).join('');
@@ -422,6 +423,10 @@ async function marcarTodasLeidas() {
 }
 async function borrarNotif(id) {
   await ajax('notif_borrar',{id});
+  document.getElementById('ni'+id)?.remove();
+}
+async function archivarNotif(id) {
+  await ajax('notif_archivar',{id});
   document.getElementById('ni'+id)?.remove();
 }
 

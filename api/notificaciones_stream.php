@@ -73,7 +73,7 @@ if (!$con) {
 $roles = notif_roles_aceptados($rol);
 $st = mysqli_prepare($con, "SELECT id,tipo,titulo,mensaje,materia_id,creado_en
                              FROM notificaciones
-                             WHERE id > ? AND (usuario_id = ? OR (usuario_id IS NULL AND para_rol IN (?,?,?)))
+                             WHERE id > ? AND archivada=0 AND (usuario_id = ? OR (usuario_id IS NULL AND para_rol IN (?,?,?)))
                              ORDER BY id ASC LIMIT 20");
 
 set_time_limit(0);

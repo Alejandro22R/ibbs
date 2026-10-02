@@ -198,6 +198,7 @@ if ($action === 'material_create') {
     mysqli_stmt_bind_param($st, 'iisssssi', $mid, $uid, $titulo, $descripcion, $ruta, $nombreOriginal, $ext, $tamano);
     if (!mysqli_stmt_execute($st)) { @unlink($dir.$fname); json_fail('No se pudo registrar el material.'); }
     log_audit($con, $uid, 'AULA_MATERIAL_CREATE', "materia=$mid archivo=$fname");
+    notificar_materia($con, $mid, 'material', "Nuevo material: $titulo", $descripcion, $uid);
     echo json_encode(['ok'=>true,'msg'=>'Material subido.']); exit;
 }
 

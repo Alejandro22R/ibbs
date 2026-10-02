@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 19);
+define('IBBS_SCHEMA_VERSION', 20);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -299,6 +299,11 @@ if (!function_exists('ibbs_autoheal_schema')) {
                 CONSTRAINT `autoheal_cv_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `autoheal_cv_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            // Campana de notificaciones: además de leída/no leída, ahora
+            // se puede archivar (sacarla de la lista sin borrarla ni
+            // marcarla como pendiente) — ver notif_archivar en ajax.php.
+            "ALTER TABLE `notificaciones` ADD COLUMN IF NOT EXISTS `archivada` TINYINT(1) NOT NULL DEFAULT 0 AFTER `leida`",
+            "ALTER TABLE `notificaciones` ADD INDEX IF NOT EXISTS `idx_archivada` (`usuario_id`,`archivada`)",
         ];
 
         foreach ($ddl as $sql) {

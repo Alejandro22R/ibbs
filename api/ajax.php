@@ -791,8 +791,11 @@ if($action==='notif_list'){
     $lista=[];
     // Los "broadcast" (usuario_id NULL) solo se muestran si el rol del
     // usuario coincide con para_rol — antes se veían todos entre sí.
+    // Archivada no es lo mismo que leída: una notificación archivada
+    // queda guardada pero sale de esta lista a propósito (ver
+    // notif_archivar), tanto si estaba leída como si no.
     $roles=notif_roles_aceptados($_rol);
-    $st=mysqli_prepare($con,"SELECT * FROM notificaciones WHERE (usuario_id=? OR (usuario_id IS NULL AND para_rol IN (?,?,?))) AND leida=0 ORDER BY creado_en DESC LIMIT 30");
+    $st=mysqli_prepare($con,"SELECT * FROM notificaciones WHERE (usuario_id=? OR (usuario_id IS NULL AND para_rol IN (?,?,?))) AND leida=0 AND archivada=0 ORDER BY creado_en DESC LIMIT 30");
     mysqli_stmt_bind_param($st,'isss',$uid,$roles[0],$roles[1],$roles[2]);
     mysqli_stmt_execute($st);
     $r=mysqli_stmt_get_result($st);
@@ -851,6 +854,16 @@ if($action==='notif_leer'){
     $id=(int)($_POST['id']??0);
     if($id) mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE id=$id AND (usuario_id=$uid OR usuario_id IS NULL)");
     else    mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE (usuario_id=$uid OR usuario_id IS NULL)");
+    echo json_encode(['ok'=>true]); exit;
+}
+if($action==='notif_archivar'){
+    // Archivar es la tercera opción, aparte de "marcar leída" y
+    // "borrar": saca la notificación de la bandeja sin perder el
+    // registro (a diferencia de notif_borrar) y sin que siga contando
+    // como pendiente (a diferencia de dejarla como está).
+    $id=(int)($_POST['id']??0);
+    if(!$id){echo json_encode(['ok'=>false,'msg'=>'Sin ID.']);exit;}
+    mysqli_query($con,"UPDATE notificaciones SET archivada=1,leida=1 WHERE id=$id AND (usuario_id=$uid OR usuario_id IS NULL)");
     echo json_encode(['ok'=>true]); exit;
 }
 if($action==='notif_borrar'){
