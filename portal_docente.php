@@ -566,11 +566,15 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 </select>
             </div>
 
+            <div id="pnEnvioStatus"></div>
+
             <div class="card">
                 <div class="tbl-wrap">
                     <div id="pnContenedor" style="padding:2rem;text-align:center;color:var(--muted);">Elegí una materia para ver su plan de notas.</div>
                 </div>
             </div>
+
+            <div id="pnEnviarWrap" style="margin-top:1rem;"></div>
         </div>
 
         <!-- ============================================== -->
@@ -2397,6 +2401,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         async function cargarPlanNotas() {
             const mid = document.getElementById('pnMateria').value;
             const cont = document.getElementById('pnContenedor');
+            document.getElementById('pnEnvioStatus').innerHTML = '';
+            document.getElementById('pnEnviarWrap').innerHTML = '';
             if (!mid) { cont.innerHTML = 'Elegí una materia para ver su plan de notas.'; return; }
             cont.innerHTML = '<span class="spin"></span>';
             const fd = new FormData(); fd.append('accion', 'docente'); fd.append('materia_id', mid);
@@ -2407,6 +2413,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 d = await r.json();
             } catch (e) { cont.innerHTML = '<p style="color:var(--red);padding:1rem;">Error de conexión.</p>'; return; }
             if (!d.ok) { cont.innerHTML = `<p style="color:var(--red);padding:1rem;">${hPN(d.msg || 'Error al cargar.')}</p>`; return; }
+
+            cargarEstadoEnvioNotas(mid);
 
             const { tareas, alumnos, notas, stats } = d.data;
             if (!tareas.length) { cont.innerHTML = '<p style="padding:1rem;color:var(--muted);">Esta materia todavía no tiene actividades creadas.</p>'; return; }
@@ -2439,7 +2447,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 const pct = t.porcentaje !== null ? `${parseFloat(t.porcentaje)}%` : 'sin %';
                 html += `<th style="text-align:center;min-width:110px;" title="${hPN(t.titulo)}">${hPN(t.titulo.length > 16 ? t.titulo.substring(0,16)+'…' : t.titulo)}<br><span style="font-weight:400;color:var(--muted);font-size:.68rem;">${pct}</span></th>`;
             });
-            html += '<th style="text-align:center;">Promedio ponderado</th></tr></thead><tbody>';
+            html += '<th style="text-align:center;">Promedio ponderado</th><th style="text-align:center;min-width:120px;">Nota a registrar</th></tr></thead><tbody>';
 
             alumnos.forEach(a => {
                 html += `<tr><td style="text-align:left;font-weight:700;">${hPN(a.apellido)}, ${hPN(a.nombre)}</td>`;
@@ -2464,14 +2472,69 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     const color = promedio >= 15 ? 'var(--lime2)' : 'var(--red)';
                     html += `<td style="text-align:center;font-weight:700;color:${color};">${promedio} / 20</td>`;
                 }
+                html += `<td style="text-align:center;"><input type="number" class="pn-nota-registrar" data-alumno-id="${a.id}" min="0" max="20" step="0.1" value="${promedio !== null ? promedio : ''}" placeholder="0-20" style="width:80px;text-align:center;padding:.3rem;border:1px solid var(--border);border-radius:6px;"></td>`;
                 html += '</tr>';
             });
             html += '</tbody></table></div>';
+            html += `<div style="padding:.8rem 1.2rem;font-size:.78rem;color:var(--muted);border-top:1px solid var(--border);">"Nota a registrar" es la que se envía para aprobación — podés cargarla aunque el alumno no haya entregado nada, poniéndola vos directamente. Se llena sola con el promedio ponderado, pero la podés cambiar.</div>`;
 
             if (sumaPorcentajes !== 100 && sumaPorcentajes !== 0) {
                 html = `<div style="padding:.7rem 1.2rem;background:rgba(217,119,6,.08);color:var(--amber);font-size:.78rem;font-weight:600;border-bottom:1px solid var(--border);"><i class="fas fa-triangle-exclamation"></i> Los % de las actividades suman ${sumaPorcentajes}% (debería sumar 100%) — el promedio de arriba se calcula igual, mejor pero conviene revisar los %.</div>` + html;
             }
             cont.innerHTML = html;
+
+            document.getElementById('pnEnviarWrap').innerHTML = `
+                <button class="btn btn-primary" onclick="enviarNotasAprobacion(${mid})">
+                    <i class="fas fa-paper-plane"></i> Cargar Notas para Aprobación
+                </button>`;
+        }
+
+        // ── Envío y aprobación de notas finales (api/notas_envio.php) ──
+        async function cargarEstadoEnvioNotas(mid) {
+            const box = document.getElementById('pnEnvioStatus');
+            const fd = new FormData(); fd.append('action', 'estado_materia'); fd.append('materia_id', mid);
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            let d;
+            try {
+                const r = await fetch('api/notas_envio.php', { method: 'POST', body: fd });
+                d = await r.json();
+            } catch (e) { return; }
+            if (!d.ok || !d.data) { box.innerHTML = ''; return; }
+
+            const e = d.data;
+            if (e.estado === 'pendiente') {
+                box.innerHTML = `<div style="padding:.8rem 1.2rem;background:rgba(217,119,6,.08);border:1px solid var(--amber);border-radius:10px;margin-bottom:1rem;color:var(--amber);font-size:.85rem;font-weight:600;"><i class="fas fa-clock"></i> Ya enviaste estas notas y están pendientes de aprobación del administrador.</div>`;
+            } else if (e.estado === 'rechazado') {
+                box.innerHTML = `<div style="padding:.8rem 1.2rem;background:rgba(220,38,38,.08);border:1px solid var(--red);border-radius:10px;margin-bottom:1rem;color:var(--red);font-size:.85rem;"><strong><i class="fas fa-circle-xmark"></i> El administrador rechazó tu último envío:</strong> ${hPN(e.comentario_admin || '')}<br><span style="font-weight:600;">Corregí lo que haga falta y volvé a enviar cuando quieras.</span></div>`;
+            } else if (e.estado === 'aprobado') {
+                box.innerHTML = `<div style="padding:.8rem 1.2rem;background:rgba(46,204,16,.08);border:1px solid var(--lime2);border-radius:10px;margin-bottom:1rem;color:var(--lime2);font-size:.85rem;font-weight:600;"><i class="fas fa-circle-check"></i> Tus últimas notas fueron aprobadas y ya las ven tus alumnos. Si cambió algo, podés volver a cargar y enviar.</div>`;
+            }
+        }
+
+        async function enviarNotasAprobacion(mid) {
+            const inputs = document.querySelectorAll('.pn-nota-registrar');
+            const propuestas = {};
+            for (const inp of inputs) {
+                const v = inp.value.trim();
+                if (v === '') { Ibbs.warn('Tenés que cargar la nota de todos los alumnos antes de enviar.'); inp.focus(); return; }
+                const n = parseFloat(v);
+                if (isNaN(n) || n < 0 || n > 20) { Ibbs.warn('Las notas deben estar entre 0 y 20.'); inp.focus(); return; }
+                propuestas[inp.dataset.alumnoId] = n;
+            }
+            if (!Object.keys(propuestas).length) { Ibbs.warn('No hay alumnos inscritos en esta materia.'); return; }
+
+            const rr = await Ibbs.confirm({title: 'Cargar Notas', text: '¿Enviar estas notas para aprobación? El administrador las va a revisar antes de que tus alumnos puedan verlas.', confirm: 'Sí, enviar'});
+            if (!rr.isConfirmed) return;
+
+            const fd = new FormData();
+            fd.append('action', 'crear'); fd.append('materia_id', mid); fd.append('propuestas', JSON.stringify(propuestas));
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            try {
+                const r = await fetch('api/notas_envio.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) { Ibbs.success(d.msg); cargarPlanNotas(); }
+                else Ibbs.error(d.msg || 'No se pudo enviar.');
+            } catch (e) { Ibbs.error('Error de conexión.'); }
         }
 
         // ── Tutorial guiado (manual intuitivo del docente) ─────────

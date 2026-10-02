@@ -11,12 +11,15 @@
  * para quién.
  *
  * La Constancia de Notas solo incluye una materia en la tabla de
- * calificaciones si: (1) el administrador ya la marcó "culminada"
- * (materia_set_estado, exclusivo de admin/superadmin — esa es la
- * confirmación administrativa) y (2) el profesor ya calificó al 100%
- * de los alumnos inscritos en ella (ningún nota_final en NULL). Una
- * materia en curso, o culminada pero con notas incompletas, nunca
- * aparece — evita que el récord oficial muestre una nota a medias.
+ * calificaciones si las tres condiciones del flujo de aprobación se
+ * cumplieron: (1) el administrador ya marcó la materia "culminada"
+ * (materia_set_estado, exclusivo de admin/superadmin), (2) existe un
+ * envío de notas (api/notas_envio.php) de esa materia con estado
+ * "aprobado" — es decir, el profesor las cargó y el administrador las
+ * revisó y confirmó — y (3) ningún alumno de la materia quedó con
+ * nota_final en NULL. Una materia en curso, sin notas aprobadas, o con
+ * notas incompletas, nunca aparece — evita que el récord oficial
+ * muestre una nota a medias o sin confirmar.
  *
  * tipo=trabajo es distinto: la genera el propio docente para sí mismo
  * (constancia de que presta servicios en la institución) — admin/
@@ -62,21 +65,25 @@ if ($tipo === 'trabajo') {
     if (!$alumno) die('Alumno no encontrado.');
     log_audit($con, $uid, 'CONSTANCIA_'.strtoupper($tipo).'_GENERAR', "alumno=$aid");
 
-    // Solo materias culminadas (confirmadas por admin) y 100% calificadas
-    // (ningún alumno de esa materia con nota_final pendiente) — ver la
-    // nota al principio del archivo.
+    // Solo materias culminadas, con un envío de notas aprobado, y
+    // 100% calificadas (ningún alumno de esa materia con nota_final
+    // pendiente) — ver la nota al principio del archivo.
     $materias = [];
     if ($tipo === 'notas') {
         $r = mysqli_query($con, "SELECT ma.nota_final,m.nombre mn,m.codigo mc
                                   FROM materia_alumno ma JOIN materias m ON m.id=ma.materia_id
                                   WHERE ma.alumno_id=$aid AND m.estado='culminada'
+                                    AND EXISTS (
+                                        SELECT 1 FROM notas_envios ne
+                                        WHERE ne.materia_id=ma.materia_id AND ne.estado='aprobado'
+                                    )
                                     AND NOT EXISTS (
                                         SELECT 1 FROM materia_alumno ma2
                                         WHERE ma2.materia_id=ma.materia_id AND ma2.nota_final IS NULL
                                     )
                                   ORDER BY m.nombre");
         while ($f = mysqli_fetch_assoc($r)) $materias[] = $f;
-        if (!$materias) die('Todavía no tenés ninguna materia culminada y 100% calificada para incluir en tu Constancia de Notas. Una vez que tu profesor termine de cargar las notas y la administración confirme el cierre de la materia, vas a poder generarla acá.');
+        if (!$materias) die('Todavía no tenés ninguna materia culminada con notas aprobadas por la administración para incluir en tu Constancia de Notas. Una vez que tu profesor cargue las notas y el administrador las apruebe, vas a poder generarla acá.');
     }
 }
 

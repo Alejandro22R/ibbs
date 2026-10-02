@@ -819,7 +819,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     <div>Estos documentos son gratuitos: los generás y descargás vos mismo(a), cuando quieras. La Constancia de Notas solo incluye las materias que ya culminaron con el 100% de las calificaciones cargadas y confirmadas.</div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <!-- Constancia de Estudio -->
                     <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center hover:shadow-lg transition-all group">
                         <div class="w-20 h-20 rounded-2xl bg-ibbs-blue/10 text-ibbs-blue flex items-center justify-center text-3xl mb-5 group-hover:bg-ibbs-blue group-hover:text-white transition-colors duration-300">
@@ -840,6 +840,18 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Notas</h3>
                         <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Reporte académico oficial con el desglose detallado de tus calificaciones finales aprobadas y tu promedio general.</p>
                         <a href="api/export_constancia.php?tipo=notas" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-green transition-colors flex items-center justify-center gap-2 mt-auto">
+                            <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
+                        </a>
+                    </div>
+
+                    <!-- Boletín / Récord Académico -->
+                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center hover:shadow-lg transition-all group">
+                        <div class="w-20 h-20 rounded-2xl bg-ibbs-amber/10 text-ibbs-amber flex items-center justify-center text-3xl mb-5 group-hover:bg-ibbs-amber group-hover:text-white transition-colors duration-300">
+                            <i class="fas fa-file-lines"></i>
+                        </div>
+                        <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Boletín / Récord</h3>
+                        <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Reporte completo de todas tus materias y tu asistencia — incluye en curso y pendientes, no solo las ya calificadas.</p>
+                        <a href="api/export_boletin.php" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-amber transition-colors flex items-center justify-center gap-2 mt-auto">
                             <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
                         </a>
                     </div>

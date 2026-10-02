@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 20);
+define('IBBS_SCHEMA_VERSION', 21);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -304,6 +304,29 @@ if (!function_exists('ibbs_autoheal_schema')) {
             // marcarla como pendiente) — ver notif_archivar en ajax.php.
             "ALTER TABLE `notificaciones` ADD COLUMN IF NOT EXISTS `archivada` TINYINT(1) NOT NULL DEFAULT 0 AFTER `leida`",
             "ALTER TABLE `notificaciones` ADD INDEX IF NOT EXISTS `idx_archivada` (`usuario_id`,`archivada`)",
+            // El profesor puede cargar notas en cualquier momento (entregue
+            // o no el alumno) y mandarlas a revisión del administrador —
+            // ver api/notas_envio.php. snapshot_json guarda el Plan de
+            // Notas (tareas+alumnos+notas+stats) tal cual estaba al
+            // momento del envío, más la nota que el profesor propuso para
+            // cada alumno, para que el admin revise exactamente eso.
+            "CREATE TABLE IF NOT EXISTS `notas_envios` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `docente_usuario_id` INT(11) NOT NULL,
+                `estado` VARCHAR(20) NOT NULL DEFAULT 'pendiente' COMMENT 'pendiente|aprobado|rechazado',
+                `snapshot_json` LONGTEXT NOT NULL,
+                `comentario_admin` VARCHAR(500) DEFAULT NULL,
+                `revisado_por` INT(11) DEFAULT NULL,
+                `revisado_en` DATETIME DEFAULT NULL,
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia` (`materia_id`),
+                KEY `idx_estado` (`estado`),
+                CONSTRAINT `autoheal_ne_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_ne_ibfk_2` FOREIGN KEY (`docente_usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_ne_ibfk_3` FOREIGN KEY (`revisado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         ];
 
         foreach ($ddl as $sql) {

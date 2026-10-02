@@ -3,35 +3,61 @@
  * IBBS — Boletín de Calificaciones
  * Diseño institucional: encabezado con logo, datos del alumno,
  * tabla de notas, asistencias. Se descarga directo con print dialog.
+ *
+ * Trámite gratuito y de autoservicio — el alumno lo genera para sí
+ * mismo, sin alumno_id. Admin y superadmin pueden emitirlo para
+ * cualquier alumno pasando alumno_id.
+ *
+ * A diferencia de la Constancia de Notas (que directamente omite una
+ * materia incompleta), el Boletín siempre lista todas las materias en
+ * las que el alumno está o estuvo inscrito, para que sirva también
+ * como un reporte de avance — pero la Nota Final solo se muestra si
+ * la materia ya está culminada, tiene un envío de notas aprobado
+ * (api/notas_envio.php) y el alumno quedó con nota_final cargada; de
+ * lo contrario figura "Pendiente" aunque el campo tenga algún valor
+ * viejo en la base, igual que en la Constancia de Notas.
  */
 require_once __DIR__.'/../config/bootstrap.php';
 if(empty($_SESSION['loggedin'])){ header('Location: ../login.php'); exit; }
 
-$aid = (int)($_GET['alumno_id']??0);
-if(!$aid) die('ID inválido');
 $con = db();
 if (!$con) die('Error de conexión a la base de datos.');
 
-// El boletín es el PDF del récord académico — igual que las
-// constancias de estudio/notas, es un trámite pago que solo puede
-// emitir un administrador (antes el propio alumno podía descargar el
-// suyo, sin pasar por administración ni confirmar el pago).
-if (!in_array($_SESSION['rol'] ?? '', ['superadmin', 'admin'])) {
-    die('Este documento es un trámite administrativo pago — solicitalo en la administración del instituto.');
+$rol = $_SESSION['rol'] ?? 'alumno';
+$uid = (int)($_SESSION['user_id'] ?? 0);
+
+if ($rol === 'alumno') {
+    $al  = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
+    $aid = $al ? (int)$al['id'] : 0;
+} elseif (in_array($rol, ['superadmin', 'admin'])) {
+    $aid = (int)($_GET['alumno_id'] ?? 0);
+} else {
+    die('No tenés permiso para generar este documento.');
 }
-log_audit($con, (int)($_SESSION['user_id'] ?? 0), 'BOLETIN_GENERAR', "alumno=$aid");
+if(!$aid) die('Alumno no encontrado.');
+log_audit($con, $uid, 'BOLETIN_GENERAR', "alumno=$aid");
 
 $a = mysqli_fetch_assoc(mysqli_query($con,"SELECT a.*, u.correo uc FROM alumnos a LEFT JOIN usuarios u ON u.id=a.usuario_id WHERE a.id=$aid LIMIT 1"));
 if(!$a) die('Alumno no encontrado');
 
 $materias=[];
-$r=mysqli_query($con,"SELECT m.nombre mn,m.codigo,m.estado,m.dias,m.hora_inicio,m.hora_fin,ma.nota_final,ma.nota_fecha,
-    GROUP_CONCAT(CONCAT(d.nombre,' ',d.apellido) SEPARATOR ', ') docentes
+$r=mysqli_query($con,"SELECT m.id mid,m.nombre mn,m.codigo,m.estado,m.dias,m.hora_inicio,m.hora_fin,ma.nota_final,ma.nota_fecha,
+    GROUP_CONCAT(CONCAT(d.nombre,' ',d.apellido) SEPARATOR ', ') docentes,
+    (m.estado='culminada'
+        AND EXISTS (SELECT 1 FROM notas_envios ne WHERE ne.materia_id=m.id AND ne.estado='aprobado')
+        AND NOT EXISTS (SELECT 1 FROM materia_alumno ma2 WHERE ma2.materia_id=m.id AND ma2.nota_final IS NULL)
+    ) notas_confirmadas
     FROM materia_alumno ma JOIN materias m ON m.id=ma.materia_id
     LEFT JOIN materia_docente md ON md.materia_id=m.id
     LEFT JOIN docentes d ON d.id=md.docente_id
     WHERE ma.alumno_id=$aid GROUP BY m.id,ma.nota_final,ma.nota_fecha ORDER BY m.nombre");
-while($f=mysqli_fetch_assoc($r)) $materias[]=$f;
+while($f=mysqli_fetch_assoc($r)) {
+    // Si la materia no pasó las tres condiciones de aprobación, la
+    // nota se trata como pendiente en este documento aunque exista un
+    // valor en la base (por ejemplo, cargado antes de este flujo).
+    if (!$f['notas_confirmadas']) $f['nota_final'] = null;
+    $materias[]=$f;
+}
 
 $asist=mysqli_fetch_assoc(mysqli_query($con,"SELECT SUM(estado='presente') p,SUM(estado='ausente') a,SUM(estado='tardanza') t,SUM(estado='justificado') j FROM asistencias WHERE alumno_id=$aid AND tipo='alumno'"));
 $conNota=array_filter($materias,fn($m)=>$m['nota_final']!==null);
@@ -146,7 +172,7 @@ tbody tr:last-child td{border-bottom:none;}
 
 <div class="no-print">
   <button class="btn-dl" onclick="window.print()">Descargar PDF / Imprimir</button>
-  <a href="../modulo_record.php" style="font-size:.82rem;color:#666;">&#8592; Volver al record</a>
+  <a href="../<?= $rol==='alumno' ? 'portal_alumno.php' : 'modulo_record.php' ?>" style="font-size:.82rem;color:#666;">&#8592; Volver</a>
 </div>
 
 <!-- ══ ENCABEZADO INSTITUCIONAL ══ -->

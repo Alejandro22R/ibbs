@@ -157,6 +157,39 @@ mysqli_close($con);
     </div>
     <div class="card"><div id="listSolLibros"><div class="sol-empty"><span class="spin"></span></div></div></div>
   </div>
+
+  <div class="sol-section">
+    <div class="sol-section-head">
+      <h4>📝 Notas por aprobar <span class="sol-count" id="cntSolNotas">0</span></h4>
+    </div>
+    <div class="card"><div id="listSolNotas"><div class="sol-empty"><span class="spin"></span></div></div></div>
+  </div>
+</div>
+
+<!-- ── MODAL: REVISAR PLAN DE NOTAS ENVIADO ── -->
+<div class="modal-backdrop" id="modal-revisar-notas">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-head"><h3 id="rnTitulo">Revisar notas</h3>
+      <button class="modal-close" onclick="closeModal('modal-revisar-notas')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:.8rem;">Tal como lo envió el profesor — podés ajustar cualquier nota antes de aprobar.</p>
+      <div class="tbl-wrap" style="max-height:360px;overflow-y:auto;">
+        <table>
+          <thead><tr><th style="text-align:left;">Alumno</th><th style="text-align:center;">Actividades</th><th style="text-align:center;">Nota a registrar</th></tr></thead>
+          <tbody id="rnBody"></tbody>
+        </table>
+      </div>
+      <div class="field" style="margin-top:1rem;">
+        <label>Comentario (opcional si aprobás, obligatorio si rechazás)</label>
+        <textarea id="rnComentario" rows="2" placeholder="Ej: falta corregir la nota de Juan Pérez…"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot" style="display:flex;gap:.6rem;justify-content:flex-end;">
+      <button class="btn btn-danger" onclick="rechazarNotasEnvio()">✕ Rechazar</button>
+      <button class="btn btn-success" onclick="aprobarNotasEnvio()">✓ Aprobar y publicar</button>
+    </div>
+  </div>
 </div>
 
 <!-- ── CERTIFICADOS PDF ── -->
@@ -334,6 +367,7 @@ async function loadNotifs() {
     solicitud_alumno: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>',
     solicitud_materia: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0891b2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
     solicitud_libro: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+    notas_envio: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1a4d2e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
   };
   el.innerHTML = d.data.map(n=>`
     <div class="notif-item ${n.leida=='0'?'unread':''}" id="ni${n.id}">
@@ -434,10 +468,11 @@ async function archivarNotif(id) {
 function hSol(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
 
 async function loadSolicitudes() {
-  const [dAlumnos, dMaterias, dLibros] = await Promise.all([
+  const [dAlumnos, dMaterias, dLibros, dNotas] = await Promise.all([
     ajax('alumno_list', {}),
     ajax('list', {estado:'pendiente'}, 'api/materia_solicitud.php'),
     ajax('compra_list', {estado:'pendiente'}, 'api/biblioteca.php'),
+    ajax('pendientes', {}, 'api/notas_envio.php'),
   ]);
 
   const alumnosPend = (dAlumnos?.ok ? dAlumnos.data : []).filter(a => a.aprobado === '0' || a.aprobado === 0);
@@ -449,9 +484,82 @@ async function loadSolicitudes() {
   const librosPend = dLibros?.ok ? dLibros.data : [];
   renderSolLibros(librosPend);
 
-  const total = alumnosPend.length + materiasPend.length + librosPend.length;
+  const notasPend = dNotas?.ok ? dNotas.data : [];
+  renderSolNotas(notasPend);
+
+  const total = alumnosPend.length + materiasPend.length + librosPend.length + notasPend.length;
   const badge = document.getElementById('badgeSolicitudes');
   if (badge) { badge.style.display = total > 0 ? 'inline-flex' : 'none'; badge.textContent = total > 9 ? '9+' : total; }
+}
+
+function renderSolNotas(rows) {
+  document.getElementById('cntSolNotas').textContent = rows.length;
+  const el = document.getElementById('listSolNotas');
+  if (!rows.length) { el.innerHTML = '<div class="sol-empty">Sin notas pendientes de aprobación.</div>'; return; }
+  el.innerHTML = rows.map(r => `
+    <div class="sol-row">
+      <div class="sol-ava">📝</div>
+      <div class="sol-body">
+        <div class="sol-title">${hSol(r.materia_codigo||'')} · ${hSol(r.materia_nombre)}</div>
+        <div class="sol-sub">Enviado por ${hSol(r.docente_usuario)} · ${(r.creado_en||'').substring(0,16)}</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-shrink:0;">
+        <button class="btn btn-sm btn-primary" onclick="abrirRevisarNotas(${r.id})">👁 Revisar</button>
+      </div>
+    </div>`).join('');
+}
+
+let _rnEnvioId = null;
+async function abrirRevisarNotas(id) {
+  _rnEnvioId = id;
+  const d = await ajax('detalle', {id}, 'api/notas_envio.php');
+  if (!d?.ok) { Ibbs.error(d?.msg || 'No se pudo cargar el envío.'); return; }
+  const e = d.data;
+  const snap = e.snapshot;
+  document.getElementById('rnTitulo').textContent = `Revisar notas — ${e.materia_nombre}`;
+  document.getElementById('rnComentario').value = '';
+
+  document.getElementById('rnBody').innerHTML = snap.alumnos.map(a => {
+    const detalle = (snap.tareas || []).map(t => {
+      const reg = (snap.notas[a.id] && snap.notas[a.id][t.id]) || null;
+      const nota = reg ? parseFloat(reg.nota) : null;
+      return `${hSol(t.titulo)}: ${nota !== null && !isNaN(nota) ? nota : '—'}`;
+    }).join(' · ') || 'Sin actividades';
+    const propuesta = snap.propuestas && snap.propuestas[a.id] !== undefined ? snap.propuestas[a.id] : '';
+    return `<tr>
+      <td style="text-align:left;font-weight:700;">${hSol(a.apellido)}, ${hSol(a.nombre)}</td>
+      <td style="text-align:center;font-size:.76rem;color:var(--muted);">${detalle}</td>
+      <td style="text-align:center;"><input type="number" class="rn-nota" data-alumno-id="${a.id}" min="0" max="20" step="0.1" value="${propuesta}" style="width:80px;text-align:center;padding:.3rem;border:1px solid var(--border);border-radius:6px;"></td>
+    </tr>`;
+  }).join('');
+
+  openModal('modal-revisar-notas');
+}
+
+async function aprobarNotasEnvio() {
+  const inputs = document.querySelectorAll('#rnBody .rn-nota');
+  const notas = {};
+  for (const inp of inputs) {
+    const v = inp.value.trim();
+    if (v === '' || isNaN(parseFloat(v)) || parseFloat(v) < 0 || parseFloat(v) > 20) {
+      Ibbs.warn('Revisá que todas las notas estén entre 0 y 20.'); inp.focus(); return;
+    }
+    notas[inp.dataset.alumnoId] = parseFloat(v);
+  }
+  const comentario = document.getElementById('rnComentario').value.trim();
+  const d = await ajax('aprobar', {id: _rnEnvioId, notas: JSON.stringify(notas), comentario}, 'api/notas_envio.php');
+  if (d?.ok) { toast(d.msg); closeModal('modal-revisar-notas'); loadSolicitudes(); }
+  else Ibbs.error(d?.msg || 'Error al aprobar.');
+}
+
+async function rechazarNotasEnvio() {
+  const comentario = document.getElementById('rnComentario').value.trim();
+  if (!comentario) { Ibbs.warn('Escribí un comentario explicando por qué se rechaza, para que el profesor sepa qué corregir.'); return; }
+  const rr = await Ibbs.confirm({title:'¿Rechazar este envío de notas?', text:'El profesor va a recibir tu comentario y va a poder corregir y reenviar.', confirm:'Sí, rechazar', danger:true});
+  if (!rr.isConfirmed) return;
+  const d = await ajax('rechazar', {id: _rnEnvioId, comentario}, 'api/notas_envio.php');
+  if (d?.ok) { toast(d.msg); closeModal('modal-revisar-notas'); loadSolicitudes(); }
+  else Ibbs.error(d?.msg || 'Error al rechazar.');
 }
 
 function renderSolAlumnos(rows) {

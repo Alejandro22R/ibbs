@@ -355,6 +355,7 @@ const NOTIF_ICONS = {
   sistema:'⚙️', info:'ℹ️', solicitud_alumno:'🧑‍🎓',
   solicitud_aprobada:'✅', solicitud_rechazada:'⛔',
   solicitud_materia:'🧾', solicitud_materia_aprobada:'✅', solicitud_materia_rechazada:'⛔',
+  notas_envio:'📝',
   solicitud_libro:'📚', solicitud_libro_activada:'✅', solicitud_libro_rechazada:'⛔'
 };
 let _notifUnread = 0;
