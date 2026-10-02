@@ -322,6 +322,28 @@ if ($action === 'actividad_calificaciones') {
     echo json_encode(['ok'=>true,'data'=>['actividad'=>$act,'alumnos'=>$rows]]); exit;
 }
 
+// Para el alumno: sus propias actividades de la materia con su nota (si existe), en una sola llamada.
+if ($action === 'actividad_mis_notas') {
+    $mid = (int)($_POST['materia_id'] ?? 0);
+    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+
+    $al = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
+    if (!$al) json_fail('No se encontró el registro de alumno.');
+    $alumnoId = (int)$al['id'];
+
+    $st = mysqli_prepare($con, "SELECT act.id,act.titulo,act.tipo,act.nota_max,act.fecha,
+                                        c.nota,c.observacion
+                                 FROM aula_actividades act
+                                 LEFT JOIN aula_calificaciones c ON c.actividad_id=act.id AND c.alumno_id=?
+                                 WHERE act.materia_id=?
+                                 ORDER BY act.creado_en DESC");
+    mysqli_stmt_bind_param($st, 'ii', $alumnoId, $mid);
+    mysqli_stmt_execute($st);
+    $r = mysqli_stmt_get_result($st);
+    $rows = []; while ($f = mysqli_fetch_assoc($r)) $rows[] = $f;
+    echo json_encode(['ok'=>true,'data'=>$rows]); exit;
+}
+
 // Guarda todas las notas de una actividad de una vez (una fila por alumno).
 if ($action === 'actividad_calificar_bulk') {
     $aid = (int)($_POST['actividad_id'] ?? 0);

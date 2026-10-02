@@ -815,41 +815,88 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         <!-- VISTA: AULA VIRTUAL                            -->
         <!-- ============================================== -->
         <div id="view-aula" class="view-section">
-            <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">Aula Virtual (Accesos)</h2>
-            
-            <div class="grid-cards">
-                <?php foreach($materias as $m): ?>
-                <div class="card">
-                    <div class="card-body" style="text-align: center; padding: 2rem 1.5rem; display: flex; flex-direction: column; align-items: center;">
-                        <div style="width: 60px; height: 60px; background: rgba(37,99,235,.1); color: var(--blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; margin-bottom: 1.2rem;">
-                            <i class="fas fa-desktop"></i>
-                        </div>
-                        <h3 style="font-weight: 700; color: var(--ink); font-size: 1.15rem; margin-bottom: .4rem;"><?= htmlspecialchars($m['nombre']) ?></h3>
-                        <span class="badge" style="background:var(--cream); border:1px solid var(--border); color:var(--muted); margin-bottom: 1.5rem;"><?= htmlspecialchars($m['codigo']) ?></span>
-                        
-                        <a href="modulo_aula.php?materia_id=<?= $m['id'] ?>" target="_blank" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: auto;">
-                            <i class="fas fa-sign-in-alt"></i> Entrar al Aula
-                        </a>
-                        <div style="display:flex;gap:.5rem;width:100%;margin-top:.6rem;">
-                            <a href="modulo_vivo.php?materia_id=<?= $m['id'] ?>" target="_blank" class="btn btn-secondary" style="flex:1;justify-content:center;font-size:.78rem;">
-                                🔴 En Vivo
-                            </a>
-                            <a href="modulo_grabaciones.php?materia_id=<?= $m['id'] ?>" target="_blank" class="btn btn-secondary" style="flex:1;justify-content:center;font-size:.78rem;">
-                                🎬 Grabadas
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
-                
-                <?php if(empty($materias)): ?>
-                <div style="grid-column: 1 / -1; padding: 4rem 1rem; text-align: center; border: 2px dashed var(--border); border-radius: 14px;">
-                    <i class="fas fa-folder-open" style="font-size: 3rem; color: var(--border); margin-bottom: 1rem;"></i>
-                    <h3 style="font-family:'Playfair Display',serif; font-size: 1.2rem; color: var(--ink);">Sin aulas asignadas</h3>
-                    <p style="color: var(--muted); font-size: .9rem;">El administrador aún no te ha asignado materias.</p>
-                </div>
-                <?php endif; ?>
+            <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink); margin-bottom: .3rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">Aula Virtual</h2>
+            <p style="font-size:.85rem;color:var(--muted);margin:.8rem 0 1.2rem;">Anuncios, materiales, actividades, clases en vivo y grabadas de cada materia — todo en un solo lugar, sin tener que abrir otra pestaña.</p>
+
+            <div class="field" style="max-width:460px;margin-bottom:1.5rem;">
+                <label>Materia</label>
+                <select id="aulaMateriaSel" onchange="cargarAulaMateria()">
+                    <option value="">— Selecciona una materia —</option>
+                    <?php foreach($materias as $m): ?>
+                    <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['codigo'].' · '.$m['nombre']) ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
+
+            <?php if(empty($materias)): ?>
+            <div style="padding: 4rem 1rem; text-align: center; border: 2px dashed var(--border); border-radius: 14px;">
+                <i class="fas fa-folder-open" style="font-size: 3rem; color: var(--border); margin-bottom: 1rem;"></i>
+                <h3 style="font-family:'Playfair Display',serif; font-size: 1.2rem; color: var(--ink);">Sin aulas asignadas</h3>
+                <p style="color: var(--muted); font-size: .9rem;">El administrador aún no te ha asignado materias.</p>
+            </div>
+            <?php else: ?>
+
+            <div id="aulaEmpty" style="padding: 3rem 1rem; text-align: center; border: 2px dashed var(--border); border-radius: 14px; color: var(--muted);">
+                Selecciona una materia arriba para ver y gestionar su aula.
+            </div>
+
+            <div id="aulaPanel" style="display:none;">
+                <div class="tabs-nav" style="margin-bottom: 1.5rem;flex-wrap:wrap;">
+                    <button class="tab-btn active" data-aulatab="anuncios" onclick="switchAulaTab('anuncios', this)">📢 Anuncios</button>
+                    <button class="tab-btn" data-aulatab="materiales" onclick="switchAulaTab('materiales', this)">📎 Materiales</button>
+                    <button class="tab-btn" data-aulatab="actividades" onclick="switchAulaTab('actividades', this)">📝 Actividades</button>
+                    <button class="tab-btn" data-aulatab="vivo" onclick="switchAulaTab('vivo', this)">🔴 En Vivo</button>
+                    <button class="tab-btn" data-aulatab="grabadas" onclick="switchAulaTab('grabadas', this)">🎬 Grabadas</button>
+                </div>
+
+                <!-- ANUNCIOS -->
+                <div id="aulaTab-anuncios" class="aula-tabpane">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalAnuncio()"><i class="fas fa-plus"></i> Nuevo anuncio</button>
+                    </div>
+                    <div id="aulaAnunciosList" class="grid-cards"><div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span></div></div>
+                </div>
+
+                <!-- MATERIALES -->
+                <div id="aulaTab-materiales" class="aula-tabpane" style="display:none;">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalMaterial()"><i class="fas fa-upload"></i> Subir material</button>
+                    </div>
+                    <table class="tbl" style="width:100%;">
+                        <thead><tr><th>Título</th><th>Tipo</th><th>Subido</th><th></th></tr></thead>
+                        <tbody id="aulaMaterialesList"><tr><td colspan="4" style="text-align:center;padding:2rem;"><span class="spin"></span></td></tr></tbody>
+                    </table>
+                </div>
+
+                <!-- ACTIVIDADES -->
+                <div id="aulaTab-actividades" class="aula-tabpane" style="display:none;">
+                    <p style="font-size:.78rem;color:var(--muted);margin-bottom:1rem;">Notas directas por actividad (examen, taller, quiz…) — distinto del Plan de Notas, que es para tareas con entrega de archivo.</p>
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalActividad()"><i class="fas fa-plus"></i> Nueva actividad</button>
+                    </div>
+                    <table class="tbl" style="width:100%;">
+                        <thead><tr><th>Título</th><th>Tipo</th><th>Nota máx.</th><th>Fecha</th><th></th></tr></thead>
+                        <tbody id="aulaActividadesList"><tr><td colspan="5" style="text-align:center;padding:2rem;"><span class="spin"></span></td></tr></tbody>
+                    </table>
+                </div>
+
+                <!-- EN VIVO -->
+                <div id="aulaTab-vivo" class="aula-tabpane" style="display:none;">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalVivo()"><i class="fas fa-plus"></i> Nueva clase en vivo</button>
+                    </div>
+                    <div id="aulaVivoList" class="grid-cards"><div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span></div></div>
+                </div>
+
+                <!-- GRABADAS -->
+                <div id="aulaTab-grabadas" class="aula-tabpane" style="display:none;">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+                        <button class="btn btn-primary btn-sm" onclick="abrirModalGrabada()"><i class="fas fa-plus"></i> Agregar clase grabada</button>
+                    </div>
+                    <div id="aulaGrabadasList" class="grid-cards"><div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span></div></div>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- ============================================== -->
@@ -1122,6 +1169,148 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     <div class="modal-foot" style="padding: 0; border: none; background: transparent;">
                         <button type="button" class="btn btn-secondary" onclick="closeModal('modal-nueva-tarea')">Cancelar</button>
                         <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Publicar Actividad</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALES DE AULA VIRTUAL (consolidada dentro del portal) -->
+    <div id="modal-aula-anuncio" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-head">
+                <h3 id="aulaAnuncioTitulo">Nuevo anuncio</h3>
+                <button class="modal-close" onclick="closeModal('modal-aula-anuncio')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="guardarAulaAnuncio(event)">
+                    <input type="hidden" id="aulaAnuncioId" value="">
+                    <div class="field"><label>Título</label><input type="text" id="aulaAnuncioTituloInput" maxlength="150" required></div>
+                    <div class="field"><label>Contenido</label><textarea id="aulaAnuncioContenido" rows="5" required></textarea></div>
+                    <div class="field" style="flex-direction:row;align-items:center;gap:.5rem;">
+                        <input type="checkbox" id="aulaAnuncioFijado" style="width:auto;"> <label style="margin:0;">Fijar arriba del muro</label>
+                    </div>
+                    <div class="modal-foot" style="padding:0;border:none;background:transparent;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-aula-anuncio')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Publicar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-aula-material" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-head">
+                <h3>Subir material</h3>
+                <button class="modal-close" onclick="closeModal('modal-aula-material')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="guardarAulaMaterial(event)">
+                    <div class="field"><label>Título</label><input type="text" id="aulaMaterialTitulo" maxlength="150" required></div>
+                    <div class="field"><label>Descripción (opcional)</label><textarea id="aulaMaterialDescripcion" rows="3"></textarea></div>
+                    <div class="field"><label>Archivo (PDF, Word, PowerPoint, Excel, TXT, CSV, ZIP o imagen — máx. 25MB)</label><input type="file" id="aulaMaterialArchivo" required></div>
+                    <div class="modal-foot" style="padding:0;border:none;background:transparent;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-aula-material')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="btnAulaMaterialSubir">Subir</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-aula-actividad" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-head">
+                <h3>Nueva actividad</h3>
+                <button class="modal-close" onclick="closeModal('modal-aula-actividad')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="guardarAulaActividad(event)">
+                    <div class="field"><label>Título</label><input type="text" id="aulaActTitulo" maxlength="150" required></div>
+                    <div class="field"><label>Descripción (opcional)</label><textarea id="aulaActDescripcion" rows="2"></textarea></div>
+                    <div class="field"><label>Tipo</label>
+                        <select id="aulaActTipo">
+                            <option value="actividad">Actividad</option>
+                            <option value="taller">Taller</option>
+                            <option value="examen">Examen</option>
+                            <option value="proyecto">Proyecto</option>
+                        </select>
+                    </div>
+                    <div class="field"><label>Nota máxima</label><input type="number" id="aulaActNotaMax" value="20" min="1" max="100" step="0.5"></div>
+                    <div class="field"><label>Fecha</label><input type="date" id="aulaActFecha"></div>
+                    <div class="modal-foot" style="padding:0;border:none;background:transparent;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-aula-actividad')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-aula-calificar-act" class="modal-backdrop">
+        <div class="modal md">
+            <div class="modal-head">
+                <h3>Calificar: <span id="aulaCalActTitulo"></span></h3>
+                <button class="modal-close" onclick="closeModal('modal-aula-calificar-act')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="aulaCalActId">
+                <table class="tbl" style="width:100%;">
+                    <thead><tr><th>Alumno</th><th style="width:110px;">Nota</th><th>Observación</th></tr></thead>
+                    <tbody id="aulaCalActBody"></tbody>
+                </table>
+                <div class="modal-foot" style="padding-top:1rem;border:none;background:transparent;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-aula-calificar-act')">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="guardarAulaCalificarAct()">Guardar calificaciones</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-aula-vivo" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-head">
+                <h3>Nueva clase en vivo</h3>
+                <button class="modal-close" onclick="closeModal('modal-aula-vivo')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="guardarAulaVivo(event)">
+                    <div class="field"><label>Título</label><input type="text" id="aulaVivoTitulo" maxlength="150" required></div>
+                    <div class="field"><label>Descripción (opcional)</label><textarea id="aulaVivoDescripcion" rows="2"></textarea></div>
+                    <div class="field"><label>Fecha y hora</label><input type="datetime-local" id="aulaVivoFecha" required></div>
+                    <div class="field"><label>Plataforma</label>
+                        <select id="aulaVivoPlataforma" onchange="document.getElementById('aulaVivoUrlField').style.display = this.value==='jitsi' ? 'none' : 'flex';">
+                            <option value="jitsi">Jitsi Meet (link automático, sin cuenta)</option>
+                            <option value="meet">Google Meet</option>
+                            <option value="otro">Otra plataforma</option>
+                        </select>
+                    </div>
+                    <div class="field" id="aulaVivoUrlField" style="display:none;"><label>Link de la reunión</label><input type="url" id="aulaVivoUrl" placeholder="https://..."></div>
+                    <div class="modal-foot" style="padding:0;border:none;background:transparent;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-aula-vivo')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-aula-grabada" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-head">
+                <h3>Agregar clase grabada</h3>
+                <button class="modal-close" onclick="closeModal('modal-aula-grabada')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="guardarAulaGrabada(event)">
+                    <div class="field"><label>Título</label><input type="text" id="aulaGrabTitulo" maxlength="150" required></div>
+                    <div class="field"><label>Link del video (YouTube, Google Drive o Vimeo)</label><input type="url" id="aulaGrabUrl" placeholder="https://..." required></div>
+                    <div class="field"><label>Descripción (opcional)</label><textarea id="aulaGrabDescripcion" rows="2"></textarea></div>
+                    <div class="field"><label>Fecha de la clase</label><input type="date" id="aulaGrabFecha"></div>
+                    <div class="modal-foot" style="padding:0;border:none;background:transparent;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-aula-grabada')">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
                     </div>
                 </form>
             </div>
@@ -2328,6 +2517,336 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             applyTheme(newDark);
         }
         (function(){ applyTheme(localStorage.getItem('ibbs_theme') === 'dark'); })();
+
+        // ════════════════════════════════════════════════════════
+        // AULA VIRTUAL — consolidada dentro del portal del docente.
+        // Reutiliza tal cual el backend de siempre (api/aula.php,
+        // api/clases_vivo.php, api/clases_grabadas.php — los mismos que
+        // usa modulo_aula.php / modulo_vivo.php / modulo_grabaciones.php)
+        // así que no hace falta ninguna lógica nueva del lado del
+        // servidor: esto es solo una forma más directa de llegar a lo
+        // mismo sin salir del portal.
+        // ════════════════════════════════════════════════════════
+        let _aulaMid = null;
+        function hAula(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+        function _aulaCsrf() { const m = document.querySelector('meta[name="csrf-token"]'); return m ? m.content : ''; }
+        async function _aulaPost(endpoint, action, params) {
+            const fd = new FormData();
+            fd.append('action', action);
+            fd.append('csrf_token', _aulaCsrf());
+            if (params) Object.keys(params).forEach(k => { if (params[k] !== undefined && params[k] !== null) fd.append(k, params[k]); });
+            try {
+                const r = await fetch(endpoint, { method: 'POST', body: fd });
+                return await r.json();
+            } catch (e) { return { ok: false, msg: 'Error de conexión.' }; }
+        }
+
+        function cargarAulaMateria() {
+            _aulaMid = document.getElementById('aulaMateriaSel').value || null;
+            const empty = document.getElementById('aulaEmpty');
+            const panel = document.getElementById('aulaPanel');
+            if (!_aulaMid) { empty.style.display = 'block'; panel.style.display = 'none'; return; }
+            empty.style.display = 'none';
+            panel.style.display = 'block';
+            const activo = document.querySelector('#aulaPanel .tab-btn.active')?.dataset.aulatab || 'anuncios';
+            cargarAulaTab(activo);
+        }
+
+        function switchAulaTab(tab, btn) {
+            document.querySelectorAll('#aulaPanel .tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.aula-tabpane').forEach(p => p.style.display = 'none');
+            document.getElementById('aulaTab-' + tab).style.display = 'block';
+            cargarAulaTab(tab);
+        }
+
+        function cargarAulaTab(tab) {
+            if (!_aulaMid) return;
+            if (tab === 'anuncios') cargarAulaAnuncios();
+            else if (tab === 'materiales') cargarAulaMateriales();
+            else if (tab === 'actividades') cargarAulaActividades();
+            else if (tab === 'vivo') cargarAulaVivo();
+            else if (tab === 'grabadas') cargarAulaGrabadas();
+        }
+
+        // ── Anuncios ──────────────────────────────────────────
+        async function cargarAulaAnuncios() {
+            const box = document.getElementById('aulaAnunciosList');
+            box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);grid-column:1/-1;"><span class="spin"></span></div>';
+            const d = await _aulaPost('api/aula.php', 'anuncio_list', { materia_id: _aulaMid });
+            if (!d?.ok) { box.innerHTML = `<p style="color:var(--red);grid-column:1/-1;">${hAula(d?.msg || 'Error al cargar.')}</p>`; return; }
+            if (!d.data.length) { box.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;">Todavía no hay anuncios en esta materia.</p>'; return; }
+            box.innerHTML = d.data.map(a => `
+                <div class="card" style="${a.fijado == 1 ? 'border-left:4px solid var(--lime2);' : ''}">
+                    <div class="card-body">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;">
+                            <h4 style="font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--ink);">${a.fijado == 1 ? '📌 ' : ''}${hAula(a.titulo)}</h4>
+                            <button onclick="borrarAulaAnuncio(${a.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.9rem;" title="Eliminar"><i class="fas fa-trash"></i></button>
+                        </div>
+                        <p style="font-size:.85rem;color:var(--ink);margin:.5rem 0;white-space:pre-wrap;">${hAula(a.contenido)}</p>
+                        <p style="font-size:.72rem;color:var(--muted);">${hAula(a.autor)} · ${a.creado_en ? a.creado_en.substring(0,16) : ''}</p>
+                    </div>
+                </div>`).join('');
+        }
+        function abrirModalAnuncio() {
+            document.getElementById('aulaAnuncioId').value = '';
+            document.getElementById('aulaAnuncioTituloInput').value = '';
+            document.getElementById('aulaAnuncioContenido').value = '';
+            document.getElementById('aulaAnuncioFijado').checked = false;
+            openModal('modal-aula-anuncio');
+        }
+        async function guardarAulaAnuncio(e) {
+            e.preventDefault();
+            const titulo = document.getElementById('aulaAnuncioTituloInput').value.trim();
+            const contenido = document.getElementById('aulaAnuncioContenido').value.trim();
+            const fijado = document.getElementById('aulaAnuncioFijado').checked ? 1 : 0;
+            const d = await _aulaPost('api/aula.php', 'anuncio_create', { materia_id: _aulaMid, titulo, contenido, fijado });
+            if (d?.ok) { Ibbs.success(d.msg); closeModal('modal-aula-anuncio'); cargarAulaAnuncios(); } else Ibbs.error(d?.msg || 'No se pudo publicar.');
+        }
+        async function borrarAulaAnuncio(id) {
+            const r = await Ibbs.confirm({ title: '¿Eliminar este anuncio?', danger: true, confirm: 'Sí, eliminar' });
+            if (!r.isConfirmed) return;
+            const d = await _aulaPost('api/aula.php', 'anuncio_delete', { id, materia_id: _aulaMid });
+            if (d?.ok) cargarAulaAnuncios(); else Ibbs.error(d?.msg || 'Error al eliminar.');
+        }
+
+        // ── Materiales ────────────────────────────────────────
+        function _aulaFmtBytes(b) {
+            b = parseInt(b) || 0;
+            if (b < 1024) return b + ' B';
+            if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+            return (b / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+        async function cargarAulaMateriales() {
+            const box = document.getElementById('aulaMaterialesList');
+            box.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;"><span class="spin"></span></td></tr>';
+            const d = await _aulaPost('api/aula.php', 'material_list', { materia_id: _aulaMid });
+            if (!d?.ok) { box.innerHTML = `<tr><td colspan="4" style="color:var(--red);">${hAula(d?.msg || 'Error al cargar.')}</td></tr>`; return; }
+            if (!d.data.length) { box.innerHTML = '<tr class="empty-row"><td colspan="4">Todavía no hay materiales en esta materia.</td></tr>'; return; }
+            box.innerHTML = d.data.map(m => `
+                <tr>
+                    <td><strong>${hAula(m.titulo)}</strong>${m.descripcion ? `<div style="font-size:.75rem;color:var(--muted);">${hAula(m.descripcion)}</div>` : ''}</td>
+                    <td><span class="badge" style="background:var(--cream);border:1px solid var(--border);">${hAula((m.archivo_tipo||'').toUpperCase())}</span> <span style="font-size:.72rem;color:var(--muted);">${_aulaFmtBytes(m.tamano_bytes)}</span></td>
+                    <td style="font-size:.78rem;color:var(--muted);">${hAula(m.autor)}<br>${m.creado_en ? m.creado_en.substring(0,16) : ''}</td>
+                    <td style="white-space:nowrap;">
+                        <a href="api/aula.php?action=material_download&id=${m.id}" class="btn btn-secondary btn-sm" title="Descargar"><i class="fas fa-download"></i></a>
+                        <button onclick="borrarAulaMaterial(${m.id})" class="btn btn-secondary btn-sm" style="color:var(--red);" title="Eliminar"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+        }
+        function abrirModalMaterial() {
+            document.getElementById('aulaMaterialTitulo').value = '';
+            document.getElementById('aulaMaterialDescripcion').value = '';
+            document.getElementById('aulaMaterialArchivo').value = '';
+            openModal('modal-aula-material');
+        }
+        async function guardarAulaMaterial(e) {
+            e.preventDefault();
+            const archivo = document.getElementById('aulaMaterialArchivo').files[0];
+            if (!archivo) { Ibbs.warn('Elegí un archivo.'); return; }
+            const btn = document.getElementById('btnAulaMaterialSubir');
+            btn.disabled = true; btn.textContent = 'Subiendo…';
+            const fd = new FormData();
+            fd.append('action', 'material_create');
+            fd.append('csrf_token', _aulaCsrf());
+            fd.append('materia_id', _aulaMid);
+            fd.append('titulo', document.getElementById('aulaMaterialTitulo').value.trim());
+            fd.append('descripcion', document.getElementById('aulaMaterialDescripcion').value.trim());
+            fd.append('archivo', archivo);
+            let d;
+            try { const r = await fetch('api/aula.php', { method: 'POST', body: fd }); d = await r.json(); }
+            catch (e2) { d = { ok: false, msg: 'Error de conexión.' }; }
+            btn.disabled = false; btn.textContent = 'Subir';
+            if (d?.ok) { Ibbs.success(d.msg); closeModal('modal-aula-material'); cargarAulaMateriales(); } else Ibbs.error(d?.msg || 'No se pudo subir.');
+        }
+        async function borrarAulaMaterial(id) {
+            const r = await Ibbs.confirm({ title: '¿Eliminar este material?', text: 'También se borra el archivo del servidor.', danger: true, confirm: 'Sí, eliminar' });
+            if (!r.isConfirmed) return;
+            const d = await _aulaPost('api/aula.php', 'material_delete', { id, materia_id: _aulaMid });
+            if (d?.ok) cargarAulaMateriales(); else Ibbs.error(d?.msg || 'Error al eliminar.');
+        }
+
+        // ── Actividades (nota directa, sin entrega de archivo) ──
+        async function cargarAulaActividades() {
+            const box = document.getElementById('aulaActividadesList');
+            box.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;"><span class="spin"></span></td></tr>';
+            const d = await _aulaPost('api/aula.php', 'actividad_list', { materia_id: _aulaMid });
+            if (!d?.ok) { box.innerHTML = `<tr><td colspan="5" style="color:var(--red);">${hAula(d?.msg || 'Error al cargar.')}</td></tr>`; return; }
+            if (!d.data.length) { box.innerHTML = '<tr class="empty-row"><td colspan="5">Todavía no hay actividades en esta materia.</td></tr>'; return; }
+            box.innerHTML = d.data.map(a => `
+                <tr>
+                    <td><strong>${hAula(a.titulo)}</strong></td>
+                    <td><span class="badge" style="background:var(--cream);border:1px solid var(--border);">${hAula(a.tipo)}</span></td>
+                    <td>${parseFloat(a.nota_max).toFixed(1)}</td>
+                    <td style="font-size:.8rem;color:var(--muted);">${a.fecha ? a.fecha.substring(0,10) : '—'}</td>
+                    <td style="white-space:nowrap;">
+                        <button onclick="abrirCalificarActividad(${a.id},'${hAula(a.titulo).replace(/'/g,"\\'")}')" class="btn btn-secondary btn-sm">Calificar</button>
+                        <button onclick="borrarAulaActividad(${a.id})" class="btn btn-secondary btn-sm" style="color:var(--red);" title="Eliminar"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('');
+        }
+        function abrirModalActividad() {
+            document.getElementById('aulaActTitulo').value = '';
+            document.getElementById('aulaActDescripcion').value = '';
+            document.getElementById('aulaActTipo').value = 'actividad';
+            document.getElementById('aulaActNotaMax').value = 20;
+            document.getElementById('aulaActFecha').value = '';
+            openModal('modal-aula-actividad');
+        }
+        async function guardarAulaActividad(e) {
+            e.preventDefault();
+            const d = await _aulaPost('api/aula.php', 'actividad_create', {
+                materia_id: _aulaMid,
+                titulo: document.getElementById('aulaActTitulo').value.trim(),
+                descripcion: document.getElementById('aulaActDescripcion').value.trim(),
+                tipo: document.getElementById('aulaActTipo').value,
+                nota_max: document.getElementById('aulaActNotaMax').value,
+                fecha: document.getElementById('aulaActFecha').value,
+            });
+            if (d?.ok) { Ibbs.success(d.msg); closeModal('modal-aula-actividad'); cargarAulaActividades(); } else Ibbs.error(d?.msg || 'No se pudo crear.');
+        }
+        async function borrarAulaActividad(id) {
+            const r = await Ibbs.confirm({ title: '¿Eliminar esta actividad?', text: 'También se borran las calificaciones ya cargadas.', danger: true, confirm: 'Sí, eliminar' });
+            if (!r.isConfirmed) return;
+            const d = await _aulaPost('api/aula.php', 'actividad_delete', { id, materia_id: _aulaMid });
+            if (d?.ok) cargarAulaActividades(); else Ibbs.error(d?.msg || 'Error al eliminar.');
+        }
+        async function abrirCalificarActividad(id, titulo) {
+            document.getElementById('aulaCalActId').value = id;
+            document.getElementById('aulaCalActTitulo').textContent = titulo;
+            const body = document.getElementById('aulaCalActBody');
+            body.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:1.5rem;"><span class="spin"></span></td></tr>';
+            openModal('modal-aula-calificar-act');
+            const d = await _aulaPost('api/aula.php', 'actividad_calificaciones', { actividad_id: id, materia_id: _aulaMid });
+            if (!d?.ok) { body.innerHTML = `<tr><td colspan="3" style="color:var(--red);">${hAula(d?.msg||'Error al cargar.')}</td></tr>`; return; }
+            const notaMax = d.data.actividad.nota_max;
+            if (!d.data.alumnos.length) { body.innerHTML = '<tr class="empty-row"><td colspan="3">Esta materia no tiene alumnos inscritos.</td></tr>'; return; }
+            body.innerHTML = d.data.alumnos.map(al => `
+                <tr data-alumno-id="${al.id}">
+                    <td>${hAula(al.apellido)}, ${hAula(al.nombre)}</td>
+                    <td><input type="number" class="aula-cal-nota" min="0" max="${notaMax}" step="0.1" value="${al.nota !== null ? al.nota : ''}" style="width:90px;"></td>
+                    <td><input type="text" class="aula-cal-obs" value="${hAula(al.observacion||'')}" placeholder="Observación…" style="width:100%;"></td>
+                </tr>`).join('');
+        }
+        async function guardarAulaCalificarAct() {
+            const aid = document.getElementById('aulaCalActId').value;
+            const filas = document.querySelectorAll('#aulaCalActBody tr[data-alumno-id]');
+            const notas = [];
+            filas.forEach(tr => {
+                const alumno_id = tr.dataset.alumnoId;
+                const nota = tr.querySelector('.aula-cal-nota').value;
+                const observacion = tr.querySelector('.aula-cal-obs').value;
+                notas.push({ alumno_id, nota: nota === '' ? null : nota, observacion });
+            });
+            const d = await _aulaPost('api/aula.php', 'actividad_calificar_bulk', { actividad_id: aid, materia_id: _aulaMid, notas: JSON.stringify(notas) });
+            if (d?.ok) { Ibbs.success(d.msg); closeModal('modal-aula-calificar-act'); } else Ibbs.error(d?.msg || 'No se pudo guardar.');
+        }
+
+        // ── En Vivo (reutiliza api/clases_vivo.php, sin tocar su propio módulo) ──
+        const AULA_VIVO_EST = { programada: ['Programada', '#6366f1'], en_curso: ['🔴 En curso', '#dc2626'], finalizada: ['Finalizada', '#6b7280'], cancelada: ['Cancelada', '#9ca3af'] };
+        async function cargarAulaVivo() {
+            const box = document.getElementById('aulaVivoList');
+            box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);grid-column:1/-1;"><span class="spin"></span></div>';
+            const d = await _aulaPost('api/clases_vivo.php', 'vivo_list', { materia_id: _aulaMid });
+            if (!d?.ok) { box.innerHTML = `<p style="color:var(--red);grid-column:1/-1;">${hAula(d?.msg || 'Error al cargar.')}</p>`; return; }
+            if (!d.data.length) { box.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;">Todavía no hay clases en vivo programadas.</p>'; return; }
+            box.innerHTML = d.data.map(c => {
+                const est = AULA_VIVO_EST[c.estado] || ['—', '#666'];
+                return `<div class="card">
+                    <div class="card-body">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;">
+                            <h4 style="font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--ink);">${hAula(c.titulo)}</h4>
+                            <button onclick="borrarAulaVivo(${c.id})" style="background:none;border:none;color:var(--red);cursor:pointer;" title="Eliminar"><i class="fas fa-trash"></i></button>
+                        </div>
+                        ${c.descripcion ? `<p style="font-size:.82rem;color:var(--muted);">${hAula(c.descripcion)}</p>` : ''}
+                        <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0;">${c.fecha_hora ? c.fecha_hora.substring(0,16).replace('T',' ') : ''} · ${hAula(c.plataforma)}</p>
+                        <span class="badge" style="background:${est[1]}22;color:${est[1]};border:1px solid ${est[1]};margin-bottom:.6rem;display:inline-block;">${est[0]}</span>
+                        <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.5rem;">
+                            ${c.join_url ? `<a href="${hAula(c.join_url)}" target="_blank" class="btn btn-primary btn-sm">▶ Unirse</a>` : ''}
+                            <select onchange="cambiarEstadoAulaVivo(${c.id}, this.value)" style="font-size:.78rem;padding:.3rem .5rem;">
+                                ${Object.keys(AULA_VIVO_EST).map(k => `<option value="${k}" ${k===c.estado?'selected':''}>${AULA_VIVO_EST[k][0].replace('🔴 ','')}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        function abrirModalVivo() {
+            document.getElementById('aulaVivoTitulo').value = '';
+            document.getElementById('aulaVivoDescripcion').value = '';
+            document.getElementById('aulaVivoFecha').value = '';
+            document.getElementById('aulaVivoPlataforma').value = 'jitsi';
+            document.getElementById('aulaVivoUrl').value = '';
+            document.getElementById('aulaVivoUrlField').style.display = 'none';
+            openModal('modal-aula-vivo');
+        }
+        async function guardarAulaVivo(e) {
+            e.preventDefault();
+            const d = await _aulaPost('api/clases_vivo.php', 'vivo_create', {
+                materia_id: _aulaMid,
+                titulo: document.getElementById('aulaVivoTitulo').value.trim(),
+                descripcion: document.getElementById('aulaVivoDescripcion').value.trim(),
+                plataforma: document.getElementById('aulaVivoPlataforma').value,
+                fecha_hora: document.getElementById('aulaVivoFecha').value,
+                url: document.getElementById('aulaVivoUrl').value.trim(),
+            });
+            if (d?.ok) { Ibbs.success(d.msg); closeModal('modal-aula-vivo'); cargarAulaVivo(); } else Ibbs.error(d?.msg || 'No se pudo crear.');
+        }
+        async function cambiarEstadoAulaVivo(id, estado) {
+            const d = await _aulaPost('api/clases_vivo.php', 'vivo_set_estado', { id, materia_id: _aulaMid, estado });
+            if (d?.ok) cargarAulaVivo(); else Ibbs.error(d?.msg || 'No se pudo actualizar.');
+        }
+        async function borrarAulaVivo(id) {
+            const r = await Ibbs.confirm({ title: '¿Eliminar esta clase en vivo?', danger: true, confirm: 'Sí, eliminar' });
+            if (!r.isConfirmed) return;
+            const d = await _aulaPost('api/clases_vivo.php', 'vivo_delete', { id, materia_id: _aulaMid });
+            if (d?.ok) cargarAulaVivo(); else Ibbs.error(d?.msg || 'Error al eliminar.');
+        }
+
+        // ── Grabadas (reutiliza api/clases_grabadas.php, sin tocar su propio módulo) ──
+        async function cargarAulaGrabadas() {
+            const box = document.getElementById('aulaGrabadasList');
+            box.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);grid-column:1/-1;"><span class="spin"></span></div>';
+            const d = await _aulaPost('api/clases_grabadas.php', 'clase_list', { materia_id: _aulaMid });
+            if (!d?.ok) { box.innerHTML = `<p style="color:var(--red);grid-column:1/-1;">${hAula(d?.msg || 'Error al cargar.')}</p>`; return; }
+            if (!d.data.length) { box.innerHTML = '<p style="color:var(--muted);grid-column:1/-1;">Todavía no hay clases grabadas en esta materia.</p>'; return; }
+            box.innerHTML = d.data.map(c => `
+                <div class="card">
+                    <div class="card-body">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;">
+                            <h4 style="font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--ink);">${hAula(c.titulo)}</h4>
+                            <button onclick="borrarAulaGrabada(${c.id})" style="background:none;border:none;color:var(--red);cursor:pointer;" title="Eliminar"><i class="fas fa-trash"></i></button>
+                        </div>
+                        ${c.descripcion ? `<p style="font-size:.82rem;color:var(--muted);">${hAula(c.descripcion)}</p>` : ''}
+                        <p style="font-size:.78rem;color:var(--muted);margin:.4rem 0 .6rem;">${hAula(c.plataforma)} ${c.fecha ? '· ' + c.fecha.substring(0,10) : ''}</p>
+                        <a href="${hAula(c.url)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">🔗 Abrir video</a>
+                    </div>
+                </div>`).join('');
+        }
+        function abrirModalGrabada() {
+            document.getElementById('aulaGrabTitulo').value = '';
+            document.getElementById('aulaGrabUrl').value = '';
+            document.getElementById('aulaGrabDescripcion').value = '';
+            document.getElementById('aulaGrabFecha').value = '';
+            openModal('modal-aula-grabada');
+        }
+        async function guardarAulaGrabada(e) {
+            e.preventDefault();
+            const d = await _aulaPost('api/clases_grabadas.php', 'clase_create', {
+                materia_id: _aulaMid,
+                titulo: document.getElementById('aulaGrabTitulo').value.trim(),
+                url: document.getElementById('aulaGrabUrl').value.trim(),
+                descripcion: document.getElementById('aulaGrabDescripcion').value.trim(),
+                fecha: document.getElementById('aulaGrabFecha').value,
+            });
+            if (d?.ok) { Ibbs.success(d.msg); closeModal('modal-aula-grabada'); cargarAulaGrabadas(); } else Ibbs.error(d?.msg || 'No se pudo guardar.');
+        }
+        async function borrarAulaGrabada(id) {
+            const r = await Ibbs.confirm({ title: '¿Eliminar esta clase grabada?', danger: true, confirm: 'Sí, eliminar' });
+            if (!r.isConfirmed) return;
+            const d = await _aulaPost('api/clases_grabadas.php', 'clase_delete', { id, materia_id: _aulaMid });
+            if (d?.ok) cargarAulaGrabadas(); else Ibbs.error(d?.msg || 'Error al eliminar.');
+        }
     </script>
 </body>
 </html>

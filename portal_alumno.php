@@ -732,19 +732,40 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
                     <h2 class="text-2xl font-serif text-ibbs-ink">Aula Virtual</h2>
                 </div>
-                <div class="bg-ibbs-ink rounded-[14px] p-8 text-white relative overflow-hidden text-center flex flex-col items-center justify-center min-h-[300px] shadow-lg">
-                    <div class="absolute inset-0 bg-dots pointer-events-none opacity-50"></div>
-                    <div class="w-24 h-24 bg-ibbs-lime text-ibbs-ink rounded-full flex items-center justify-center text-4xl mb-6 relative z-10 shadow-[0_0_25px_rgba(57,255,20,0.3)]">
-                        <i class="fas fa-chalkboard-teacher"></i>
-                    </div>
-                    <h3 class="text-2xl md:text-3xl font-serif font-bold mb-4 relative z-10">Accede a tus clases interactivas</h3>
-                    <p class="text-white/70 max-w-lg mb-8 relative z-10 text-sm md:text-base leading-relaxed">
-                        Ingresa a la plataforma del Aula Virtual para participar en clases en vivo, consultar recursos didácticos, ver grabaciones y colaborar en tiempo real con docentes y compañeros.
-                    </p>
-                    <a href="modulo_aula.php" target="_blank" class="btn-ibbs px-8 py-3.5 rounded-xl font-bold flex items-center gap-3 relative z-10 hover:scale-105 transition-transform shadow-xl">
-                        <i class="fas fa-external-link-alt"></i> Ingresar al Aula Virtual
-                    </a>
+                <p class="text-sm text-ibbs-muted -mt-2">El material de cada materia, tus calificaciones de actividades y el acceso a las clases en vivo y grabadas — todo en un solo lugar.</p>
+
+                <div class="max-w-md">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-1">Materia</label>
+                    <select id="aulaAlMateriaSel" onchange="cargarAulaAlMateria()" class="w-full p-2.5 rounded-lg border border-ibbs-border bg-ibbs-paper text-ibbs-ink text-sm">
+                        <option value="">— Selecciona una materia —</option>
+                        <?php foreach($materias as $m): ?>
+                        <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['codigo'].' · '.$m['nombre']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
+
+                <?php if(empty($materias)): ?>
+                <div class="text-center py-10 text-ibbs-muted border-2 border-dashed border-ibbs-border rounded-[14px]">Aún no estás inscrito en ninguna materia.</div>
+                <?php else: ?>
+
+                <div id="aulaAlEmpty" class="text-center py-10 text-ibbs-muted border-2 border-dashed border-ibbs-border rounded-[14px]">Selecciona una materia arriba para ver su aula.</div>
+
+                <div id="aulaAlPanel" class="hidden space-y-4">
+                    <div class="flex gap-2 flex-wrap border-b border-ibbs-border pb-2">
+                        <button class="aula-al-tab-btn text-sm font-bold px-3 py-1.5 rounded-lg bg-ibbs-ink text-white" data-aulaaltab="anuncios" onclick="switchAulaAlTab('anuncios', this)">📢 Anuncios</button>
+                        <button class="aula-al-tab-btn text-sm font-bold px-3 py-1.5 rounded-lg text-ibbs-muted hover:bg-ibbs-cream" data-aulaaltab="materiales" onclick="switchAulaAlTab('materiales', this)">📎 Materiales</button>
+                        <button class="aula-al-tab-btn text-sm font-bold px-3 py-1.5 rounded-lg text-ibbs-muted hover:bg-ibbs-cream" data-aulaaltab="actividades" onclick="switchAulaAlTab('actividades', this)">📝 Mis calificaciones</button>
+                        <button class="aula-al-tab-btn text-sm font-bold px-3 py-1.5 rounded-lg text-ibbs-muted hover:bg-ibbs-cream" data-aulaaltab="vivo" onclick="switchAulaAlTab('vivo', this)">🔴 En Vivo</button>
+                        <button class="aula-al-tab-btn text-sm font-bold px-3 py-1.5 rounded-lg text-ibbs-muted hover:bg-ibbs-cream" data-aulaaltab="grabadas" onclick="switchAulaAlTab('grabadas', this)">🎬 Grabadas</button>
+                    </div>
+
+                    <div id="aulaAlTab-anuncios" class="aula-al-tabpane grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    <div id="aulaAlTab-materiales" class="aula-al-tabpane hidden"><table class="w-full text-sm"><thead><tr class="text-left text-ibbs-muted border-b border-ibbs-border"><th class="py-2">Título</th><th>Tipo</th><th></th></tr></thead><tbody id="aulaAlMaterialesList"></tbody></table></div>
+                    <div id="aulaAlTab-actividades" class="aula-al-tabpane hidden"><table class="w-full text-sm"><thead><tr class="text-left text-ibbs-muted border-b border-ibbs-border"><th class="py-2">Actividad</th><th>Tipo</th><th>Nota</th></tr></thead><tbody id="aulaAlActividadesList"></tbody></table></div>
+                    <div id="aulaAlTab-vivo" class="aula-al-tabpane hidden grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    <div id="aulaAlTab-grabadas" class="aula-al-tabpane hidden grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+                <?php endif; ?>
             </div>
 
             <!-- VISTA: CONSTANCIAS -->
@@ -1515,6 +1536,127 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         document.addEventListener('DOMContentLoaded', function () {
             IbbsTour.start(Object.assign({ auto: true }, window.IBBS_TOUR_ALUMNO));
         });
+
+        // ════════════════════════════════════════════════════════
+        // AULA VIRTUAL — vista de solo lectura para el alumno,
+        // consolidada dentro del portal (antes era un único botón que
+        // mandaba a modulo_aula.php en otra pestaña). Reutiliza el
+        // mismo backend de siempre (api/aula.php, api/clases_vivo.php,
+        // api/clases_grabadas.php) sin tocar esos módulos ni su diseño.
+        // ════════════════════════════════════════════════════════
+        let _aulaAlMid = null;
+        function hAulaAl(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+        function _aulaAlCsrf() { const m = document.querySelector('meta[name="csrf-token"]'); return m ? m.content : ''; }
+        async function _aulaAlPost(endpoint, action, params) {
+            const fd = new FormData();
+            fd.append('action', action);
+            fd.append('csrf_token', _aulaAlCsrf());
+            if (params) Object.keys(params).forEach(k => { if (params[k] !== undefined && params[k] !== null) fd.append(k, params[k]); });
+            try { const r = await fetch(endpoint, { method: 'POST', body: fd }); return await r.json(); }
+            catch (e) { return { ok: false, msg: 'Error de conexión.' }; }
+        }
+
+        function cargarAulaAlMateria() {
+            _aulaAlMid = document.getElementById('aulaAlMateriaSel').value || null;
+            const empty = document.getElementById('aulaAlEmpty');
+            const panel = document.getElementById('aulaAlPanel');
+            if (!_aulaAlMid) { empty.classList.remove('hidden'); panel.classList.add('hidden'); return; }
+            empty.classList.add('hidden');
+            panel.classList.remove('hidden');
+            const activo = document.querySelector('.aula-al-tab-btn.bg-ibbs-ink')?.dataset.aulaaltab || 'anuncios';
+            cargarAulaAlTab(activo);
+        }
+
+        function switchAulaAlTab(tab, btn) {
+            document.querySelectorAll('.aula-al-tab-btn').forEach(b => { b.classList.remove('bg-ibbs-ink', 'text-white'); b.classList.add('text-ibbs-muted'); });
+            btn.classList.add('bg-ibbs-ink', 'text-white'); btn.classList.remove('text-ibbs-muted');
+            document.querySelectorAll('.aula-al-tabpane').forEach(p => p.classList.add('hidden'));
+            document.getElementById('aulaAlTab-' + tab).classList.remove('hidden');
+            cargarAulaAlTab(tab);
+        }
+
+        function cargarAulaAlTab(tab) {
+            if (!_aulaAlMid) return;
+            if (tab === 'anuncios') cargarAulaAlAnuncios();
+            else if (tab === 'materiales') cargarAulaAlMateriales();
+            else if (tab === 'actividades') cargarAulaAlActividades();
+            else if (tab === 'vivo') cargarAulaAlVivo();
+            else if (tab === 'grabadas') cargarAulaAlGrabadas();
+        }
+
+        async function cargarAulaAlAnuncios() {
+            const box = document.getElementById('aulaAlTab-anuncios');
+            box.innerHTML = '<div class="col-span-2 text-center py-6 text-ibbs-muted">Cargando…</div>';
+            const d = await _aulaAlPost('api/aula.php', 'anuncio_list', { materia_id: _aulaAlMid });
+            if (!d?.ok || !d.data.length) { box.innerHTML = `<div class="col-span-2 text-center py-6 text-ibbs-muted">${hAulaAl(d?.ok ? 'Todavía no hay anuncios en esta materia.' : (d?.msg||'Error al cargar.'))}</div>`; return; }
+            box.innerHTML = d.data.map(a => `
+                <div class="bg-ibbs-paper border border-ibbs-border rounded-[14px] p-4 ${a.fijado==1?'border-l-4 border-l-ibbs-lime2':''}">
+                    <h4 class="font-serif font-bold text-ibbs-ink">${a.fijado==1?'📌 ':''}${hAulaAl(a.titulo)}</h4>
+                    <p class="text-sm text-ibbs-ink mt-1 whitespace-pre-wrap">${hAulaAl(a.contenido)}</p>
+                    <p class="text-xs text-ibbs-muted mt-2">${hAulaAl(a.autor)} · ${a.creado_en?a.creado_en.substring(0,16):''}</p>
+                </div>`).join('');
+        }
+
+        function _aulaAlFmtBytes(b) { b = parseInt(b)||0; if (b<1024) return b+' B'; if (b<1024*1024) return (b/1024).toFixed(1)+' KB'; return (b/(1024*1024)).toFixed(1)+' MB'; }
+        async function cargarAulaAlMateriales() {
+            const box = document.getElementById('aulaAlMaterialesList');
+            box.innerHTML = '<tr><td colspan="3" class="text-center py-6 text-ibbs-muted">Cargando…</td></tr>';
+            const d = await _aulaAlPost('api/aula.php', 'material_list', { materia_id: _aulaAlMid });
+            if (!d?.ok || !d.data.length) { box.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-ibbs-muted">${hAulaAl(d?.ok ? 'Todavía no hay materiales en esta materia.' : (d?.msg||'Error al cargar.'))}</td></tr>`; return; }
+            box.innerHTML = d.data.map(m => `
+                <tr class="border-b border-ibbs-border">
+                    <td class="py-2"><strong>${hAulaAl(m.titulo)}</strong>${m.descripcion?`<div class="text-xs text-ibbs-muted">${hAulaAl(m.descripcion)}</div>`:''}</td>
+                    <td><span class="text-xs bg-ibbs-cream border border-ibbs-border rounded px-2 py-0.5">${hAulaAl((m.archivo_tipo||'').toUpperCase())}</span> <span class="text-xs text-ibbs-muted">${_aulaAlFmtBytes(m.tamano_bytes)}</span></td>
+                    <td><a href="api/aula.php?action=material_download&id=${m.id}" class="text-ibbs-ink font-bold text-xs"><i class="fas fa-download"></i> Descargar</a></td>
+                </tr>`).join('');
+        }
+
+        async function cargarAulaAlActividades() {
+            const box = document.getElementById('aulaAlActividadesList');
+            box.innerHTML = '<tr><td colspan="3" class="text-center py-6 text-ibbs-muted">Cargando…</td></tr>';
+            const d = await _aulaAlPost('api/aula.php', 'actividad_mis_notas', { materia_id: _aulaAlMid });
+            if (!d?.ok || !d.data.length) { box.innerHTML = `<tr><td colspan="3" class="text-center py-6 text-ibbs-muted">${hAulaAl(d?.ok ? 'Todavía no hay actividades en esta materia.' : (d?.msg||'Error al cargar.'))}</td></tr>`; return; }
+            box.innerHTML = d.data.map(a => {
+                const nota = a.nota;
+                return `<tr class="border-b border-ibbs-border">
+                    <td class="py-2"><strong>${hAulaAl(a.titulo)}</strong><div class="text-xs text-ibbs-muted">${a.fecha?a.fecha.substring(0,10):''}</div></td>
+                    <td><span class="text-xs bg-ibbs-cream border border-ibbs-border rounded px-2 py-0.5">${hAulaAl(a.tipo)}</span></td>
+                    <td class="font-bold ${nota!==null ? (parseFloat(nota)>=15?'text-ibbs-green':'text-ibbs-red') : 'text-ibbs-muted'}">${nota!==null ? parseFloat(nota).toFixed(1)+' / '+parseFloat(a.nota_max).toFixed(1) : 'Sin calificar'}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        const AULA_AL_VIVO_EST = { programada: ['Programada','#6366f1'], en_curso: ['🔴 En curso','#dc2626'], finalizada: ['Finalizada','#6b7280'], cancelada: ['Cancelada','#9ca3af'] };
+        async function cargarAulaAlVivo() {
+            const box = document.getElementById('aulaAlTab-vivo');
+            box.innerHTML = '<div class="col-span-2 text-center py-6 text-ibbs-muted">Cargando…</div>';
+            const d = await _aulaAlPost('api/clases_vivo.php', 'vivo_list', { materia_id: _aulaAlMid });
+            if (!d?.ok || !d.data.length) { box.innerHTML = `<div class="col-span-2 text-center py-6 text-ibbs-muted">${hAulaAl(d?.ok ? 'Todavía no hay clases en vivo programadas.' : (d?.msg||'Error al cargar.'))}</div>`; return; }
+            box.innerHTML = d.data.map(c => {
+                const est = AULA_AL_VIVO_EST[c.estado] || ['—','#666'];
+                return `<div class="bg-ibbs-paper border border-ibbs-border rounded-[14px] p-4">
+                    <h4 class="font-serif font-bold text-ibbs-ink">${hAulaAl(c.titulo)}</h4>
+                    ${c.descripcion?`<p class="text-xs text-ibbs-muted">${hAulaAl(c.descripcion)}</p>`:''}
+                    <p class="text-xs text-ibbs-muted my-1">${c.fecha_hora?c.fecha_hora.substring(0,16).replace('T',' '):''} · ${hAulaAl(c.plataforma)}</p>
+                    <span class="inline-block text-xs rounded px-2 py-0.5 mb-2" style="background:${est[1]}22;color:${est[1]};border:1px solid ${est[1]};">${est[0]}</span>
+                    ${c.join_url ? `<a href="${hAulaAl(c.join_url)}" target="_blank" class="block text-center bg-ibbs-ink text-white rounded-lg py-2 text-sm font-bold">▶ Unirse</a>` : '<p class="text-xs text-ibbs-muted">Sin link disponible todavía.</p>'}
+                </div>`;
+            }).join('');
+        }
+
+        async function cargarAulaAlGrabadas() {
+            const box = document.getElementById('aulaAlTab-grabadas');
+            box.innerHTML = '<div class="col-span-2 text-center py-6 text-ibbs-muted">Cargando…</div>';
+            const d = await _aulaAlPost('api/clases_grabadas.php', 'clase_list', { materia_id: _aulaAlMid });
+            if (!d?.ok || !d.data.length) { box.innerHTML = `<div class="col-span-2 text-center py-6 text-ibbs-muted">${hAulaAl(d?.ok ? 'Todavía no hay clases grabadas en esta materia.' : (d?.msg||'Error al cargar.'))}</div>`; return; }
+            box.innerHTML = d.data.map(c => `
+                <div class="bg-ibbs-paper border border-ibbs-border rounded-[14px] p-4">
+                    <h4 class="font-serif font-bold text-ibbs-ink">${hAulaAl(c.titulo)}</h4>
+                    ${c.descripcion?`<p class="text-xs text-ibbs-muted">${hAulaAl(c.descripcion)}</p>`:''}
+                    <p class="text-xs text-ibbs-muted my-1">${hAulaAl(c.plataforma)} ${c.fecha?'· '+c.fecha.substring(0,10):''}</p>
+                    <a href="${hAulaAl(c.url)}" target="_blank" rel="noopener" class="block text-center bg-ibbs-cream border border-ibbs-border rounded-lg py-2 text-sm font-bold text-ibbs-ink">🔗 Ver video</a>
+                </div>`).join('');
+        }
     </script>
 </body>
 </html>
