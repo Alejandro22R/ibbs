@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 18);
+define('IBBS_SCHEMA_VERSION', 19);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -211,6 +211,93 @@ if (!function_exists('ibbs_autoheal_schema')) {
                 KEY `idx_usuario` (`usuario_id`),
                 CONSTRAINT `autoheal_cg_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `autoheal_cg_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            // 001_aula_virtual.sql y 003_clases_vivo.sql — tenían el
+            // mismo problema que 002 (arriba): nunca quedaron
+            // enganchadas acá, así que un entorno nuevo donde nadie
+            // las pegó a mano en phpMyAdmin se queda sin estas tablas
+            // y el Aula Virtual / Clases en Vivo revientan apenas se
+            // usan. Se agregan ahora las cuatro de 001 y la de 003.
+            "CREATE TABLE IF NOT EXISTS `aula_anuncios` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `usuario_id` INT(11) NOT NULL COMMENT 'quién publicó (docente/admin)',
+                `titulo` VARCHAR(150) NOT NULL,
+                `contenido` TEXT NOT NULL,
+                `fijado` TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'anuncios fijados aparecen primero',
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia` (`materia_id`),
+                KEY `idx_usuario` (`usuario_id`),
+                CONSTRAINT `autoheal_aa_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_aa_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            "CREATE TABLE IF NOT EXISTS `aula_materiales` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `usuario_id` INT(11) NOT NULL COMMENT 'quién subió el archivo',
+                `titulo` VARCHAR(150) NOT NULL,
+                `descripcion` VARCHAR(500) DEFAULT NULL,
+                `archivo` VARCHAR(255) NOT NULL COMMENT 'ruta relativa dentro de uploads/materiales/, nombre generado',
+                `archivo_nombre` VARCHAR(255) NOT NULL COMMENT 'nombre original, solo para mostrar/descargar',
+                `archivo_tipo` VARCHAR(10) NOT NULL COMMENT 'extensión validada en el servidor',
+                `tamano_bytes` INT(10) UNSIGNED NOT NULL DEFAULT 0,
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia` (`materia_id`),
+                KEY `idx_usuario` (`usuario_id`),
+                CONSTRAINT `autoheal_am_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_am_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            "CREATE TABLE IF NOT EXISTS `aula_actividades` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `usuario_id` INT(11) NOT NULL COMMENT 'docente/admin que la creó',
+                `titulo` VARCHAR(150) NOT NULL,
+                `descripcion` VARCHAR(500) DEFAULT NULL,
+                `tipo` VARCHAR(30) NOT NULL DEFAULT 'actividad' COMMENT 'actividad|examen|taller|proyecto',
+                `nota_max` DECIMAL(5,2) NOT NULL DEFAULT 20.00,
+                `fecha` DATE DEFAULT NULL,
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia` (`materia_id`),
+                KEY `idx_usuario` (`usuario_id`),
+                CONSTRAINT `autoheal_aac_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_aac_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            "CREATE TABLE IF NOT EXISTS `aula_calificaciones` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `actividad_id` INT(11) NOT NULL,
+                `alumno_id` INT(11) NOT NULL,
+                `nota` DECIMAL(5,2) DEFAULT NULL,
+                `observacion` VARCHAR(255) DEFAULT NULL,
+                `calificado_por` INT(11) DEFAULT NULL,
+                `actualizado_en` DATETIME DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `autoheal_uq_actividad_alumno` (`actividad_id`,`alumno_id`),
+                KEY `idx_alumno` (`alumno_id`),
+                KEY `idx_calificado_por` (`calificado_por`),
+                CONSTRAINT `autoheal_ac_ibfk_1` FOREIGN KEY (`actividad_id`) REFERENCES `aula_actividades` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_ac_ibfk_2` FOREIGN KEY (`alumno_id`) REFERENCES `alumnos` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_ac_ibfk_3` FOREIGN KEY (`calificado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            "CREATE TABLE IF NOT EXISTS `clases_vivo` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `usuario_id` INT(11) NOT NULL COMMENT 'quién la creó/dicta',
+                `titulo` VARCHAR(150) NOT NULL,
+                `descripcion` VARCHAR(500) DEFAULT NULL,
+                `plataforma` VARCHAR(20) NOT NULL DEFAULT 'jitsi' COMMENT 'jitsi|meet|otro',
+                `sala` VARCHAR(150) DEFAULT NULL COMMENT 'nombre de sala — solo si plataforma=jitsi',
+                `url` VARCHAR(500) DEFAULT NULL COMMENT 'link pegado por el docente — solo si plataforma=meet|otro',
+                `fecha_hora` DATETIME NOT NULL COMMENT 'cuándo es (o fue) la clase',
+                `estado` VARCHAR(20) NOT NULL DEFAULT 'programada' COMMENT 'programada|en_curso|finalizada|cancelada',
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia` (`materia_id`),
+                KEY `idx_usuario` (`usuario_id`),
+                CONSTRAINT `autoheal_cv_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_cv_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         ];
 

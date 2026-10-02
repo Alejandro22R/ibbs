@@ -1508,11 +1508,18 @@ apenas alguien intenta publicar o listar un video. Se agregó esa
 `CREATE TABLE IF NOT EXISTS` al arreglo de autoheal (versión de esquema
 17 → 18) y se probó el flujo completo: el profesor publica un link de
 YouTube, el sistema detecta la plataforma y arma el embed, y el alumno
-inscrito lo ve. **Nota para el equipo:** `001_aula_virtual.sql` y
-`003_clases_vivo.sql` tienen exactamente el mismo problema (tampoco
-están en autoheal) — no se tocaron a propósito porque esas dos áreas
-las está trabajando otra persona, pero vale la pena que lo sepan antes
-de que alguien lo pise en un entorno nuevo.
+inscrito lo ve.
+
+**Actualización:** el usuario pidió corregir también el mismo problema
+en Aula Virtual y Clases en Vivo (avisándole a quien lleva esas dos
+áreas), así que `001_aula_virtual.sql` (`aula_anuncios`,
+`aula_materiales`, `aula_actividades`, `aula_calificaciones`) y
+`003_clases_vivo.sql` (`clases_vivo`) quedaron agregadas también al
+autoheal (versión de esquema 18 → 19) — no se tocó ningún archivo de
+esas dos funcionalidades más allá de esto, solo las tablas que les
+faltaban. Se probó cada una end-to-end: anuncio publicado y visible,
+actividad creada y calificada, clase en vivo por Jitsi con su link
+generado y visible para el alumno inscrito.
 
 **El foro devolvía el id equivocado al publicar un mensaje.**
 `api/foro.php` leía `mysqli_insert_id($con)` *después* de llamar a
