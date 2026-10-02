@@ -3,18 +3,24 @@
  * IBBS — Constancia de Notas / Estudios (alumno) y Constancia de
  * Trabajo (docente) — PDF vía impresión.
  *
- * Estos documentos son un trámite pago del instituto: el alumno NUNCA
- * las genera por sí mismo (antes sí podía, self-service, con
- * ?tipo=notas sin alumno_id) — ahora solo admin/superadmin puede
- * emitirlas, y se asume que lo hace después de confirmar el pago en
- * persona (no hay pasarela de pago en el sistema; queda igual que
- * cualquier otro trámite administrativo presencial). Queda un registro
- * en la auditoría de quién emitió cada una y para quién.
+ * Constancia de Estudio y de Notas: trámite gratuito y de autoservicio
+ * — el alumno la genera para sí mismo (?tipo=estudio|notas, sin
+ * alumno_id) cuando quiera, sin pasar por administración. Admin y
+ * superadmin también pueden emitirla para cualquier alumno pasando
+ * alumno_id. Queda un registro en la auditoría de quién la emitió y
+ * para quién.
+ *
+ * La Constancia de Notas solo incluye una materia en la tabla de
+ * calificaciones si: (1) el administrador ya la marcó "culminada"
+ * (materia_set_estado, exclusivo de admin/superadmin — esa es la
+ * confirmación administrativa) y (2) el profesor ya calificó al 100%
+ * de los alumnos inscritos en ella (ningún nota_final en NULL). Una
+ * materia en curso, o culminada pero con notas incompletas, nunca
+ * aparece — evita que el récord oficial muestre una nota a medias.
  *
  * tipo=trabajo es distinto: la genera el propio docente para sí mismo
- * (constancia de que presta servicios en la institución, no es un
- * trámite pago) — admin/superadmin también puede emitirla para
- * cualquier docente.
+ * (constancia de que presta servicios en la institución) — admin/
+ * superadmin también puede emitirla para cualquier docente.
  */
 require_once __DIR__.'/../config/bootstrap.php';
 if (empty($_SESSION['loggedin'])) { header('Location: ../login.php'); exit; }
@@ -42,19 +48,36 @@ if ($tipo === 'trabajo') {
     if (!$docente) die('Docente no encontrado.');
     log_audit($con, $uid, 'CONSTANCIA_TRABAJO_GENERAR', "docente=$did");
 } else {
-    // ── Constancia de Estudio / Notas (alumno) — SOLO admin/superadmin ──
-    if (!in_array($rol, ['superadmin', 'admin'])) {
-        die('Esta constancia es un trámite administrativo pago — solicitala en la administración del instituto. Un administrador la emitirá una vez confirmado el pago.');
+    // ── Constancia de Estudio / Notas (alumno) — autoservicio gratuito ──
+    if ($rol === 'alumno') {
+        $al  = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
+        $aid = $al ? (int)$al['id'] : 0;
+    } elseif (in_array($rol, ['superadmin', 'admin'])) {
+        $aid = (int)($_GET['alumno_id'] ?? 0);
+    } else {
+        die('No tenés permiso para generar este documento.');
     }
-    $aid = (int)($_GET['alumno_id'] ?? 0);
     if (!$aid) die('Alumno no encontrado.');
     $alumno = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM alumnos WHERE id=$aid LIMIT 1"));
     if (!$alumno) die('Alumno no encontrado.');
     log_audit($con, $uid, 'CONSTANCIA_'.strtoupper($tipo).'_GENERAR', "alumno=$aid");
 
+    // Solo materias culminadas (confirmadas por admin) y 100% calificadas
+    // (ningún alumno de esa materia con nota_final pendiente) — ver la
+    // nota al principio del archivo.
     $materias = [];
-    $r = mysqli_query($con, "SELECT ma.nota_final,m.nombre mn,m.codigo mc FROM materia_alumno ma JOIN materias m ON m.id=ma.materia_id WHERE ma.alumno_id=$aid ORDER BY m.nombre");
-    while ($f = mysqli_fetch_assoc($r)) $materias[] = $f;
+    if ($tipo === 'notas') {
+        $r = mysqli_query($con, "SELECT ma.nota_final,m.nombre mn,m.codigo mc
+                                  FROM materia_alumno ma JOIN materias m ON m.id=ma.materia_id
+                                  WHERE ma.alumno_id=$aid AND m.estado='culminada'
+                                    AND NOT EXISTS (
+                                        SELECT 1 FROM materia_alumno ma2
+                                        WHERE ma2.materia_id=ma.materia_id AND ma2.nota_final IS NULL
+                                    )
+                                  ORDER BY m.nombre");
+        while ($f = mysqli_fetch_assoc($r)) $materias[] = $f;
+        if (!$materias) die('Todavía no tenés ninguna materia culminada y 100% calificada para incluir en tu Constancia de Notas. Una vez que tu profesor termine de cargar las notas y la administración confirme el cierre de la materia, vas a poder generarla acá.');
+    }
 }
 
 function ibbs_nota_a_letras($n) {
@@ -145,7 +168,7 @@ body{
 <body>
 
 <div class="no-print">
-  <a class="btn-bk" href="../<?= $rol==='profesor' ? 'portal_docente.php' : 'modulo_herramientas.php' ?>">&#8592; Volver</a>
+  <a class="btn-bk" href="../<?= $rol==='profesor' ? 'portal_docente.php' : ($rol==='alumno' ? 'portal_alumno.php' : 'modulo_herramientas.php') ?>">&#8592; Volver</a>
   <button class="btn-dl" onclick="window.print()">Descargar PDF / Imprimir</button>
 </div>
 

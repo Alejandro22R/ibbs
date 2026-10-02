@@ -11,11 +11,10 @@
  *   única vista que muestra números de nota.
  *
  * - accion=alumno: la misma lista de actividades de su propia materia
- *   (fecha, título, % que vale) pero sin ninguna nota ni promedio —
- *   solo si ya entregó, falta, o si la fecha límite ya pasó. Si se le
- *   mostrara la nota o el promedio acá, el alumno podría armarse su
- *   propia constancia de notas sin pagarla en administración (ver
- *   "Constancias, Boletín y Récord Académico" en el README).
+ *   (fecha, título, % que vale), más la nota que sacó en cada una (si
+ *   ya la calificaron) para que vea su promedio ponderado acumulado en
+ *   tiempo real, igual que el profesor — el cálculo lo hace el
+ *   frontend con la misma fórmula que portal_docente.php.
  */
 
 ob_start(); error_reporting(0);
@@ -83,7 +82,7 @@ if ($accion === 'alumno') {
     $inscrito = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materia_alumno WHERE materia_id=$materia_id AND alumno_id=$alumno_id LIMIT 1"));
     if (!$inscrito) { echo json_encode(['ok'=>false,'msg'=>'No estás inscrito en esta materia.']); exit; }
 
-    $rt = mysqli_query($con, "SELECT t.id, t.titulo, t.fecha_limite, t.porcentaje, e.id as entrega_id, e.fecha_entrega
+    $rt = mysqli_query($con, "SELECT t.id, t.titulo, t.fecha_limite, t.porcentaje, e.id as entrega_id, e.fecha_entrega, e.nota
                                FROM tareas t
                                LEFT JOIN entregas e ON e.tarea_id=t.id AND e.alumno_id=$alumno_id
                                WHERE t.materia_id=$materia_id ORDER BY t.fecha_limite ASC");
@@ -97,10 +96,9 @@ if ($accion === 'alumno') {
         }
         $actividades[] = [
             'id' => $f['id'], 'titulo' => $f['titulo'], 'fecha_limite' => $f['fecha_limite'],
-            'porcentaje' => $f['porcentaje'], 'estado' => $estado,
+            'porcentaje' => $f['porcentaje'], 'estado' => $estado, 'nota' => $f['nota'],
         ];
     }
-    // Nunca se incluye nota ni promedio acá — ver el comentario del encabezado.
     echo json_encode(['ok'=>true, 'data'=>['actividades'=>$actividades]]);
     exit;
 }

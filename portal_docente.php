@@ -2389,11 +2389,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 
         // ── PLAN DE NOTAS — planilla de la materia: cada alumno, cada
         // actividad, su nota, y el promedio ponderado por el % de cada
-        // una (api/plan_notas.php, acción "docente"). Es la única vista
-        // de este portal que calcula y muestra un promedio — el alumno
-        // ve esta misma info pero sin ningún número de nota (ver
-        // api/plan_notas.php para la razón: evitar que se arme su
-        // propia constancia sin pagarla en administración). ──────────
+        // una (api/plan_notas.php, acción "docente"). El alumno ve su
+        // propio Plan de Notas con la misma fórmula de promedio, pero
+        // una sola fila (la suya) en vez de la planilla completa. ──────
         function hPN(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 
         async function cargarPlanNotas() {
@@ -2485,7 +2483,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Subí el material de cada materia (documentos, presentaciones, videos, clases grabadas o en vivo) para que tus alumnos lo vean cuando quieran.' },
                 { selector: '[data-tour="nav-asistencia"]', title: 'Asistencia por Foto', text: 'Subí la foto de la hoja de asistencia en papel de tu clase — el sistema la lee y precarga la tabla de presentes/ausentes, vos la revisás y confirmás.' },
                 { selector: '[data-tour="nav-entregas"]', title: 'Cargar Notas', text: 'Revisá las tareas que entregaron tus alumnos, dejales una observación si hace falta y cargá la calificación — la ven reflejada al instante en su portal.' },
-                { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'La planilla completa de una materia: cada alumno, cada actividad con su %, y el promedio ponderado — solo vos ves los números acá, tus alumnos ven la misma lista de actividades pero sin ninguna nota.' },
+                { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'La planilla completa de una materia: cada alumno, cada actividad con su %, y el promedio ponderado. Tus alumnos ven su propio Plan de Notas con el mismo promedio, calculado solo con sus actividades.' },
                 { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Respondé las dudas de tus alumnos sobre cada materia y compartí avisos importantes del curso.' },
                 { selector: '[data-tour="nav-chat-staff"]', title: 'Chat del Staff', text: 'Canal privado para coordinar con administración y otros docentes de la institución, sin depender de ninguna materia en particular.' },
                 { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Subí tus propios libros, gratuitos o de pago, con portada y descripción — aparecen automáticamente en el catálogo que ven tus alumnos.' },

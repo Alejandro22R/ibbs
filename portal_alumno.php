@@ -745,7 +745,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
                     <h2 class="text-2xl font-serif text-ibbs-ink">Plan de Notas y Trabajos</h2>
                 </div>
-                <p class="text-sm text-ibbs-muted -mt-2">Todas las actividades de cada materia, con su fecha límite y cuánto vale — para que sepas qué te falta entregar. Las calificaciones las vas a ver en "Calificaciones" una vez que cierre el período.</p>
+                <p class="text-sm text-ibbs-muted -mt-2">Todas las actividades de cada materia, con su fecha límite, cuánto vale y la nota que llevás en cada una — con el promedio ponderado acumulado hasta este momento, igual que lo ve tu profesor.</p>
 
                 <div class="space-y-3" id="planNotasAcordeon">
                     <?php foreach($materias as $m): ?>
@@ -816,28 +816,32 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 
                 <div class="bg-ibbs-cream border border-ibbs-border rounded-[14px] p-5 text-sm text-ibbs-ink flex items-start gap-3">
                     <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
-                    <div>Estas constancias son un trámite administrativo pago del instituto — no se descargan desde aquí. Acércate a la administración, realiza el pago correspondiente y te la entregarán impresa o en PDF.</div>
+                    <div>Estos documentos son gratuitos: los generás y descargás vos mismo(a), cuando quieras. La Constancia de Notas solo incluye las materias que ya culminaron con el 100% de las calificaciones cargadas y confirmadas.</div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Constancia de Estudio -->
-                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center group">
-                        <div class="w-20 h-20 rounded-2xl bg-ibbs-blue/10 text-ibbs-blue flex items-center justify-center text-3xl mb-5">
+                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center hover:shadow-lg transition-all group">
+                        <div class="w-20 h-20 rounded-2xl bg-ibbs-blue/10 text-ibbs-blue flex items-center justify-center text-3xl mb-5 group-hover:bg-ibbs-blue group-hover:text-white transition-colors duration-300">
                             <i class="fas fa-user-graduate"></i>
                         </div>
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Estudio</h3>
-                        <p class="text-sm text-ibbs-muted mb-2 leading-relaxed">Documento oficial membretado que certifica tu inscripción y condición actual como alumno regular en nuestra institución.</p>
-                        <p class="text-xs text-ibbs-muted mt-auto font-semibold uppercase tracking-wide"><i class="fas fa-lock mr-1"></i> Solicítala en administración</p>
+                        <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Documento oficial membretado que certifica tu inscripción y condición actual como alumno regular en nuestra institución.</p>
+                        <a href="api/export_constancia.php?tipo=estudio" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-blue transition-colors flex items-center justify-center gap-2 mt-auto">
+                            <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
+                        </a>
                     </div>
 
                     <!-- Constancia de Notas -->
-                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center group">
-                        <div class="w-20 h-20 rounded-2xl bg-ibbs-green/10 text-ibbs-green flex items-center justify-center text-3xl mb-5">
+                    <div class="bg-ibbs-paper p-8 rounded-[14px] border border-ibbs-border flex flex-col items-center text-center hover:shadow-lg transition-all group">
+                        <div class="w-20 h-20 rounded-2xl bg-ibbs-green/10 text-ibbs-green flex items-center justify-center text-3xl mb-5 group-hover:bg-ibbs-green group-hover:text-white transition-colors duration-300">
                             <i class="fas fa-list-ol"></i>
                         </div>
                         <h3 class="text-xl font-serif font-bold text-ibbs-ink mb-3">Constancia de Notas</h3>
-                        <p class="text-sm text-ibbs-muted mb-2 leading-relaxed">Reporte académico oficial con el desglose detallado de tus calificaciones finales aprobadas y tu promedio general.</p>
-                        <p class="text-xs text-ibbs-muted mt-auto font-semibold uppercase tracking-wide"><i class="fas fa-lock mr-1"></i> Solicítala en administración</p>
+                        <p class="text-sm text-ibbs-muted mb-8 leading-relaxed">Reporte académico oficial con el desglose detallado de tus calificaciones finales aprobadas y tu promedio general.</p>
+                        <a href="api/export_constancia.php?tipo=notas" target="_blank" class="w-full bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-3 rounded-lg text-sm font-bold hover:bg-ibbs-border hover:text-ibbs-green transition-colors flex items-center justify-center gap-2 mt-auto">
+                            <i class="fas fa-file-pdf text-ibbs-red"></i> Descargar PDF
+                        </a>
                     </div>
                 </div>
             </div>
@@ -1085,21 +1089,46 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             const actividades = d.data.actividades;
             if (!actividades.length) { body.innerHTML = '<p class="text-sm text-ibbs-muted py-2">Todavía no hay actividades cargadas en esta materia.</p>'; return; }
 
-            body.innerHTML = `<div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse">
+            // Mismo cálculo que el profesor en su Plan de Notas: promedio
+            // ponderado solo con las actividades ya calificadas.
+            let sumaPonderada = 0, pesoEvaluado = 0, calificadas = 0, entregadas = 0;
+            actividades.forEach(a => {
+                if (a.estado === 'entregada' || a.estado === 'entregada_tarde') entregadas++;
+                const nota = a.nota !== null ? parseFloat(a.nota) : null;
+                if (nota !== null && !isNaN(nota)) {
+                    const peso = parseFloat(a.porcentaje) || 0;
+                    sumaPonderada += nota * peso;
+                    pesoEvaluado += peso;
+                    calificadas++;
+                }
+            });
+            const promedio = pesoEvaluado > 0 ? (sumaPonderada / pesoEvaluado).toFixed(1) : null;
+            const colorProm = promedio !== null ? (promedio >= 15 ? 'text-ibbs-green' : 'text-ibbs-red') : 'text-ibbs-muted';
+
+            const resumen = `<div class="flex flex-wrap gap-4 mb-3 text-xs">
+                <div><span class="text-ibbs-muted">Entregadas: </span><strong class="text-ibbs-ink">${entregadas}/${actividades.length}</strong></div>
+                <div><span class="text-ibbs-muted">Calificadas: </span><strong class="text-ibbs-ink">${calificadas}/${actividades.length}</strong></div>
+                <div><span class="text-ibbs-muted">Promedio acumulado: </span><strong class="${colorProm}">${promedio !== null ? promedio + ' / 20' : 'Sin notas aún'}</strong></div>
+            </div>`;
+
+            body.innerHTML = resumen + `<div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse">
                 <thead><tr class="text-ibbs-muted border-b border-ibbs-border">
                     <th class="py-2 pr-2 font-bold uppercase tracking-wider">Actividad</th>
                     <th class="py-2 px-2 font-bold uppercase tracking-wider">Fecha límite</th>
                     <th class="py-2 px-2 font-bold uppercase tracking-wider text-center">%</th>
+                    <th class="py-2 px-2 font-bold uppercase tracking-wider text-center">Nota</th>
                     <th class="py-2 pl-2 font-bold uppercase tracking-wider text-right">Estado</th>
                 </tr></thead>
                 <tbody class="divide-y divide-ibbs-border">
                 ${actividades.map(a => {
                     const e = ESTADO_LBL[a.estado] || ESTADO_LBL.pendiente;
                     const fecha = new Date(a.fecha_limite).toLocaleString('es-VE', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+                    const nota = a.nota !== null ? parseFloat(a.nota) : null;
                     return `<tr>
                         <td class="py-2.5 pr-2 font-bold text-ibbs-ink">${hPNAl(a.titulo)}</td>
                         <td class="py-2.5 px-2 text-ibbs-muted">${fecha}</td>
                         <td class="py-2.5 px-2 text-center text-ibbs-muted">${a.porcentaje !== null ? parseFloat(a.porcentaje) + '%' : '—'}</td>
+                        <td class="py-2.5 px-2 text-center font-bold ${nota !== null ? (nota >= 15 ? 'text-ibbs-green' : 'text-ibbs-red') : 'text-ibbs-muted'}">${nota !== null ? nota : '—'}</td>
                         <td class="py-2.5 pl-2 text-right"><span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-full font-bold ${e.cls}"><i class="fas ${e.icon}"></i> ${e.txt}</span></td>
                     </tr>`;
                 }).join('')}
@@ -1590,7 +1619,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Espacio de preguntas y respuestas por cada materia: escribile a tu profesor o a tus compañeros si tenés dudas sobre un tema de clase.' },
                 { selector: '[data-tour="nav-notas"]', title: 'Calificaciones', text: 'Consultá tus notas por materia y por corte apenas el profesor las publique, sin tener que esperar el boletín oficial.' },
                 { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'Mirá todas las actividades de cada materia, su fecha límite y cuánto vale, para no perderte de nada — las notas en sí las ves en "Calificaciones".' },
-                { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Solicitá tus constancias de estudio, notas o récord académico, adjuntando el comprobante de pago cuando corresponda. Desde acá seguís el estado de tu trámite y descargás el documento cuando esté listo.' },
+                { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Descargá tu Constancia de Estudio o de Notas cuando quieras, gratis y al instante — la de Notas solo incluye las materias ya culminadas y 100% calificadas.' },
                 { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explorá los libros que tus profesores fueron subiendo: los gratuitos se descargan directo, y en los de pago te vamos a pedir tu comprobante antes de darte acceso.' },
                 { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tu foto, tus datos personales y tu contraseña. Al escribir una contraseña en cualquier parte del sistema vas a ver un ícono de ojo al lado — tocalo si querés revisar lo que escribiste antes de guardar.' },
                 { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras volver a ver este recorrido completo, tocá acá. ¡Éxitos en tus estudios!' }
