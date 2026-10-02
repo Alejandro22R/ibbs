@@ -1251,6 +1251,11 @@ if($action==='asistencia_resumen'){
         "SELECT SUM(estado='presente') presente, SUM(estado='ausente') ausente,
                 SUM(estado='tardanza') tardanza, SUM(estado='justificado') justificado
          FROM asistencias a WHERE tipo='alumno' $where_m $where_f"));
+    // mysqli devuelve SUM() como STRING ("3", no 3). Sin este cast, el
+    // front sumaba "3"+"2"+"0"+"0" como texto ("3200") en vez de 3+2+0+0
+    // (5), y el % de asistencia salía siempre cerca de 0 — el síntoma
+    // reportado de que la asistencia "se ve mal" al calcularse.
+    foreach(['presente','ausente','tardanza','justificado'] as $k) $gr[$k] = (int)($gr[$k] ?? 0);
 
     // Per-alumno breakdown
     $data=[];
@@ -1264,7 +1269,10 @@ if($action==='asistencia_resumen'){
          WHERE a.tipo='alumno' $where_m $where_f
          GROUP BY a.alumno_id, a.materia_id
          ORDER BY al.apellido, al.nombre");
-    while($f=mysqli_fetch_assoc($r)) $data[]=$f;
+    while($f=mysqli_fetch_assoc($r)){
+        foreach(['presentes','ausentes','tardanzas','justificados'] as $k) $f[$k] = (int)$f[$k];
+        $data[]=$f;
+    }
     echo json_encode(['ok'=>true,'global'=>$gr,'data'=>$data]);
     exit;
 }
@@ -1318,7 +1326,11 @@ if($action==='historial_delete'){
                 $deleted++; break;
         }
     }
-    log_audit($con,$uid,'HISTORIAL_DELETE',"Eliminados: $deleted registros");
+    // OJO: a propósito NO se llama log_audit() acá. El "Sistema" de este
+    // mismo Historial se arma leyendo audit_log — si esta acción se
+    // logueaba ahí, cada borrado creaba una fila nueva que reemplazaba
+    // visualmente a la que se acababa de eliminar, y el total nunca
+    // bajaba (parecía que "no borraba nada" aunque sí lo hacía).
     echo json_encode(['ok'=>true,'msg'=>"$deleted registro(s) eliminado(s) del historial."]);
     exit;
 }
