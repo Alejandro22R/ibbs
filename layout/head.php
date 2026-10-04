@@ -81,25 +81,25 @@ function can($perm){
     <div class="sb-wordmark"><strong>IBBS</strong><small>Sistema Académico</small></div>
   </a>
   <ul class="sb-nav">
-    <li><a href="index.php" class="sb-link <?=$active_link==='inicio'?'act':''?>"><i class="bx bx-grid-alt"></i><span class="sb-lbl">Inicio</span></a></li>
+    <li><a href="index.php" class="sb-link <?=$active_link==='inicio'?'act':''?>" data-tour="nav-inicio"><i class="bx bx-grid-alt"></i><span class="sb-lbl">Inicio</span></a></li>
 
     <?php if(in_array($_rol,['superadmin','admin'])): ?>
     <div class="sb-section">Académico</div>
-    <li><a href="modulo_materias.php" class="sb-link <?=$active_link==='materias'?'act':''?>"><i class="bx bx-book-open"></i><span class="sb-lbl">Materias</span></a></li>
+    <li><a href="modulo_materias.php" class="sb-link <?=$active_link==='materias'?'act':''?>" data-tour="nav-materias"><i class="bx bx-book-open"></i><span class="sb-lbl">Materias</span></a></li>
     <li><a href="modulo_docentes.php" class="sb-link <?=$active_link==='docentes'?'act':''?>"><i class="bx bx-chalkboard"></i><span class="sb-lbl">Docentes</span></a></li>
-    <li><a href="modulo_alumnos.php" class="sb-link <?=$active_link==='alumnos'?'act':''?>"><i class="bx bx-group"></i><span class="sb-lbl">Alumnos</span></a></li>
+    <li><a href="modulo_alumnos.php" class="sb-link <?=$active_link==='alumnos'?'act':''?>" data-tour="nav-alumnos"><i class="bx bx-group"></i><span class="sb-lbl">Alumnos</span></a></li>
     <li><a href="modulo_inscripciones.php" class="sb-link <?=$active_link==='inscripciones'?'act':''?>"><i class="bx bx-user-plus"></i><span class="sb-lbl">Inscripciones</span></a></li>
-    <li><a href="modulo_asistencias.php" class="sb-link <?=$active_link==='asistencias'?'act':''?>"><i class="bx bx-check-square"></i><span class="sb-lbl">Asistencias</span></a></li>
+    <li><a href="modulo_asistencias.php" class="sb-link <?=$active_link==='asistencias'?'act':''?>" data-tour="nav-asistencias"><i class="bx bx-check-square"></i><span class="sb-lbl">Asistencias</span></a></li>
     <?php endif; ?>
 
     <div class="sb-section">Calificaciones</div>
     <?php if(in_array($_rol,['superadmin','admin'])): ?>
-    <li><a href="modulo_notas.php" class="sb-link <?=$active_link==='notas'?'act':''?>"><i class="bx bx-edit-alt"></i><span class="sb-lbl">Cargar Notas</span></a></li>
+    <li><a href="modulo_notas.php" class="sb-link <?=$active_link==='notas'?'act':''?>" data-tour="nav-notas"><i class="bx bx-edit-alt"></i><span class="sb-lbl">Cargar Notas</span></a></li>
     <?php elseif($_rol==='profesor'): ?>
-    <li><a href="modulo_notas.php" class="sb-link <?=$active_link==='notas'?'act':''?>"><i class="bx bx-edit-alt"></i><span class="sb-lbl">Cargar Notas</span></a></li>
+    <li><a href="modulo_notas.php" class="sb-link <?=$active_link==='notas'?'act':''?>" data-tour="nav-notas"><i class="bx bx-edit-alt"></i><span class="sb-lbl">Cargar Notas</span></a></li>
     <?php endif; ?>
     <?php if(in_array($_rol,['superadmin','admin','profesor'])): ?>
-    <li><a href="modulo_aula.php" class="sb-link <?=$active_link==='aula'?'act':''?>"><i class="bx bx-chalkboard"></i><span class="sb-lbl">Aula Virtual</span></a></li>
+    <li><a href="modulo_aula.php" class="sb-link <?=$active_link==='aula'?'act':''?>" data-tour="nav-aula"><i class="bx bx-chalkboard"></i><span class="sb-lbl">Aula Virtual</span></a></li>
     <li><a href="modulo_grabaciones.php" class="sb-link <?=$active_link==='grabaciones'?'act':''?>"><i class="bx bx-video"></i><span class="sb-lbl">Clases Grabadas</span></a></li>
     <li><a href="modulo_vivo.php" class="sb-link <?=$active_link==='vivo'?'act':''?>"><i class="bx bx-broadcast"></i><span class="sb-lbl">Clases en Vivo</span></a></li>
     <?php endif; ?>
@@ -122,7 +122,7 @@ function can($perm){
 
     <div class="sb-section">Herramientas</div>
     <?php if(in_array($_rol,['superadmin','admin'])): ?>
-    <li><a href="modulo_herramientas.php" class="sb-link <?=$active_link==='herramientas'?'act':''?>"><i class="bx bx-bell"></i><span class="sb-lbl">Herramientas</span></a></li>
+    <li><a href="modulo_herramientas.php" class="sb-link <?=$active_link==='herramientas'?'act':''?>" data-tour="nav-herramientas"><i class="bx bx-bell"></i><span class="sb-lbl">Herramientas</span></a></li>
     <?php endif; ?>
     <li><a href="modulo_visor_pdf.php" class="sb-link <?=$active_link==='visor_pdf'?'act':''?>"><i class="bx bx-file"></i><span class="sb-lbl">Visor PDF</span></a></li>
 
@@ -132,13 +132,14 @@ function can($perm){
     <li><a href="modulo_usuarios.php" class="sb-link <?=$active_link==='usuarios'?'act':''?>"><i class="bx bx-shield-quarter"></i><span class="sb-lbl">Usuarios</span></a></li>
     <li><a href="modulo_historial.php" class="sb-link <?=$active_link==='historial'?'act':''?>"><i class="bx bx-history"></i><span class="sb-lbl">Historial</span></a></li>
     <?php endif; ?>
-    <li><a href="modulo_backup.php" class="sb-link <?=$active_link==='backup'?'act':''?>"><i class="bx bx-data"></i><span class="sb-lbl">Respaldo BD</span></a></li>
+    <li><a href="modulo_backup.php" class="sb-link <?=$active_link==='backup'?'act':''?>" data-tour="nav-backup"><i class="bx bx-data"></i><span class="sb-lbl">Respaldo BD</span></a></li>
     <?php endif; ?>
 
+    <li><a href="javascript:void(0)" onclick="IbbsTour.replay(window.IBBS_TOUR_SIDEBAR)" class="sb-link" data-tour="nav-tutorial"><i class="bx bx-play-circle"></i><span class="sb-lbl">Ver Tutorial</span></a></li>
     <li><a href="assets/ibbs_ayuda.pdf" target="_blank" class="sb-link"><i class="bx bx-help-circle"></i><span class="sb-lbl">Ayuda</span></a></li>
   </ul>
   <div class="sb-bottom">
-    <a href="modulo_perfil.php" class="sb-action" style="text-decoration:none;">
+    <a href="modulo_perfil.php" class="sb-action" style="text-decoration:none;" data-tour="nav-perfil">
       <?php if($_foto): ?>
         <img src="<?=htmlspecialchars($_foto)?>" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;">
       <?php else: ?>
@@ -165,12 +166,12 @@ function can($perm){
     </button>
 
     <!-- Paleta de comandos: buscar y saltar a cualquier sección -->
-    <button type="button" class="ibbs-cmdk-btn" onclick="IbbsShortcuts.openPalette()" title="Buscar sección (Ctrl+K)">
+    <button type="button" class="ibbs-cmdk-btn" onclick="IbbsShortcuts.openPalette()" title="Buscar sección (Ctrl+K)" data-tour="top-buscar">
       <i class="bx bx-search"></i><span class="search-hint-text">Buscar</span> <kbd>Ctrl K</kbd>
     </button>
 
     <!-- Dark mode pill toggle -->
-    <button id="themeToggle" onclick="toggleTheme()" title="Modo claro / oscuro" aria-label="Cambiar tema">
+    <button id="themeToggle" onclick="toggleTheme()" title="Modo claro / oscuro" aria-label="Cambiar tema" data-tour="top-tema">
       <!-- luna (visible en modo claro) -->
       <svg class="t-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
       <!-- sol (visible en modo oscuro) -->
@@ -178,7 +179,7 @@ function can($perm){
     </button>
     <!-- Notification bell -->
     <div style="position:relative;">
-      <button id="notifBell" onclick="<?= in_array($_rol,['superadmin','admin']) ? "window.location='modulo_herramientas.php'" : 'toggleNotifDrop()' ?>" title="Notificaciones"
+      <button id="notifBell" data-tour="top-notif" onclick="<?= in_array($_rol,['superadmin','admin']) ? "window.location='modulo_herramientas.php'" : 'toggleNotifDrop()' ?>" title="Notificaciones"
         style="position:relative;background:none;border:1.5px solid var(--border);border-radius:9px;padding:.45rem .6rem;cursor:pointer;display:flex;align-items:center;color:var(--ink);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span id="notifCount" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border-radius:50%;width:17px;height:17px;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;"></span>

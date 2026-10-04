@@ -24,6 +24,22 @@ if (!$con) {
     echo json_encode(['ok'=>false,'msg'=>'Error de conexión a la base de datos.']); exit;
 }
 
+// ── LISTA DE TABLAS + CANTIDAD DE REGISTROS ─────────────────────
+// Para el panel "Respaldo de Base de Datos": antes la tabla se
+// quedaba cargando para siempre porque nada llamaba a este endpoint
+// (ni siquiera existía) — ver modulo_backup.php.
+if ($action === 'tablas') {
+    header('Content-Type: application/json; charset=utf-8');
+    $tablas = [];
+    $tr = mysqli_query($con, "SHOW TABLES");
+    while ($row = mysqli_fetch_row($tr)) {
+        $tbl = $row[0];
+        $cr = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM `$tbl`"));
+        $tablas[] = ['tabla' => $tbl, 'registros' => $cr ? (int)$cr[0] : 0];
+    }
+    echo json_encode(['ok'=>true,'data'=>$tablas]); exit;
+}
+
 // ── EXPORTAR SQL ──────────────────────────────────────────────
 if ($action === 'export') {
     // Get actual tables from DB (avoid hardcoded list that may be wrong)

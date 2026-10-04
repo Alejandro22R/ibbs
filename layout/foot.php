@@ -11,6 +11,8 @@
 <script src="assets/ibbs-export.js"></script>
 <!-- Paleta de comandos (Ctrl/Cmd+K) y hoja de atajos ("?") -->
 <script src="assets/ibbs-shortcuts.js"></script>
+<!-- Tutorial guiado (mismo motor que usan los portales de alumno/docente) -->
+<script src="assets/ibbs-tour.js"></script>
 
 <script>
 // ── Sidebar toggle ──────────────────────────────────────────
@@ -487,6 +489,38 @@ async function marcarTodasLeidasDrop(){
   _notifSetBadge(0);
   await _renderNotifDrop();
 }
+
+// ── Tutorial guiado del menú lateral (mismo motor que los portales
+// de alumno/docente) — un repaso corto de las secciones principales,
+// pensado para quien recién empieza y no tiene mucha experiencia con
+// sistemas. Los pasos se arman según lo que este rol realmente ve en
+// el menú, para no señalar un botón que no existe en su pantalla. ──
+window.IBBS_TOUR_SIDEBAR = {
+  storageKey: 'ibbs_tour_sidebar_v1',
+  steps: [
+    { selector: '[data-tour="nav-inicio"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un vistazo rápido a lo más importante. Te voy a mostrar las secciones principales — cerrá esta tarjeta con la "×" para seguir, o "Saltar tutorial" si ya lo conocés.' },
+    <?php if(in_array($_rol,['superadmin','admin'])): ?>
+    { selector: '[data-tour="nav-materias"]', title: 'Materias', text: 'Acá creás y administrás los cursos/materias del instituto: horario, profesor asignado y estado (pendiente, en curso o culminada).' },
+    { selector: '[data-tour="nav-alumnos"]', title: 'Alumnos', text: 'El listado completo de alumnos: datos personales, foto e inscripción en materias.' },
+    { selector: '[data-tour="nav-asistencias"]', title: 'Asistencias', text: 'Registrá quién vino y quién faltó a cada clase, a mano o por foto (reconocimiento automático).' },
+    <?php endif; ?>
+    { selector: '[data-tour="nav-notas"]', title: 'Cargar Notas', text: 'Acá vas armando el plan de notas de cada materia y cargando las calificaciones de cada actividad.' },
+    { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'El material de cada materia: anuncios, documentos, actividades y clases en vivo o grabadas.' },
+    <?php if(in_array($_rol,['superadmin','admin'])): ?>
+    { selector: '[data-tour="nav-herramientas"]', title: 'Herramientas', text: 'Tus notificaciones, las solicitudes que esperan tu aprobación (ingresos, inscripciones, notas) y la generación de certificados.' },
+    <?php endif; ?>
+    <?php if($_rol==='superadmin'): ?>
+    { selector: '[data-tour="nav-backup"]', title: 'Respaldo de Base de Datos', text: 'Desde acá descargás una copia de seguridad de todo el sistema — hacelo seguido, es un solo clic.' },
+    <?php endif; ?>
+    { selector: '[data-tour="top-buscar"]', title: 'Buscar cualquier sección', text: 'Si no encontrás algo en el menú, hacé clic acá (o presioná Ctrl+K) y escribí lo que buscás — te lleva directo.' },
+    { selector: '[data-tour="top-tema"]', title: 'Modo claro / oscuro', text: 'Cambiá el tema de toda la aplicación con un clic, según lo que te resulte más cómodo a la vista.' },
+    { selector: '[data-tour="top-notif"]', title: 'Notificaciones', text: 'Alertas importantes: solicitudes pendientes, asistencias críticas y más — nunca te vas a perder nada.' },
+    { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Tus datos, tu foto y tu contraseña los cambiás desde acá, cuando quieras.' },
+    { selector: '[data-tour="nav-tutorial"]', title: '¿Te perdiste algo?', text: 'Podés repetir este tutorial las veces que quieras haciendo clic en "Ver Tutorial", acá mismo en el menú.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => { if (typeof IbbsTour !== 'undefined') IbbsTour.start(window.IBBS_TOUR_SIDEBAR); });
 </script>
 
 <style>
