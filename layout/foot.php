@@ -13,6 +13,8 @@
 <script src="assets/ibbs-shortcuts.js"></script>
 <!-- Tutorial guiado (mismo motor que usan los portales de alumno/docente) -->
 <script src="assets/ibbs-tour.js"></script>
+<!-- Microinteracciones: ripple en botones y conteo animado de números -->
+<script src="assets/ibbs-polish.js"></script>
 
 <script>
 // ── Sidebar toggle ──────────────────────────────────────────

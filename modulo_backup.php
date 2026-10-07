@@ -255,7 +255,7 @@ document.addEventListener('ibbs:ready', async () => {
       <div style="background:${i.bg};border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;display:flex;align-items:center;gap:.7rem;">
         <i class="bx ${i.i}" style="font-size:1.3rem;color:${i.c};flex-shrink:0;"></i>
         <div>
-          <div style="font-size:1.4rem;font-weight:800;color:${i.c};line-height:1;">${i.v}</div>
+          <div data-countup style="font-size:1.4rem;font-weight:800;color:${i.c};line-height:1;">${i.v}</div>
           <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-top:3px;">${i.l}</div>
         </div>
       </div>`).join('');

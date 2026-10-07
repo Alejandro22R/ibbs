@@ -196,9 +196,9 @@ async function verPerfil(id){
       <div class="profile-chips" style="margin-top:.8rem;"><span class="profile-chip lime">Alumno</span><span class="profile-chip ${r.activo?'lime':''}">${r.activo?'Activo':'Inactivo'}</span></div>
     </div>
     <div class="stats" style="margin-bottom:1.5rem;">
-      <div class="scard c1"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="scard-val">${r.materias.length}</div><div class="scard-key">Materias</div></div></div>
-      <div class="scard c3"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="9 11 12 14 22 4"/></svg></div><div><div class="scard-val">${tot}</div><div class="scard-key">Asistencias</div></div></div>
-      <div class="scard c2"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="scard-val">${prom}</div><div class="scard-key">Promedio</div></div></div>
+      <div class="scard c1"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="scard-val" data-countup>${r.materias.length}</div><div class="scard-key">Materias</div></div></div>
+      <div class="scard c3"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="9 11 12 14 22 4"/></svg></div><div><div class="scard-val" data-countup>${tot}</div><div class="scard-key">Asistencias</div></div></div>
+      <div class="scard c2"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="scard-val" data-countup>${prom}</div><div class="scard-key">Promedio</div></div></div>
     </div>
     <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.6rem;">Materias</p>
     ${r.materias.length?r.materias.map(m=>`<span class="badge b-alumno" style="margin:.2rem;">${m.codigo} · ${m.nombre}</span>`).join(''):'<em style="color:var(--muted);font-size:.82rem;">Sin materias.</em>'}

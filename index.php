@@ -60,7 +60,7 @@ mysqli_close($_con_ob);
 ?>
 
 <!-- Banner bienvenida -->
-<div style="background:var(--ink);border-radius:14px;padding:1.8rem 2rem;margin-bottom:1.4rem;position:relative;overflow:hidden;">
+<div style="background:linear-gradient(135deg,#1a4d2e 0%,#1e5c36 100%);border-radius:14px;padding:1.8rem 2rem;margin-bottom:1.4rem;position:relative;overflow:hidden;box-shadow:var(--shadow-md);">
   <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(57,255,20,.04) 1px,transparent 1px);background-size:20px 20px;pointer-events:none;"></div>
   <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
     <div>

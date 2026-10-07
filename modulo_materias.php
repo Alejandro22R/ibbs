@@ -362,11 +362,11 @@ async function cargarNotasFinalesMateria() {
   const promedio = conNota.length ? (conNota.reduce((s, a) => s + parseFloat(a.nota_final), 0) / conNota.length).toFixed(1) : '—';
 
   resumen.innerHTML = `<div class="stats">
-    <div class="scard c1"><div><div class="scard-val">${alumnos.length}</div><div class="scard-key">Inscritos</div></div></div>
-    <div class="scard c3"><div><div class="scard-val">${aprobados}</div><div class="scard-key">Aprobados</div></div></div>
-    <div class="scard c4"><div><div class="scard-val">${reprobados}</div><div class="scard-key">Reprobados</div></div></div>
-    <div class="scard c2"><div><div class="scard-val">${sin}</div><div class="scard-key">Sin nota</div></div></div>
-    <div class="scard c1"><div><div class="scard-val">${promedio}</div><div class="scard-key">Promedio</div></div></div>
+    <div class="scard c1"><div><div class="scard-val" data-countup>${alumnos.length}</div><div class="scard-key">Inscritos</div></div></div>
+    <div class="scard c3"><div><div class="scard-val" data-countup>${aprobados}</div><div class="scard-key">Aprobados</div></div></div>
+    <div class="scard c4"><div><div class="scard-val" data-countup>${reprobados}</div><div class="scard-key">Reprobados</div></div></div>
+    <div class="scard c2"><div><div class="scard-val" data-countup>${sin}</div><div class="scard-key">Sin nota</div></div></div>
+    <div class="scard c1"><div><div class="scard-val" data-countup>${promedio}</div><div class="scard-key">Promedio</div></div></div>
   </div>`;
 
   if (!alumnos.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Esta materia todavía no tiene alumnos inscritos.</td></tr>'; return; }

@@ -56,10 +56,21 @@ html, body { height: 100%; }
 
 body {
   font-family: 'Nunito', sans-serif;
-  background: var(--cream);
+  background:
+    radial-gradient(circle at 88% -8%, rgba(57,255,20,.07) 0%, transparent 42%),
+    radial-gradient(circle at -6% 102%, rgba(26,77,46,.05) 0%, transparent 38%),
+    var(--cream);
+  background-attachment: fixed;
   display: flex;
   min-height: 100vh;
   color: var(--ink);
+}
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 88% -8%, rgba(57,255,20,.05) 0%, transparent 42%),
+    radial-gradient(circle at -6% 102%, rgba(57,255,20,.03) 0%, transparent 38%),
+    #162b1f;
+  background-attachment: fixed;
 }
 
 /* ══ SIDEBAR OVERLAY (hidden on desktop) ════════════════════ */
@@ -102,7 +113,11 @@ body {
 .sb-logo {
   width: 36px; height: 36px; background: var(--grad-lime);
   border-radius: 9px; display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; box-shadow: 0 0 18px rgba(57,255,20,.4), inset 0 1px 0 rgba(255,255,255,.3);
+  flex-shrink: 0; animation: ibbsPulseGlow 3.2s ease-in-out infinite;
+}
+@keyframes ibbsPulseGlow {
+  0%,100% { box-shadow: 0 0 16px rgba(57,255,20,.4), inset 0 1px 0 rgba(255,255,255,.3); }
+  50%     { box-shadow: 0 0 26px rgba(57,255,20,.62), inset 0 1px 0 rgba(255,255,255,.3); }
 }
 .sb-logo svg { width: 18px; height: 18px; }
 .sb-wordmark strong { font-family: 'Playfair Display',serif; font-size: 1.1rem; color:#fff; letter-spacing:3px; display:block; }
@@ -168,6 +183,12 @@ body {
 .topbar {
   display:flex; justify-content:space-between; align-items:flex-start;
   margin-bottom:1.8rem; gap:1rem; flex-wrap:wrap;
+  position: sticky; top: -2rem; z-index: 40;
+  background: rgba(253,250,244,.82);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  padding: 2rem 0 1rem; margin-top: -2rem;
+  border-bottom: 1px solid var(--border);
 }
 .page-title {
   font-family:'Playfair Display',serif; font-weight:700; font-size:1.9rem; line-height:1.1;
@@ -331,8 +352,28 @@ body {
   font-family:'Nunito',sans-serif; font-size:.845rem; font-weight:600;
   cursor:pointer; border:none; transition:all .22s; text-decoration:none;
   white-space:nowrap;
+  position: relative; overflow: hidden;
 }
 .btn svg { width:15px; height:15px; stroke:currentColor; flex-shrink:0; }
+
+/* ── Ripple al hacer clic (ver assets/ibbs-polish.js) ── */
+.ibbs-ripple {
+  position: absolute; border-radius: 50%;
+  background: rgba(255,255,255,.55);
+  transform: scale(0); pointer-events: none;
+  animation: ibbsRipple .6s ease-out;
+}
+@keyframes ibbsRipple { to { transform: scale(1); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .ibbs-ripple { display: none; } }
+
+/* ── Brillo que cruza el botón primario al pasar el mouse ── */
+.btn-primary::before {
+  content: ''; position: absolute; top: 0; left: -60%;
+  width: 35%; height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,.22), transparent);
+  transform: skewX(-18deg); transition: left .55s ease; pointer-events: none;
+}
+.btn-primary:hover::before { left: 130%; }
 
 /* ── Primary: dark sólido con lime neon ── */
 .btn-primary {
@@ -492,8 +533,9 @@ tr:hover td { background:rgba(46,204,16,.045); }
 
 /* ══ PROFILE CARD (buscar) ═══════════════════════════════════ */
 .profile-card {
-  background:var(--ink); color:#fff; border-radius:16px;
+  background:linear-gradient(135deg,#1a4d2e 0%,#1e5c36 100%); color:#fff; border-radius:16px;
   padding:2rem; margin-bottom:1.5rem; position:relative; overflow:hidden;
+  box-shadow: var(--shadow-md);
 }
 .profile-card::before {
   content:''; position:absolute; inset:0;
@@ -526,8 +568,16 @@ tr:hover td { background:rgba(46,204,16,.045); }
 .tab-pane.active { display:block; animation:fadeX .3s ease; }
 @keyframes fadeX { from{opacity:0;transform:translateX(5px)} to{opacity:1;transform:none} }
 
+/* ══ NOTIF BELL BADGE — pulso suave para que se note sin ser molesto ── */
+#notifCount { animation: ibbsNotifPulse 2.2s ease-in-out infinite; }
+@keyframes ibbsNotifPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.5); }
+  50%     { box-shadow: 0 0 0 4px rgba(239,68,68,0); }
+}
+@media (prefers-reduced-motion: reduce) { #notifCount { animation: none; } }
+
 /* ══ SPINNER ═════════════════════════════════════════════════ */
-.spin { display:inline-block; width:14px; height:14px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+.spin { display:inline-block; width:14px; height:14px; border:2px solid rgba(57,255,20,.18); border-top-color:var(--lime2); border-radius:50%; animation:spin .65s cubic-bezier(.5,0,.5,1) infinite; }
 @keyframes spin { to{transform:rotate(360deg)} }
 
 /* ══ DIVIDER ═════════════════════════════════════════════════ */
@@ -545,6 +595,7 @@ tr:hover td { background:rgba(46,204,16,.045); }
 @media(max-width:1100px) {
   #main { padding: 1.6rem 1.6rem 2.5rem; }
   .stats { grid-template-columns: repeat(2, 1fr); }
+  .topbar { top: -1.6rem; margin-top: -1.6rem; padding-top: 1.6rem; }
 }
 
 /* ── Tablet (≤900px) ── */
@@ -575,7 +626,7 @@ tr:hover td { background:rgba(46,204,16,.045); }
   #main.exp      { margin-left: var(--sb-c); }
 
   /* Topbar compacta */
-  .topbar        { margin-bottom: 1.2rem; }
+  .topbar        { margin-bottom: 1.2rem; top: -1.1rem; margin-top: -1.1rem; padding-top: 1.1rem; }
   .page-title    { font-size: 1.45rem; }
   .page-title em { font-size: .78rem; }
   .user-pill     { padding: .25rem .5rem .25rem .25rem; }
@@ -620,6 +671,7 @@ tr:hover td { background:rgba(46,204,16,.045); }
 /* ── Móvil (≤480px) ── */
 @media(max-width:480px) {
   #main          { padding: .85rem .75rem 2rem; }
+  .topbar        { top: -.85rem; margin-top: -.85rem; padding-top: .85rem; }
 
   /* Stats 2 columnas compactas */
   .stats         { grid-template-columns: repeat(2, 1fr); gap: .5rem; }
@@ -668,6 +720,7 @@ tr:hover td { background:rgba(46,204,16,.045); }
   .stats         { grid-template-columns: 1fr 1fr; gap: .4rem; }
   .page-title    { font-size: 1.1rem; }
   table          { min-width: 380px; font-size: .68rem; }
+  .topbar        { top: -.7rem; margin-top: -.7rem; padding-top: .7rem; }
 }
 
 /* ── Fix: sidebar overlay en móvil (menú abierto) ── */
@@ -781,9 +834,10 @@ html[data-theme="dark"] .sb-wordmark small  { color: rgba(255,255,255,.3); }
 
 /* ── Topbar ── */
 html[data-theme="dark"] .topbar {
-  background: #132b1e;
+  background: rgba(19,43,30,.82);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
   border-bottom-color: #1a3d28;
-  box-shadow: 0 1px 0 #1a3d28;
 }
 html[data-theme="dark"] .page-title   { color: #d8edda; }
 html[data-theme="dark"] .page-title em{ color: #60826a; }
@@ -962,9 +1016,36 @@ input[type="number"]:hover, select:hover, textarea:hover {
 .card:hover { box-shadow: var(--shadow-md); border-color: rgba(57,255,20,.25); }
 html[data-theme="dark"] .card:hover { box-shadow: 0 4px 24px rgba(0,0,0,.25); }
 
+/* ══ ENTRADA ANIMADA — tarjetas y stat-cards aparecen con un leve
+   deslizamiento hacia arriba, en cascada, en vez de aparecer de golpe.
+   Se re-dispara solo cuando el elemento vuelve a renderizarse (ej. al
+   cambiar de pestaña), lo cual se siente bien, no como un error. ══ */
+@keyframes ibbsFadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+.card, .scard { animation: ibbsFadeUp .5s cubic-bezier(.22,1,.36,1) backwards; }
+.stats .scard:nth-child(1), #dbInfoCards > *:nth-child(1) { animation-delay: .02s; }
+.stats .scard:nth-child(2), #dbInfoCards > *:nth-child(2) { animation-delay: .07s; }
+.stats .scard:nth-child(3), #dbInfoCards > *:nth-child(3) { animation-delay: .12s; }
+.stats .scard:nth-child(4), #dbInfoCards > *:nth-child(4) { animation-delay: .17s; }
+.stats .scard:nth-child(5), #dbInfoCards > *:nth-child(5) { animation-delay: .22s; }
+.stats .scard:nth-child(6), #dbInfoCards > *:nth-child(6) { animation-delay: .27s; }
+@media (prefers-reduced-motion: reduce) {
+  .card, .scard { animation: none; }
+}
+
 /* ══ TABLE ROWS ANIMATED ════════════════════════════════════ */
-tbody tr { transition: background .15s ease; }
+tbody tr { transition: background .15s ease, box-shadow .15s ease; animation: ibbsFadeUp .3s ease backwards; }
+tbody tr:nth-child(1) { animation-delay: .01s; }
+tbody tr:nth-child(2) { animation-delay: .03s; }
+tbody tr:nth-child(3) { animation-delay: .05s; }
+tbody tr:nth-child(4) { animation-delay: .07s; }
+tbody tr:nth-child(5) { animation-delay: .09s; }
+tbody tr:nth-child(6) { animation-delay: .11s; }
+tbody tr:nth-child(n+7) { animation-delay: .12s; }
 td { transition: background .15s ease; }
+tbody tr:hover { box-shadow: inset 3px 0 0 0 var(--lime2); }
+@media (prefers-reduced-motion: reduce) {
+  tbody tr { animation: none; }
+}
 
 /* ══ TOPBAR SEARCH (si existe) ══════════════════════════════ */
 .topbar-search {

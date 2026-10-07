@@ -162,7 +162,7 @@ function renderCards(r) {
   ].map(i=>`
     <div style="background:${i.bg};border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;cursor:pointer;"
          onclick="document.getElementById('filtTipo').value='${i.l==='Notas'?'nota':i.l==='Inscripciones'?'inscripcion':i.l==='Asistencias'?'asistencia':'usuario'}';cargar()">
-      <div style="font-size:1.5rem;font-weight:800;color:${i.c};line-height:1;">${i.v}</div>
+      <div data-countup style="font-size:1.5rem;font-weight:800;color:${i.c};line-height:1;">${i.v}</div>
       <div style="font-size:.63rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-top:3px;">${i.l}</div>
     </div>`).join('');
 }

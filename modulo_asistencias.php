@@ -793,7 +793,7 @@ async function loadResumen() {
     {l:'% Asistencia',   val:pct+'%',     c:pctC},
   ].map(i=>`
     <div style="background:var(--paper);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;">
-      <div style="font-size:1.55rem;font-weight:800;color:${i.c};line-height:1;">${i.val}</div>
+      <div data-countup style="font-size:1.55rem;font-weight:800;color:${i.c};line-height:1;">${i.val}</div>
       <div style="font-size:.64rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-top:3px;">${i.l}</div>
     </div>`).join('');
   const tb = document.getElementById('tbResumen');

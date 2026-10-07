@@ -38,7 +38,7 @@ mysqli_close($con);
 <div id="panelAlumno" style="display:none;">
 
   <!-- Header alumno -->
-  <div id="alumnoHeader" style="background:var(--ink);border-radius:13px;padding:1.2rem 1.5rem;margin-bottom:1.3rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+  <div id="alumnoHeader" style="background:linear-gradient(135deg,#1a4d2e 0%,#1e5c36 100%);border-radius:13px;padding:1.2rem 1.5rem;margin-bottom:1.3rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;box-shadow:var(--shadow-sm);">
     <div style="display:flex;align-items:center;gap:1rem;">
       <div id="alumnoAva" style="width:44px;height:44px;border-radius:50%;background:var(--lime2);color:var(--ink);font-family:'DM Serif Display',serif;font-size:1.3rem;display:flex;align-items:center;justify-content:center;font-weight:700;"></div>
       <div>

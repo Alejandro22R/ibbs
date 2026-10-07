@@ -129,10 +129,10 @@ async function verPersona(id, tipo) {
 
     html += `
     <div class="stats" style="margin-bottom:1.5rem;">
-      <div class="scard c1"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="scard-val">${materias.length}</div><div class="scard-key">Materias</div></div></div>
-      <div class="scard c3"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/></svg></div><div><div class="scard-val">${totalAsist}</div><div class="scard-key">Asistencias</div></div></div>
-      <div class="scard c2"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="scard-val">${prom}</div><div class="scard-key">Promedio (0-20)</div></div></div>
-      <div class="scard c4"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="scard-val">${aprobadas}/${reprobadas}</div><div class="scard-key">Aprobadas/Reprobadas</div></div></div>
+      <div class="scard c1"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div><div><div class="scard-val" data-countup>${materias.length}</div><div class="scard-key">Materias</div></div></div>
+      <div class="scard c3"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/></svg></div><div><div class="scard-val" data-countup>${totalAsist}</div><div class="scard-key">Asistencias</div></div></div>
+      <div class="scard c2"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="scard-val" data-countup>${prom}</div><div class="scard-key">Promedio (0-20)</div></div></div>
+      <div class="scard c4"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="scard-val" data-countup>${aprobadas}/${reprobadas}</div><div class="scard-key">Aprobadas/Reprobadas</div></div></div>
     </div>`;
 
     html += `<div class="card" style="margin-bottom:1.2rem;">
@@ -164,8 +164,8 @@ async function verPersona(id, tipo) {
   } else {
     html += `
     <div class="stats" style="margin-bottom:1.5rem;">
-      <div class="scard c1"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg></div><div><div class="scard-val">${r.materias.length}</div><div class="scard-key">Materias</div></div></div>
-      <div class="scard c3"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/></svg></div><div><div class="scard-val">${totalAsist}</div><div class="scard-key">Asistencias reg.</div></div></div>
+      <div class="scard c1"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/></svg></div><div><div class="scard-val" data-countup>${r.materias.length}</div><div class="scard-key">Materias</div></div></div>
+      <div class="scard c3"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/></svg></div><div><div class="scard-val" data-countup>${totalAsist}</div><div class="scard-key">Asistencias reg.</div></div></div>
     </div>
     <div class="card" style="margin-bottom:1.2rem;">
       <div class="card-head"><h3>Materias que dicta</h3></div>
