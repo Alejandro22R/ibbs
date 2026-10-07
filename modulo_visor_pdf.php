@@ -11,7 +11,7 @@ include __DIR__.'/layout/head.php';
   <div style="width:260px;flex-shrink:0;display:flex;flex-direction:column;gap:.8rem;">
     <div class="card" style="flex-shrink:0;">
       <div class="card-body" style="padding:.9rem;">
-        <label for="inputPdf" style="display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.75rem;background:var(--ink);color:var(--lime);border-radius:10px;cursor:pointer;font-size:.84rem;font-weight:700;transition:background .2s;">
+        <label for="inputPdf" style="display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.75rem;background:#1a4d2e;color:#f5f0e8;border-radius:10px;cursor:pointer;font-size:.84rem;font-weight:700;transition:background .2s;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Abrir PDF
         </label>

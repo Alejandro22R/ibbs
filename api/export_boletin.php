@@ -11,10 +11,13 @@
  * A diferencia de la Constancia de Notas (que directamente omite una
  * materia incompleta), el Boletín siempre lista todas las materias en
  * las que el alumno está o estuvo inscrito, para que sirva también
- * como un reporte de avance — pero la Nota Final solo se muestra si
- * la materia ya está culminada, tiene un envío de notas aprobado
- * (api/notas_envio.php) y el alumno quedó con nota_final cargada; de
- * lo contrario figura "Pendiente" aunque el campo tenga algún valor
+ * como un reporte de avance — pero la Nota Final solo se muestra si la
+ * materia quedó 100% calificada Y el administrador la confirmó de
+ * alguna de las dos formas posibles: la marcó "culminada" (cubre las
+ * notas que el propio admin cargó directo en modulo_notas.php) o
+ * existe un envío de notas (api/notas_envio.php) con estado
+ * "aprobado" (el profesor las propuso y el admin las aprobó). De lo
+ * contrario figura "Pendiente" aunque el campo tenga algún valor
  * viejo en la base, igual que en la Constancia de Notas.
  */
 require_once __DIR__.'/../config/bootstrap.php';
@@ -43,8 +46,8 @@ if(!$a) die('Alumno no encontrado');
 $materias=[];
 $r=mysqli_query($con,"SELECT m.id mid,m.nombre mn,m.codigo,m.estado,m.dias,m.hora_inicio,m.hora_fin,ma.nota_final,ma.nota_fecha,
     GROUP_CONCAT(CONCAT(d.nombre,' ',d.apellido) SEPARATOR ', ') docentes,
-    (m.estado='culminada'
-        AND EXISTS (SELECT 1 FROM notas_envios ne WHERE ne.materia_id=m.id AND ne.estado='aprobado')
+    (
+        (m.estado='culminada' OR EXISTS (SELECT 1 FROM notas_envios ne WHERE ne.materia_id=m.id AND ne.estado='aprobado'))
         AND NOT EXISTS (SELECT 1 FROM materia_alumno ma2 WHERE ma2.materia_id=m.id AND ma2.nota_final IS NULL)
     ) notas_confirmadas
     FROM materia_alumno ma JOIN materias m ON m.id=ma.materia_id
@@ -52,9 +55,9 @@ $r=mysqli_query($con,"SELECT m.id mid,m.nombre mn,m.codigo,m.estado,m.dias,m.hor
     LEFT JOIN docentes d ON d.id=md.docente_id
     WHERE ma.alumno_id=$aid GROUP BY m.id,ma.nota_final,ma.nota_fecha ORDER BY m.nombre");
 while($f=mysqli_fetch_assoc($r)) {
-    // Si la materia no pasó las tres condiciones de aprobación, la
-    // nota se trata como pendiente en este documento aunque exista un
-    // valor en la base (por ejemplo, cargado antes de este flujo).
+    // Si la materia no pasó las condiciones de confirmación de arriba,
+    // la nota se trata como pendiente en este documento aunque exista
+    // un valor en la base (por ejemplo, cargado antes de este flujo).
     if (!$f['notas_confirmadas']) $f['nota_final'] = null;
     $materias[]=$f;
 }

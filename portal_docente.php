@@ -147,7 +147,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         
         /* Banner Dashboard */
         .banner-dash {
-            background: var(--ink); color: #fff; padding: 2rem 2.5rem; 
+            background: linear-gradient(135deg,#1a4d2e 0%,#1e5c36 100%); color: #fff; padding: 2rem 2.5rem;
             border-radius: 14px; position: relative; overflow: hidden;
             display: flex; justify-content: space-between; align-items: center;
             margin-bottom: 1.6rem; box-shadow: 0 10px 30px rgba(26,77,46,.15);
@@ -166,7 +166,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         .chat-item:hover { background: var(--cream); }
         .chat-item.active-chat { background: var(--paper); border-left: 3px solid var(--lime2); box-shadow: inset 0 2px 4px rgba(0,0,0,.02); }
         .msg-bubble { max-width: 75%; padding: .8rem 1rem; border-radius: 14px; font-size: .88rem; box-shadow: 0 2px 6px rgba(0,0,0,.04); position: relative; }
-        .msg-mine { background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
+        .msg-mine { background: #1a4d2e; color: #fff; border-bottom-right-radius: 4px; }
         .msg-other { background: var(--paper); border: 1px solid var(--border); color: var(--ink); border-bottom-left-radius: 4px; }
         
         /* Alertas Premium */
@@ -192,7 +192,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             width:32px;height:32px;border-radius:50%;
             overflow:hidden;display:flex;align-items:center;justify-content:center;
             flex-shrink:0;font-size:.82rem;font-weight:700;
-            background:var(--ink);color:var(--lime);font-family:'Nunito',sans-serif;
+            background:#1a4d2e;color:#f5f0e8;font-family:'Nunito',sans-serif;
         }
         .pl-ava img { width:100%;height:100%;object-fit:cover;border-radius:50%;display:block; }
         .mark-btn {
@@ -690,8 +690,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <div class="grid-cards">
                 <?php foreach($materias as $m): ?>
                 <div class="card" style="display: flex; flex-direction: column;">
-                    <div style="height: 100px; background: var(--ink); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
-                        <i class="fas fa-chalkboard" style="font-size: 4rem; color: rgba(255,255,255,.05); position: absolute; transform: rotate(-10deg) scale(1.2); transition: transform 0.3s;"></i>
+                    <div style="height: 100px; background: linear-gradient(135deg,#1a4d2e 0%,#1e5c36 100%); display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+                        <i class="fas fa-chalkboard" style="font-size: 4rem; color: rgba(255,255,255,.08); position: absolute; transform: rotate(-10deg) scale(1.2); transition: transform 0.3s;"></i>
                     </div>
                     <div class="card-body" style="flex: 1; display: flex; flex-direction: column;">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .4rem;">
@@ -771,7 +771,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     <div style="flex: 1; overflow-y: auto;">
                         <?php foreach($materias as $index => $m): ?>
                         <div class="chat-item materia-foro-<?= $m['id'] ?> <?= $index === 0 ? 'active-chat' : '' ?>" onclick="selectChatSubject(<?= $m['id'] ?>, '<?= htmlspecialchars($m['nombre'], ENT_QUOTES) ?>', this)">
-                            <div style="width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: #fff; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; flex-shrink: 0;">
+                            <div style="width: 34px; height: 34px; border-radius: 50%; background: #1a4d2e; color: #fff; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; flex-shrink: 0;">
                                 <?= substr($m['nombre'], 0, 2) ?>
                             </div>
                             <h4 style="font-size: .85rem; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"><?= htmlspecialchars($m['nombre']) ?></h4>
@@ -2040,7 +2040,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             if (!d.data.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
             grid.innerHTML = d.data.map(r => `
                 <div class="card" style="display:flex;flex-direction:column;">
-                    <div style="height:100px;background:var(--ink);display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                    <div style="height:100px;background:linear-gradient(135deg,#1a4d2e 0%,#1e5c36 100%);display:flex;align-items:center;justify-content:center;overflow:hidden;">
                         ${r.portada ? `<img src="${r.portada}" style="width:100%;height:100%;object-fit:cover;">` : `<i class="fas fa-book" style="font-size:2.2rem;color:rgba(255,255,255,.2);"></i>`}
                     </div>
                     <div class="card-body" style="flex:1;display:flex;flex-direction:column;">

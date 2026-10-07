@@ -23,11 +23,11 @@ mysqli_close($con);
   <div class="card" style="text-align:center;">
     <div class="card-body">
       <div id="fotoWrap" style="position:relative;display:inline-block;margin-bottom:1.2rem;">
-        <div id="fotoCircle" style="width:110px;height:110px;border-radius:50%;overflow:hidden;background:var(--ink);display:flex;align-items:center;justify-content:center;margin:0 auto;border:3px solid var(--lime2);cursor:pointer;" onclick="document.getElementById('inputFoto').click()" title="Cambiar foto">
+        <div id="fotoCircle" style="width:110px;height:110px;border-radius:50%;overflow:hidden;background:#1a4d2e;display:flex;align-items:center;justify-content:center;margin:0 auto;border:3px solid var(--lime2);cursor:pointer;" onclick="document.getElementById('inputFoto').click()" title="Cambiar foto">
           <?php if(!empty($u['foto'])): ?>
             <img id="fotoImg" src="<?=htmlspecialchars($u['foto'])?>" style="width:100%;height:100%;object-fit:cover;">
           <?php else: ?>
-            <span id="fotoIni" style="font-family:'DM Serif Display',serif;font-size:2.5rem;color:var(--lime);"><?=strtoupper(mb_substr($u['usuario'],0,1))?></span>
+            <span id="fotoIni" style="font-family:'DM Serif Display',serif;font-size:2.5rem;color:#f5f0e8;"><?=strtoupper(mb_substr($u['usuario'],0,1))?></span>
             <img id="fotoImg" src="" style="width:100%;height:100%;object-fit:cover;display:none;">
           <?php endif; ?>
         </div>
@@ -44,7 +44,7 @@ mysqli_close($con);
       <p style="font-size:.72rem;color:var(--muted);margin-top:.8rem;">Clic en la foto para cambiarla<br>JPG, PNG o WebP · máx. 3MB</p>
       <div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--border);">
         <a href="api/export_perfil.php" target="_blank"
-           style="display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.65rem 0;background:var(--ink);color:var(--lime);border-radius:10px;font-size:.8rem;font-weight:700;text-decoration:none;letter-spacing:.3px;">
+           style="display:flex;align-items:center;justify-content:center;gap:.5rem;width:100%;padding:.65rem 0;background:#1a4d2e;color:#f5f0e8;border-radius:10px;font-size:.8rem;font-weight:700;text-decoration:none;letter-spacing:.3px;">
           🖨️ Exportar Perfil PDF
         </a>
       </div>

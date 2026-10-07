@@ -52,7 +52,7 @@ mysqli_close($con);
 .cal-day.today{border-color:var(--lime2);background:#f0fff0;}
 .cal-day.other-month{opacity:.3;}
 .cal-day .dn{font-weight:700;font-size:.8rem;margin-bottom:.2rem;}
-.cal-event{font-size:.62rem;background:var(--ink);color:var(--lime);border-radius:4px;padding:.15rem .35rem;margin-bottom:.15rem;line-height:1.3;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cal-event{font-size:.62rem;background:#1a4d2e;color:#f5f0e8;border-radius:4px;padding:.15rem .35rem;margin-bottom:.15rem;line-height:1.3;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .cal-event.e-blue{background:#1d4ed8;color:#fff;}
 .cal-event.e-amber{background:#b45309;color:#fff;}
 .notif-item{display:flex;gap:.9rem;padding:.9rem 1rem;border-bottom:1px solid var(--border);align-items:flex-start;}
@@ -73,7 +73,7 @@ mysqli_close($con);
 .sol-section{margin-bottom:1.4rem;}
 .sol-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;}
 .sol-section-head h4{font-family:'Playfair Display',serif;font-size:1rem;display:flex;align-items:center;gap:.5rem;}
-.sol-count{background:var(--ink);color:var(--lime);font-size:.68rem;font-weight:800;border-radius:20px;padding:.15rem .55rem;}
+.sol-count{background:#1a4d2e;color:#f5f0e8;font-size:.68rem;font-weight:800;border-radius:20px;padding:.15rem .55rem;}
 .sol-row{display:flex;gap:.9rem;align-items:center;padding:.85rem 1rem;border-bottom:1px solid var(--border);}
 .sol-row:last-child{border-bottom:none;}
 .sol-ava{width:38px;height:38px;border-radius:50%;background:var(--cream);color:var(--ink);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-weight:700;flex-shrink:0;}
@@ -91,11 +91,12 @@ mysqli_close($con);
 .cert-alumno-row{display:flex;align-items:center;gap:.7rem;padding:.65rem .8rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s;}
 .cert-alumno-row:last-child{border-bottom:none;}
 .cert-alumno-row:hover{background:var(--cream);}
-.cert-alumno-row.sel{background:var(--ink);}
-.cert-alumno-row.sel .cert-ava{background:var(--lime);color:var(--ink);}
-.cert-alumno-row.sel .cert-nombre{color:var(--lime);}
-.cert-alumno-row.sel .cert-ci{color:rgba(57,255,20,.6);}
-.cert-ava{width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.85rem;font-weight:700;flex-shrink:0;}
+.cert-alumno-row.sel{background:#1a4d2e;}
+html[data-theme="dark"] .cert-alumno-row.sel{box-shadow:inset 0 0 0 1px rgba(57,255,20,.35);}
+.cert-alumno-row.sel .cert-ava{background:#f5f0e8;color:#1a4d2e;}
+.cert-alumno-row.sel .cert-nombre{color:#f5f0e8;}
+.cert-alumno-row.sel .cert-ci{color:rgba(245,240,232,.65);}
+.cert-ava{width:32px;height:32px;border-radius:50%;background:#1a4d2e;color:#f5f0e8;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.85rem;font-weight:700;flex-shrink:0;}
 .cert-nombre{font-size:.82rem;font-weight:700;color:var(--ink);}
 .cert-ci{font-size:.72rem;color:var(--muted);}
 .cert-empty{text-align:center;padding:1.6rem 1rem;color:var(--muted);font-size:.8rem;}
@@ -980,7 +981,14 @@ async function generarCert() {
 }
 
 // Load notifications - fallback triggers
-document.addEventListener('ibbs:ready', ()=>{ loadNotifs(); loadSolicitudes(); });
+document.addEventListener('ibbs:ready', ()=>{
+  loadNotifs(); loadSolicitudes();
+  // Permite llegar directo a una sub-pestaña con un link tipo
+  // modulo_herramientas.php#solicitudes (usado, por ejemplo, desde el
+  // listado de Alumnos para revisar una solicitud de ingreso pendiente).
+  const tabHash = location.hash.replace('#','');
+  if (tabHash && document.querySelector(`.tool-tab[data-tab="${tabHash}"]`)) switchTool(tabHash);
+});
 window.addEventListener('load', ()=>{ 
   setTimeout(()=>{
     const el = document.getElementById('notifList');

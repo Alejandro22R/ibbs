@@ -264,6 +264,13 @@ if($action==='materia_autoinscribir'){
 }
 
 // ════ NOTAS ════════════════════════════════════════════════════
+// nota_guardar/nota_borrar: SOLO admin/superadmin — cargar la nota
+// final de un alumno es exclusivamente desde modulo_notas.php ("Cargar
+// Notas"). El profesor ya no entra por acá: su único camino es el
+// Plan de Notas de portal_docente.php + la aprobación del admin (ver
+// api/notas_envio.php) — antes también podía hacerlo directo desde
+// este mismo endpoint, lo cual permitía saltarse esa aprobación por
+// completo (dos caminos para lo mismo, uno de ellos sin control).
 if($action==='nota_guardar'){
     $mid=(int)($_POST['materia_id']??0); $aid=(int)($_POST['alumno_id']??0);
     $nota_raw=str_replace(',','.',trim($_POST['nota']??''));
@@ -271,7 +278,7 @@ if($action==='nota_guardar'){
     $fecha=trim($_POST['fecha']??date('Y-m-d'));
     if(!$mid){echo json_encode(['ok'=>false,'msg'=>'Falta materia_id.']);exit;}
     if(!$aid){echo json_encode(['ok'=>false,'msg'=>'Falta alumno_id.']);exit;}
-    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     if($cal<0||$cal>20){echo json_encode(['ok'=>false,'msg'=>'Nota debe estar entre 0 y 20. Recibido: '.$nota_raw]);exit;}
     // Upsert
     $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
@@ -287,7 +294,7 @@ if($action==='nota_guardar'){
 }
 if($action==='nota_borrar'){
     $mid=(int)($_POST['materia_id']??0); $aid=(int)($_POST['alumno_id']??0);
-    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     mysqli_query($con,"UPDATE materia_alumno SET nota_final=NULL,nota_fecha=NULL,nota_registrada_por=NULL,nota_actualizada_en=NULL WHERE materia_id=$mid AND alumno_id=$aid");
     log_audit($con,$uid,'NOTA_BORRAR',"materia=$mid alumno=$aid");
     echo json_encode(['ok'=>true,'msg'=>'Nota borrada.']); exit;

@@ -420,9 +420,10 @@ mysqli_close($con);
 }
 .ibbs-tab:hover:not(.ibbs-tab-active){ color:var(--ink); }
 .ibbs-tab-active {
-  background:var(--ink);color:var(--lime);
+  background:#1a4d2e;color:#f5f0e8;
   box-shadow:0 1px 4px rgba(0,0,0,.12);
 }
+html[data-theme="dark"] .ibbs-tab-active { border:1px solid rgba(57,255,20,.4); }
 
 /* ── Quick action buttons ─────────────────────────────────── */
 .ibbs-qbtn {
@@ -463,7 +464,7 @@ mysqli_close($con);
   width:32px;height:32px;border-radius:50%;
   overflow:hidden;display:flex;align-items:center;justify-content:center;
   flex-shrink:0;font-size:.82rem;font-weight:700;
-  background:var(--ink);color:var(--lime);
+  background:#1a4d2e;color:#f5f0e8;
   font-family:'Nunito',sans-serif;
 }
 .pl-ava img {
