@@ -863,7 +863,10 @@ async function loadTareas() {
     el.innerHTML = d.data.map(t => {
       let actionHtml = '';
       if (CAN_MANAGE) {
-        actionHtml = `<button class="btn btn-sm btn-primary" onclick="abrirVerEntregas(${t.id}, '${h(t.titulo).replace(/'/g,"\\'")}')">🔍 Ver y Calificar Entregas</button>`;
+        actionHtml = `<div style="display:flex;gap:.5rem;">
+                        <button class="btn btn-sm btn-primary" onclick="abrirVerEntregas(${t.id}, '${h(t.titulo).replace(/'/g,"\\'")}')">🔍 Ver y Calificar Entregas</button>
+                        <button class="btn btn-sm btn-danger" onclick="eliminarTarea(${t.id})">Eliminar</button>
+                      </div>`;
       } else {
         if (t.entrega_id) {
           const notaText = t.nota !== null ? `<span style="color:#059669;font-weight:bold;">Calificada: ${t.nota}/${t.nota_maxima}</span>` : '<span style="color:#d97706;font-weight:bold;">Entregado - Esperando nota</span>';
@@ -922,6 +925,23 @@ async function guardarTarea(e) {
     else Ibbs.error(d.msg);
   } catch(err) { console.log(err); Ibbs.error('Error al guardar la tarea. Revisa tu api/tareas.php'); }
   btn.disabled = false; btn.textContent = 'Publicar Tarea';
+}
+
+function eliminarTarea(id) {
+  ibbsConfirm('¿Eliminar esta tarea? Se borrarán también todas las entregas de los alumnos.', async () => {
+    const fd = new URLSearchParams();
+    fd.append('action', 'eliminar');
+    fd.append('materia_id', MATERIA_ID);
+    fd.append('id', id);
+    const _csrfT4 = document.querySelector('meta[name="csrf-token"]');
+    if (_csrfT4) fd.append('csrf_token', _csrfT4.content);
+    try {
+      const r = await fetch('api/tareas.php', { method: 'POST', body: fd });
+      const text = await r.text();
+      const d = JSON.parse(text);
+      if (d.ok) { toast(d.msg); loadTareas(); } else Ibbs.error(d.msg);
+    } catch(err) { Ibbs.error('Error al eliminar la tarea.'); }
+  });
 }
 
 function abrirSubirEntrega(tarea_id, titulo) {
