@@ -1,6 +1,6 @@
 <?php
 $page_title = 'Aula Virtual';
-$page_sub   = 'Anuncios, materiales, actividades, tareas y foro de la materia';
+$page_sub   = 'Contenido por secciones, tareas y foro de la materia';
 $active_link = 'materias';
 // Se calcula ANTES del include para que layout/head.php pueda armar el
 // token de WebSocket ya con el canal de esta materia (ver $ws_materia_id).
@@ -12,6 +12,83 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
 ?>
+
+<style>
+/* ── Aula Virtual: banner + nav lateral + secciones (estilo Moodle) ── */
+.aula-banner{
+  background:var(--grad-ink); border-radius:16px; padding:1.6rem 1.8rem;
+  margin-bottom:1.3rem; position:relative; overflow:hidden;
+  box-shadow:0 8px 28px rgba(0,0,0,.12);
+}
+.aula-banner::before{
+  content:''; position:absolute; inset:0;
+  background:radial-gradient(circle at 85% -20%, rgba(57,255,20,.18), transparent 60%);
+}
+.aula-banner h2{ font-family:'DM Serif Display',serif; font-size:1.7rem; color:#fff; position:relative; }
+.aula-banner .meta{ color:rgba(255,255,255,.65); font-size:.82rem; margin-top:.3rem; position:relative; display:flex; gap:1rem; flex-wrap:wrap; }
+.aula-banner .meta b{ color:var(--lime); }
+
+.aula-shell{ display:flex; gap:1.4rem; align-items:flex-start; }
+.aula-nav{
+  flex:0 0 200px; display:flex; flex-direction:column; gap:.3rem;
+  position:sticky; top:1rem;
+}
+.aula-nav-btn{
+  display:flex; align-items:center; gap:.6rem; padding:.7rem .9rem; border-radius:10px;
+  border:1.5px solid transparent; background:none; cursor:pointer; text-align:left;
+  font-family:'Nunito',sans-serif; font-size:.87rem; font-weight:600; color:var(--muted);
+  transition:all .18s;
+}
+.aula-nav-btn:hover{ background:var(--cream); color:var(--ink); }
+.aula-nav-btn.active{ background:var(--paper); border-color:var(--lime2); color:var(--ink); box-shadow:0 2px 10px rgba(0,0,0,.05); }
+.aula-nav-btn .ico{ font-size:1.05rem; }
+.aula-main{ flex:1; min-width:0; }
+
+.aula-section{
+  background:var(--paper); border:1.5px solid var(--border); border-radius:14px;
+  margin-bottom:1rem; overflow:hidden;
+}
+.aula-section-head{
+  display:flex; align-items:center; gap:.7rem; padding:1rem 1.2rem; cursor:pointer;
+  user-select:none;
+}
+.aula-section-head:hover{ background:rgba(0,0,0,.02); }
+.aula-section-head .chev{ transition:transform .2s; color:var(--muted); flex-shrink:0; }
+.aula-section.collapsed .chev{ transform:rotate(-90deg); }
+.aula-section-head h3{ font-family:'DM Serif Display',serif; font-size:1.1rem; color:var(--ink); flex:1; }
+.aula-section-head .count{ font-size:.74rem; color:var(--muted); background:var(--cream); padding:.2rem .6rem; border-radius:10px; }
+.aula-section.hidden-sec .aula-section-head h3::after{ content:' (oculta)'; font-size:.7rem; color:var(--muted); font-family:'Nunito',sans-serif; }
+.aula-section-body{ padding:0 1.2rem 1.1rem; }
+.aula-section.collapsed .aula-section-body{ display:none; }
+.aula-section-actions{ display:flex; gap:.3rem; flex-shrink:0; }
+.aula-section-actions button{
+  background:none; border:none; cursor:pointer; color:var(--muted); padding:.3rem; border-radius:6px;
+}
+.aula-section-actions button:hover{ background:var(--cream); color:var(--ink); }
+
+.content-item{
+  display:flex; gap:.8rem; padding:.85rem 0; border-top:1px solid var(--border);
+}
+.content-item:first-child{ border-top:none; }
+.content-item .ci-ico{ font-size:1.3rem; flex-shrink:0; line-height:1; margin-top:.1rem; }
+.content-item .ci-body{ flex:1; min-width:0; }
+.content-item .ci-title{ font-weight:700; font-size:.92rem; color:var(--ink); }
+.content-item .ci-sub{ font-size:.76rem; color:var(--muted); margin-top:.1rem; }
+.content-item .ci-desc{ font-size:.85rem; color:var(--ink); margin-top:.4rem; white-space:pre-wrap; line-height:1.55; }
+.content-item .ci-actions{ display:flex; gap:.4rem; flex-shrink:0; align-items:flex-start; flex-wrap:wrap; justify-content:flex-end; }
+.seccion-mini-select{
+  font-size:.72rem; padding:.3rem .4rem; border-radius:7px; border:1.5px solid var(--border);
+  background:var(--paper); color:var(--muted); font-family:'Nunito',sans-serif;
+}
+.aula-empty{ text-align:center; padding:2.5rem 1rem; color:var(--muted); font-size:.85rem; }
+.add-content-row{ display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.1rem; }
+
+@media (max-width: 860px){
+  .aula-shell{ flex-direction:column; }
+  .aula-nav{ flex-direction:row; width:100%; position:static; overflow-x:auto; }
+  .aula-nav-btn{ flex-shrink:0; }
+}
+</style>
 
 <?php if(in_array($_rol,['superadmin','admin'])): ?>
 <a href="modulo_materias.php" style="display:inline-flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--muted);text-decoration:none;margin-bottom:1rem;">
@@ -41,110 +118,104 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
 
 <div id="areaAula" style="display:none;">
 
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1.2rem;">
-    <div>
-      <h2 id="matTitulo" style="font-family:'DM Serif Display',serif;font-size:1.5rem;color:var(--ink);"></h2>
-      <span id="matCodigo" style="font-size:.82rem;color:var(--muted);"></span>
+  <div class="aula-banner">
+    <h2 id="matTitulo"></h2>
+    <div class="meta">
+      <span>Código: <b id="matCodigo"></b></span>
+      <span id="matMetaSecciones"></span>
     </div>
   </div>
 
-  <div class="tabs-nav">
-    <button class="tab-btn active" data-tab-group="aula" data-tab="anuncios" onclick="switchTab('aula','anuncios')">📢 Anuncios</button>
-    <button class="tab-btn" data-tab-group="aula" data-tab="materiales" onclick="switchTab('aula','materiales')">📁 Materiales</button>
-    <button class="tab-btn" data-tab-group="aula" data-tab="actividades" onclick="switchTab('aula','actividades')">📝 Actividades</button>
-    <button class="tab-btn" data-tab-group="aula" data-tab="tareas" onclick="switchTab('aula','tareas')">📋 Tareas</button>
-    <button class="tab-btn" data-tab-group="aula" data-tab="foro" onclick="switchTab('aula','foro')">💬 Foro / Dudas</button>
-  </div>
-
-  <!-- ═══ TAB: ANUNCIOS ═══ -->
-  <div class="tab-pane active" data-pane-group="aula" data-pane="anuncios">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
-      <button class="btn btn-primary can-manage" style="display:none;" onclick="abrirAnuncioModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nuevo anuncio
-      </button>
+  <div class="aula-shell">
+    <div class="aula-nav">
+      <button class="aula-nav-btn active" data-tab-group="aula" data-tab="contenido" onclick="switchTab('aula','contenido')"><span class="ico">📚</span> Contenido</button>
+      <button class="aula-nav-btn" data-tab-group="aula" data-tab="tareas" onclick="switchTab('aula','tareas')"><span class="ico">📋</span> Tareas</button>
+      <button class="aula-nav-btn" data-tab-group="aula" data-tab="foro" onclick="switchTab('aula','foro')"><span class="ico">💬</span> Foro / Dudas</button>
     </div>
-    <div id="listaAnuncios"><div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span></div></div>
-  </div>
 
-  <!-- ═══ TAB: MATERIALES ═══ -->
-  <div class="tab-pane" data-pane-group="aula" data-pane="materiales">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
-      <button class="btn btn-primary can-manage" style="display:none;" onclick="openModal('mMaterial')">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Subir material
-      </button>
-    </div>
-    <div class="card">
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Título</th><th>Tipo</th><th>Tamaño</th><th>Subido por</th><th>Fecha</th><th>Acciones</th></tr></thead>
-          <tbody id="tbodyMateriales"><tr class="empty-row"><td colspan="6"><span class="spin"></span></td></tr></tbody>
-        </table>
+    <div class="aula-main">
+
+      <!-- ═══ PANE: CONTENIDO (secciones estilo Moodle) ═══ -->
+      <div class="tab-pane active" data-pane-group="aula" data-pane="contenido">
+        <div class="add-content-row can-manage" style="display:none;">
+          <button class="btn btn-secondary btn-sm" onclick="abrirSeccionModal()">+ Nueva sección</button>
+          <button class="btn btn-primary btn-sm" onclick="abrirAnuncioModal()">📢 Anuncio</button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('mMaterial')">📁 Material</button>
+          <button class="btn btn-primary btn-sm" onclick="abrirActividadModal()">📝 Actividad</button>
+        </div>
+        <div id="seccionesContainer"><div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span></div></div>
       </div>
-    </div>
-  </div>
 
-  <!-- ═══ TAB: ACTIVIDADES ═══ -->
-  <div class="tab-pane" data-pane-group="aula" data-pane="actividades">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
-      <button class="btn btn-primary can-manage" style="display:none;" onclick="abrirActividadModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nueva actividad
-      </button>
-    </div>
-    <div class="card">
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Título</th><th>Tipo</th><th>Nota máx.</th><th>Fecha</th><th>Acciones</th></tr></thead>
-          <tbody id="tbodyActividades"><tr class="empty-row"><td colspan="5"><span class="spin"></span></td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ TAB: TAREAS (NUEVO) ═══ -->
-  <div class="tab-pane" data-pane-group="aula" data-pane="tareas">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
-      <button class="btn btn-primary can-manage" style="display:none;" onclick="abrirTareaModal()">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Crear Tarea
-      </button>
-    </div>
-    <div id="listaTareas"><div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span></div></div>
-  </div>
-
-  <!-- ═══ TAB: FORO / DUDAS ═══ -->
-  <div class="tab-pane" data-pane-group="aula" data-pane="foro">
-    <div class="card" style="display:flex;flex-direction:column;height:550px;overflow:hidden;border:1px solid var(--border);padding:0;">
-      <!-- Caja de Mensajes -->
-      <div id="chat-box" style="flex:1;overflow-y:auto;padding:1.5rem;background:var(--paper);display:flex;flex-direction:column;gap:1rem;">
-        <div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span> Cargando foro...</div>
-      </div>
-      <!-- Indicador de Respuesta -->
-      <div id="reply-indicator" style="display:none;background:var(--bg);padding:.6rem 1.5rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:.85rem;justify-content:space-between;align-items:center;">
-        <span>Respondiendo a: <strong id="reply-to-name" style="color:var(--ink);"></strong></span>
-        <button onclick="cancelReply()" style="background:none;border:none;color:#dc2626;cursor:pointer;font-weight:bold;font-size:1.1rem;padding:0;">&times;</button>
-      </div>
-      <!-- Formulario -->
-      <div style="padding:1rem 1.5rem;background:var(--paper);border-top:1px solid var(--border);">
-        <form id="chat-form" style="display:flex;gap:.8rem;align-items:flex-end;margin:0;">
-          <input type="hidden" id="respuesta_a" value="">
-          <div style="flex:1;">
-            <textarea id="mensaje-input" rows="2" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:.6rem;font-family:inherit;resize:none;font-size:.9rem;outline:none;" placeholder="Escribe tu duda o respuesta aquí... (Enter para enviar)"></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary" style="display:flex;align-items:center;gap:.4rem;height:42px;margin-bottom:2px;">
-            Enviar
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      <!-- ═══ PANE: TAREAS ═══ -->
+      <div class="tab-pane" data-pane-group="aula" data-pane="tareas">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+          <button class="btn btn-primary can-manage" style="display:none;" onclick="abrirTareaModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Crear Tarea
           </button>
-        </form>
+        </div>
+        <div id="listaTareas"><div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span></div></div>
       </div>
+
+      <!-- ═══ PANE: FORO / DUDAS ═══ -->
+      <div class="tab-pane" data-pane-group="aula" data-pane="foro">
+        <div class="card" style="display:flex;flex-direction:column;height:550px;overflow:hidden;border:1px solid var(--border);padding:0;">
+          <!-- Caja de Mensajes -->
+          <div id="chat-box" style="flex:1;overflow-y:auto;padding:1.5rem;background:var(--paper);display:flex;flex-direction:column;gap:1rem;">
+            <div style="text-align:center;padding:2rem;color:var(--muted);"><span class="spin"></span> Cargando foro...</div>
+          </div>
+          <!-- Indicador de Respuesta -->
+          <div id="reply-indicator" style="display:none;background:var(--bg);padding:.6rem 1.5rem;border-top:1px solid var(--border);border-bottom:1px solid var(--border);font-size:.85rem;justify-content:space-between;align-items:center;">
+            <span>Respondiendo a: <strong id="reply-to-name" style="color:var(--ink);"></strong></span>
+            <button onclick="cancelReply()" style="background:none;border:none;color:#dc2626;cursor:pointer;font-weight:bold;font-size:1.1rem;padding:0;">&times;</button>
+          </div>
+          <!-- Formulario -->
+          <div style="padding:1rem 1.5rem;background:var(--paper);border-top:1px solid var(--border);">
+            <form id="chat-form" style="display:flex;gap:.8rem;align-items:flex-end;margin:0;">
+              <input type="hidden" id="respuesta_a" value="">
+              <div style="flex:1;">
+                <textarea id="mensaje-input" rows="2" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:.6rem;font-family:inherit;resize:none;font-size:.9rem;outline:none;" placeholder="Escribe tu duda o respuesta aquí... (Enter para enviar)"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary" style="display:flex;align-items:center;gap:.4rem;height:42px;margin-bottom:2px;">
+                Enviar
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
 </div>
 
 <!-- ================= MODALES ================= -->
+
+<!-- MODAL SECCIÓN (crear/editar) -->
+<div class="modal-backdrop" id="mSeccion">
+  <div class="modal">
+    <div class="modal-head"><h3 id="mSeccionTitulo">Nueva sección</h3>
+      <button class="modal-close" onclick="closeModal('mSeccion')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="secId">
+      <div class="form-grid" style="margin-bottom:1rem;">
+        <div class="field field-full"><label>Título *</label><input id="secTitulo" placeholder="Ej. Semana 1 — Introducción"></div>
+        <div class="field field-full"><label>Descripción</label><textarea id="secDescripcion" rows="2" placeholder="Opcional"></textarea></div>
+        <div class="field field-full">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;text-transform:none;opacity:1;letter-spacing:0;">
+            <input type="checkbox" id="secVisible" checked style="width:auto;accent-color:var(--lime2);"> Visible para los alumnos
+          </label>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:.6rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('mSeccion')">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="guardarSeccion()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL ANUNCIO (crear/editar) -->
 <div class="modal-backdrop" id="mAnuncio">
@@ -157,7 +228,10 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
       <div class="form-grid" style="margin-bottom:1rem;">
         <div class="field field-full"><label>Título *</label><input id="anTitulo" placeholder="Ej. Cambio de horario para el sábado"></div>
         <div class="field field-full"><label>Contenido *</label><textarea id="anContenido" rows="5" placeholder="Escribe el anuncio para tus alumnos…"></textarea></div>
-        <div class="field field-full">
+        <div class="field"><label>Sección</label>
+          <select id="anSeccion"><option value="">— General (sin sección) —</option></select>
+        </div>
+        <div class="field" style="justify-content:center;">
           <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;text-transform:none;opacity:1;letter-spacing:0;">
             <input type="checkbox" id="anFijado" style="width:auto;accent-color:var(--lime2);"> Fijar arriba del muro
           </label>
@@ -182,6 +256,9 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field field-full"><label>Título *</label><input name="titulo" placeholder="Ej. Guía de estudio — Unidad 1" required></div>
           <div class="field field-full"><label>Descripción</label><textarea name="descripcion" rows="2"></textarea></div>
+          <div class="field field-full"><label>Sección</label>
+            <select name="seccion_id" id="matSeccion"><option value="">— General (sin sección) —</option></select>
+          </div>
           <div class="field field-full">
             <label>Archivo * <span style="text-transform:none;font-weight:400;color:var(--muted);">(PDF, Word, PowerPoint, Excel, TXT, CSV, ZIP o imagen — máx. 25MB)</span></label>
             <input type="file" name="archivo" id="materialArchivo" required
@@ -215,6 +292,9 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
             <option value="examen">Examen</option>
             <option value="proyecto">Proyecto</option>
           </select>
+        </div>
+        <div class="field"><label>Sección</label>
+          <select id="acSeccion"><option value="">— General (sin sección) —</option></select>
         </div>
         <div class="field"><label>Nota máxima</label><input type="number" id="acNotaMax" data-only="decimal" value="20" min="1" step="0.5"></div>
         <div class="field"><label>Fecha</label><input type="date" id="acFecha"></div>
@@ -328,6 +408,13 @@ const CURRENT_USER = "<?php echo addslashes($_SESSION['usuario'] ?? ''); ?>";
 let lastMessageCount = -1;
 let foroInterval = null;
 
+// Estado del contenido por secciones (Aula Virtual estilo Moodle)
+let SECCIONES = [];
+let ANUNCIOS = [];
+let MATERIALES = [];
+let ACTIVIDADES = [];
+let SECCIONES_COLAPSADAS = {}; // { seccion_key: true } — solo en memoria de esta sesión de página
+
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
 function fmtBytes(n){
   n = parseInt(n)||0;
@@ -356,7 +443,7 @@ async function cargarSelectorMaterias() {
 
 async function iniciarAula() {
   cargarSelectorMaterias();
-  if (!MATERIA_ID) return; 
+  if (!MATERIA_ID) return;
 
   const d = await aulaAjax('materia_info');
   document.getElementById('areaCargando').style.display = 'none';
@@ -367,14 +454,12 @@ async function iniciarAula() {
   CAN_MANAGE = !!d.data.can_manage;
   document.getElementById('matTitulo').textContent = d.data.materia.nombre;
   document.getElementById('matCodigo').textContent = d.data.materia.codigo;
-  document.querySelectorAll('.can-manage').forEach(el => el.style.display = CAN_MANAGE ? 'inline-flex' : 'none');
+  document.querySelectorAll('.can-manage').forEach(el => el.style.display = CAN_MANAGE ? '' : 'none');
   document.getElementById('areaAula').style.display = 'block';
 
-  loadAnuncios();
-  loadMateriales();
-  loadActividades();
-  loadTareas(); // <-- Cargar nueva pestaña de tareas
-  
+  cargarContenido();
+  loadTareas();
+
   // Iniciar el foro y el auto-refresco
   loadForo();
   if(foroInterval) clearInterval(foroInterval);
@@ -390,37 +475,221 @@ async function iniciarAula() {
   }
 }
 
-/* ══ ANUNCIOS ══ */
-async function loadAnuncios() {
-  const d = await aulaAjax('anuncio_list');
-  const el = document.getElementById('listaAnuncios');
-  if (!d?.ok) { el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:2rem;">'+h(d?.msg||'Error')+'</p>'; return; }
-  if (!d.data.length) { el.innerHTML = '<p style="color:var(--muted);text-align:center;padding:2rem;">Sin anuncios todavía.</p>'; return; }
-  el.innerHTML = d.data.map(a => `
-    <div class="card" style="margin-bottom:.9rem;${a.fijado==1?'border-color:var(--lime2);':''}">
-      <div class="card-body">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.6rem;">
-          <div>
-            <h3 style="font-family:'DM Serif Display',serif;font-size:1.1rem;margin-bottom:.2rem;">
-              ${a.fijado==1?'📌 ':''}${h(a.titulo)}
-            </h3>
-            <span style="font-size:.74rem;color:var(--muted);">${h(a.autor)} · ${fmtFecha(a.creado_en)}</span>
-          </div>
-          ${CAN_MANAGE ? `
-          <div class="td-actions" style="flex-shrink:0;">
-            <button class="btn btn-sm btn-secondary" onclick='editarAnuncio(${JSON.stringify(a)})'>Editar</button>
-            <button class="btn btn-sm btn-danger" onclick="eliminarAnuncio(${a.id})">Eliminar</button>
-          </div>` : ''}
-        </div>
-        <p style="margin-top:.7rem;font-size:.88rem;color:var(--ink);white-space:pre-wrap;line-height:1.6;">${h(a.contenido)}</p>
-      </div>
-    </div>`).join('');
+/* ══════════════ CONTENIDO POR SECCIONES (estilo Moodle) ══════════════ */
+
+async function cargarContenido() {
+  const [rSec, rAn, rMat, rAc] = await Promise.all([
+    aulaAjax('seccion_list'),
+    aulaAjax('anuncio_list'),
+    aulaAjax('material_list'),
+    aulaAjax('actividad_list'),
+  ]);
+  SECCIONES   = rSec?.ok ? rSec.data : [];
+  ANUNCIOS    = rAn?.ok ? rAn.data : [];
+  MATERIALES  = rMat?.ok ? rMat.data : [];
+  ACTIVIDADES = rAc?.ok ? rAc.data : [];
+  poblarSelectsSeccion();
+  renderContenido();
 }
 
+function poblarSelectsSeccion() {
+  const opciones = '<option value="">— General (sin sección) —</option>' +
+    SECCIONES.map(s => `<option value="${s.id}">${h(s.titulo)}</option>`).join('');
+  ['anSeccion','matSeccion','acSeccion'].forEach(idSel => {
+    const sel = document.getElementById(idSel);
+    const val = sel.value;
+    sel.innerHTML = opciones;
+    sel.value = val;
+  });
+  document.getElementById('matMetaSecciones').textContent =
+    SECCIONES.length ? `${SECCIONES.length} sección(es)` : '';
+}
+
+function renderContenido() {
+  const cont = document.getElementById('seccionesContainer');
+
+  // IDs de sección que el alumno puede ver (el servidor ya filtra las
+  // ocultas en seccion_list cuando no es docente/admin).
+  const idsVisibles = new Set(SECCIONES.map(s => s.id));
+
+  const items = [
+    ...ANUNCIOS.map(a => ({tipo:'anuncio', seccion_id:a.seccion_id, fecha:a.creado_en, data:a})),
+    ...MATERIALES.map(m => ({tipo:'material', seccion_id:m.seccion_id, fecha:m.creado_en, data:m})),
+    ...ACTIVIDADES.map(a => ({tipo:'actividad', seccion_id:a.seccion_id, fecha:a.creado_en, data:a})),
+  ];
+
+  // Agrupa; descarta items de una sección oculta que el alumno no puede ver.
+  const grupos = {}; // key: 'general' o id de sección
+  const generalKey = 'general';
+  grupos[generalKey] = [];
+  SECCIONES.forEach(s => grupos[s.id] = []);
+
+  items.forEach(it => {
+    if (!it.seccion_id) { grupos[generalKey].push(it); return; }
+    if (!idsVisibles.has(it.seccion_id)) {
+      if (!CAN_MANAGE) return; // alumno: sección oculta, no se muestra
+      // docente sin esa sección cargada (no debería pasar) — cae a general
+      grupos[generalKey].push(it);
+      return;
+    }
+    grupos[it.seccion_id].push(it);
+  });
+
+  Object.values(grupos).forEach(arr => arr.sort((a,b) => new Date(b.fecha) - new Date(a.fecha)));
+
+  const bloques = [];
+  bloques.push(renderSeccionCard({id:null, titulo:'General', visible:1}, grupos[generalKey]));
+  SECCIONES.forEach(s => bloques.push(renderSeccionCard(s, grupos[s.id] || [])));
+
+  cont.innerHTML = bloques.join('');
+}
+
+function renderSeccionCard(seccion, items) {
+  const key = seccion.id ?? 'general';
+  const colapsada = !!SECCIONES_COLAPSADAS[key];
+  const oculta = seccion.id && !seccion.visible;
+  const acciones = (CAN_MANAGE && seccion.id) ? `
+    <div class="aula-section-actions" onclick="event.stopPropagation()">
+      <button title="Editar sección" onclick='editarSeccion(${JSON.stringify(seccion)})'>✏️</button>
+      <button title="Eliminar sección" onclick="eliminarSeccion(${seccion.id})">🗑️</button>
+    </div>` : '';
+
+  return `
+    <div class="aula-section ${colapsada?'collapsed':''} ${oculta?'hidden-sec':''}" data-sec-key="${key}">
+      <div class="aula-section-head" onclick="toggleSeccion('${key}')">
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <h3>${h(seccion.titulo)}</h3>
+        <span class="count">${items.length}</span>
+        ${acciones}
+      </div>
+      <div class="aula-section-body">
+        ${seccion.descripcion ? `<p style="font-size:.82rem;color:var(--muted);margin-bottom:.6rem;">${h(seccion.descripcion)}</p>` : ''}
+        ${items.length ? items.map(it => renderContentItem(it)).join('') : '<div class="aula-empty">Sin contenido en esta sección.</div>'}
+      </div>
+    </div>`;
+}
+
+function toggleSeccion(key) {
+  SECCIONES_COLAPSADAS[key] = !SECCIONES_COLAPSADAS[key];
+  const el = document.querySelector(`.aula-section[data-sec-key="${key}"]`);
+  if (el) el.classList.toggle('collapsed');
+}
+
+function renderContentItem(it) {
+  if (it.tipo === 'anuncio') return renderItemAnuncio(it.data);
+  if (it.tipo === 'material') return renderItemMaterial(it.data);
+  return renderItemActividad(it.data);
+}
+
+function renderItemAnuncio(a) {
+  const mover = CAN_MANAGE ? `<select class="seccion-mini-select" onchange="moverContenido('anuncio',${a.id},this.value)">${opcionesSeccionSelect(a.seccion_id)}</select>` : '';
+  return `
+    <div class="content-item">
+      <div class="ci-ico">📢</div>
+      <div class="ci-body">
+        <div class="ci-title">${a.fijado==1?'📌 ':''}${h(a.titulo)}</div>
+        <div class="ci-sub">Anuncio · ${h(a.autor)} · ${fmtFecha(a.creado_en)}</div>
+        <div class="ci-desc">${h(a.contenido)}</div>
+      </div>
+      <div class="ci-actions">
+        ${mover}
+        ${CAN_MANAGE ? `
+          <button class="btn btn-sm btn-secondary" onclick='editarAnuncio(${JSON.stringify(a)})'>Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarAnuncio(${a.id})">Eliminar</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderItemMaterial(m) {
+  const mover = CAN_MANAGE ? `<select class="seccion-mini-select" onchange="moverContenido('material',${m.id},this.value)">${opcionesSeccionSelect(m.seccion_id)}</select>` : '';
+  return `
+    <div class="content-item">
+      <div class="ci-ico">📁</div>
+      <div class="ci-body">
+        <div class="ci-title">${h(m.titulo)}</div>
+        <div class="ci-sub">Material · <span class="badge b-profesor">${h((m.archivo_tipo||'').toUpperCase())}</span> · ${fmtBytes(m.tamano_bytes)} · ${h(m.autor)} · ${fmtFecha(m.creado_en)}</div>
+        ${m.descripcion ? `<div class="ci-desc">${h(m.descripcion)}</div>` : ''}
+      </div>
+      <div class="ci-actions">
+        ${mover}
+        <a class="btn btn-sm btn-primary" href="api/aula.php?action=material_download&id=${m.id}">Descargar</a>
+        ${CAN_MANAGE ? `<button class="btn btn-sm btn-danger" onclick="eliminarMaterial(${m.id})">Eliminar</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderItemActividad(a) {
+  const mover = CAN_MANAGE ? `<select class="seccion-mini-select" onchange="moverContenido('actividad',${a.id},this.value)">${opcionesSeccionSelect(a.seccion_id)}</select>` : '';
+  return `
+    <div class="content-item">
+      <div class="ci-ico">📝</div>
+      <div class="ci-body">
+        <div class="ci-title">${h(a.titulo)}</div>
+        <div class="ci-sub">Actividad · <span class="badge b-tardanza">${h(a.tipo)}</span> · Nota máx. ${parseFloat(a.nota_max).toFixed(1)} · ${a.fecha||'Sin fecha'}</div>
+        ${a.descripcion ? `<div class="ci-desc">${h(a.descripcion)}</div>` : ''}
+      </div>
+      <div class="ci-actions">
+        ${mover}
+        ${CAN_MANAGE ? `
+          <button class="btn btn-sm btn-success" onclick="abrirCalificar(${a.id},'${h(a.titulo).replace(/'/g,"\\'")}',${a.nota_max})">Calificar</button>
+          <button class="btn btn-sm btn-secondary" onclick='editarActividad(${JSON.stringify(a)})'>Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarActividad(${a.id})">Eliminar</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function opcionesSeccionSelect(seccionActual) {
+  const base = seccionActual ?? '';
+  let out = `<option value="" ${base===''?'selected':''}>General</option>`;
+  SECCIONES.forEach(s => { out += `<option value="${s.id}" ${s.id==base?'selected':''}>${h(s.titulo)}</option>`; });
+  return out;
+}
+
+async function moverContenido(tipo, id, seccionId) {
+  const d = await aulaAjax('contenido_mover_seccion', {tipo, id, seccion_id: seccionId});
+  if (d?.ok) cargarContenido(); else toast(d?.msg || 'Error', 'err');
+}
+
+/* ══ SECCIONES: crear/editar/eliminar ══ */
+function abrirSeccionModal() {
+  document.getElementById('secId').value = '';
+  document.getElementById('secTitulo').value = '';
+  document.getElementById('secDescripcion').value = '';
+  document.getElementById('secVisible').checked = true;
+  document.getElementById('mSeccionTitulo').textContent = 'Nueva sección';
+  openModal('mSeccion');
+}
+function editarSeccion(s) {
+  document.getElementById('secId').value = s.id;
+  document.getElementById('secTitulo').value = s.titulo;
+  document.getElementById('secDescripcion').value = s.descripcion || '';
+  document.getElementById('secVisible').checked = s.visible == 1;
+  document.getElementById('mSeccionTitulo').textContent = 'Editar sección';
+  openModal('mSeccion');
+}
+async function guardarSeccion() {
+  const id = document.getElementById('secId').value;
+  const titulo = document.getElementById('secTitulo').value.trim();
+  const descripcion = document.getElementById('secDescripcion').value.trim();
+  const visible = document.getElementById('secVisible').checked ? 1 : 0;
+  if (!titulo) { Ibbs.error('Ponle un título a la sección.'); return; }
+  const d = await aulaAjax(id ? 'seccion_update' : 'seccion_create', {id, titulo, descripcion, visible});
+  if (d?.ok) { toast(d.msg); closeModal('mSeccion'); cargarContenido(); }
+  else toast(d?.msg || 'Error', 'err');
+}
+function eliminarSeccion(id) {
+  ibbsConfirm('¿Eliminar esta sección? Su contenido se moverá a General (no se borra).', async () => {
+    const d = await aulaAjax('seccion_delete', {id});
+    if (d?.ok) { toast(d.msg); cargarContenido(); } else Ibbs.error(d?.msg || 'Error');
+  });
+}
+
+/* ══ ANUNCIOS ══ */
 function abrirAnuncioModal() {
   document.getElementById('anId').value = '';
   document.getElementById('anTitulo').value = '';
   document.getElementById('anContenido').value = '';
+  document.getElementById('anSeccion').value = '';
   document.getElementById('anFijado').checked = false;
   document.getElementById('mAnuncioTitulo').textContent = 'Nuevo anuncio';
   openModal('mAnuncio');
@@ -429,6 +698,7 @@ function editarAnuncio(a) {
   document.getElementById('anId').value = a.id;
   document.getElementById('anTitulo').value = a.titulo;
   document.getElementById('anContenido').value = a.contenido;
+  document.getElementById('anSeccion').value = a.seccion_id || '';
   document.getElementById('anFijado').checked = a.fijado == 1;
   document.getElementById('mAnuncioTitulo').textContent = 'Editar anuncio';
   openModal('mAnuncio');
@@ -437,36 +707,21 @@ async function guardarAnuncio() {
   const id = document.getElementById('anId').value;
   const titulo = document.getElementById('anTitulo').value.trim();
   const contenido = document.getElementById('anContenido').value.trim();
+  const seccion_id = document.getElementById('anSeccion').value;
   const fijado = document.getElementById('anFijado').checked ? 1 : 0;
   if (!titulo || !contenido) { Ibbs.error('Completa título y contenido.'); return; }
-  const d = await aulaAjax(id ? 'anuncio_update' : 'anuncio_create', {id, titulo, contenido, fijado});
-  if (d?.ok) { toast(d.msg); closeModal('mAnuncio'); loadAnuncios(); }
+  const d = await aulaAjax(id ? 'anuncio_update' : 'anuncio_create', {id, titulo, contenido, fijado, seccion_id});
+  if (d?.ok) { toast(d.msg); closeModal('mAnuncio'); cargarContenido(); }
   else toast(d?.msg || 'Error', 'err');
 }
 function eliminarAnuncio(id) {
   ibbsConfirm('¿Eliminar este anuncio?', async () => {
     const d = await aulaAjax('anuncio_delete', {id});
-    if (d?.ok) { toast(d.msg); loadAnuncios(); } else Ibbs.error(d?.msg || 'Error');
+    if (d?.ok) { toast(d.msg); cargarContenido(); } else Ibbs.error(d?.msg || 'Error');
   });
 }
 
 /* ══ MATERIALES ══ */
-async function loadMateriales() {
-  const d = await aulaAjax('material_list');
-  const tb = document.getElementById('tbodyMateriales');
-  if (!d?.ok) { tb.innerHTML = '<tr class="empty-row"><td colspan="6">'+h(d?.msg||'Error')+'</td></tr>'; return; }
-  if (!d.data.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="6">Sin materiales todavía.</td></tr>'; return; }
-  tb.innerHTML = d.data.map(m => `<tr>
-    <td style="text-align:left;"><strong>${h(m.titulo)}</strong>${m.descripcion?`<br><span style="font-size:.76rem;color:var(--muted);">${h(m.descripcion)}</span>`:''}</td>
-    <td><span class="badge b-profesor">${h((m.archivo_tipo||'').toUpperCase())}</span></td>
-    <td>${fmtBytes(m.tamano_bytes)}</td>
-    <td style="font-size:.8rem;color:var(--muted);">${h(m.autor)}</td>
-    <td style="font-size:.8rem;color:var(--muted);">${fmtFecha(m.creado_en)}</td>
-    <td class="td-actions">
-      <a class="btn btn-sm btn-primary" href="api/aula.php?action=material_download&id=${m.id}">Descargar</a>
-      ${CAN_MANAGE ? `<button class="btn btn-sm btn-danger" onclick="eliminarMaterial(${m.id})">Eliminar</button>` : ''}
-    </td></tr>`).join('');
-}
 async function subirMaterial(e) {
   e.preventDefault();
   const btn = document.getElementById('btnSubirMaterial');
@@ -479,7 +734,7 @@ async function subirMaterial(e) {
   try {
     const r = await fetch('api/aula.php', {method:'POST', body:fd});
     const d = await r.json();
-    if (d.ok) { toast(d.msg); closeModal('mMaterial'); e.target.reset(); loadMateriales(); }
+    if (d.ok) { toast(d.msg); closeModal('mMaterial'); e.target.reset(); cargarContenido(); }
     else toast(d.msg || 'Error', 'err');
   } catch(err) { toast('Error de conexión.', 'err'); }
   btn.disabled = false; btn.textContent = 'Subir';
@@ -487,33 +742,17 @@ async function subirMaterial(e) {
 function eliminarMaterial(id) {
   ibbsConfirm('¿Eliminar este material? Se borrará el archivo del servidor.', async () => {
     const d = await aulaAjax('material_delete', {id});
-    if (d?.ok) { toast(d.msg); loadMateriales(); } else Ibbs.error(d?.msg || 'Error');
+    if (d?.ok) { toast(d.msg); cargarContenido(); } else Ibbs.error(d?.msg || 'Error');
   });
 }
 
 /* ══ ACTIVIDADES ══ */
-async function loadActividades() {
-  const d = await aulaAjax('actividad_list');
-  const tb = document.getElementById('tbodyActividades');
-  if (!d?.ok) { tb.innerHTML = '<tr class="empty-row"><td colspan="5">'+h(d?.msg||'Error')+'</td></tr>'; return; }
-  if (!d.data.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="5">Sin actividades todavía.</td></tr>'; return; }
-  tb.innerHTML = d.data.map(a => `<tr>
-    <td style="text-align:left;"><strong>${h(a.titulo)}</strong>${a.descripcion?`<br><span style="font-size:.76rem;color:var(--muted);">${h(a.descripcion)}</span>`:''}</td>
-    <td><span class="badge b-tardanza">${h(a.tipo)}</span></td>
-    <td>${parseFloat(a.nota_max).toFixed(1)}</td>
-    <td style="font-size:.8rem;color:var(--muted);">${a.fecha||'—'}</td>
-    <td class="td-actions">
-      ${CAN_MANAGE ? `
-      <button class="btn btn-sm btn-success" onclick="abrirCalificar(${a.id},'${h(a.titulo).replace(/'/g,"\\'")}',${a.nota_max})">Calificar</button>
-      <button class="btn btn-sm btn-secondary" onclick='editarActividad(${JSON.stringify(a)})'>Editar</button>
-      <button class="btn btn-sm btn-danger" onclick="eliminarActividad(${a.id})">Eliminar</button>` : ''}
-    </td></tr>`).join('');
-}
 function abrirActividadModal() {
   document.getElementById('acId').value = '';
   document.getElementById('acTitulo').value = '';
   document.getElementById('acDescripcion').value = '';
   document.getElementById('acTipo').value = 'actividad';
+  document.getElementById('acSeccion').value = '';
   document.getElementById('acNotaMax').value = 20;
   document.getElementById('acFecha').value = '';
   document.getElementById('mActividadTitulo').textContent = 'Nueva actividad';
@@ -524,6 +763,7 @@ function editarActividad(a) {
   document.getElementById('acTitulo').value = a.titulo;
   document.getElementById('acDescripcion').value = a.descripcion || '';
   document.getElementById('acTipo').value = a.tipo;
+  document.getElementById('acSeccion').value = a.seccion_id || '';
   document.getElementById('acNotaMax').value = a.nota_max;
   document.getElementById('acFecha').value = a.fecha || '';
   document.getElementById('mActividadTitulo').textContent = 'Editar actividad';
@@ -538,16 +778,17 @@ async function guardarActividad() {
     titulo,
     descripcion: document.getElementById('acDescripcion').value.trim(),
     tipo: document.getElementById('acTipo').value,
+    seccion_id: document.getElementById('acSeccion').value,
     nota_max: document.getElementById('acNotaMax').value || 20,
     fecha: document.getElementById('acFecha').value,
   });
-  if (d?.ok) { toast(d.msg); closeModal('mActividad'); loadActividades(); }
+  if (d?.ok) { toast(d.msg); closeModal('mActividad'); cargarContenido(); }
   else toast(d?.msg || 'Error', 'err');
 }
 function eliminarActividad(id) {
   ibbsConfirm('¿Eliminar esta actividad? Se borrarán también sus calificaciones.', async () => {
     const d = await aulaAjax('actividad_delete', {id});
-    if (d?.ok) { toast(d.msg); loadActividades(); } else Ibbs.error(d?.msg || 'Error');
+    if (d?.ok) { toast(d.msg); cargarContenido(); } else Ibbs.error(d?.msg || 'Error');
   });
 }
 
@@ -611,10 +852,10 @@ async function loadTareas() {
     }
 
     const el = document.getElementById('listaTareas');
-    
+
     if (!d?.ok) { el.innerHTML = '<p class="text-center" style="color:var(--muted);padding:2rem;">Error cargando tareas.</p>'; return; }
     if (!d.data.length) { el.innerHTML = '<p class="text-center" style="color:var(--muted);padding:2rem;">No hay tareas asignadas.</p>'; return; }
-    
+
     el.innerHTML = d.data.map(t => {
       let actionHtml = '';
       if (CAN_MANAGE) {
@@ -630,7 +871,7 @@ async function loadTareas() {
           actionHtml = `<button class="btn btn-sm btn-primary" onclick="abrirSubirEntrega(${t.id}, '${h(t.titulo).replace(/'/g,"\\'")}')">📤 Entregar Tarea</button>`;
         }
       }
-      
+
       const archivoHtml = t.archivo ? `<br><a href="uploads/tareas/${t.archivo}" target="_blank" style="font-size:.8rem;color:var(--primary);text-decoration:underline;">📎 Descargar adjunto de la tarea</a>` : '';
 
       return `
@@ -662,7 +903,7 @@ async function guardarTarea(e) {
   e.preventDefault();
   const btn = document.getElementById('btnGuardarTarea');
   btn.disabled = true; btn.textContent = 'Guardando...';
-  
+
   const fd = new FormData(e.target);
   fd.append('action', 'crear');
   fd.append('materia_id', MATERIA_ID);
@@ -690,7 +931,7 @@ async function guardarEntrega(e) {
   e.preventDefault();
   const btn = document.getElementById('btnSubirEntrega');
   btn.disabled = true; btn.textContent = 'Subiendo...';
-  
+
   const fd = new FormData(e.target);
   fd.append('action', 'entregar');
   fd.append('materia_id', MATERIA_ID);
@@ -712,7 +953,7 @@ async function abrirVerEntregas(tarea_id, titulo) {
   const tb = document.getElementById('tbodyEntregas');
   tb.innerHTML = '<tr class="empty-row"><td colspan="6"><span class="spin"></span></td></tr>';
   openModal('mVerEntregas');
-  
+
   try {
     const r = await fetch(`api/tareas.php?action=ver_entregas&materia_id=${MATERIA_ID}&tarea_id=${tarea_id}`);
     const text = await r.text();
@@ -727,10 +968,10 @@ async function abrirVerEntregas(tarea_id, titulo) {
 
     if (!d?.ok) { tb.innerHTML = `<tr class="empty-row"><td colspan="6">${d.msg}</td></tr>`; return; }
     if (!d.data.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="6">No hay alumnos inscritos en esta materia.</td></tr>'; return; }
-    
+
     tb.innerHTML = d.data.map(e => {
       const estado = e.entrega_id ? '<span class="badge b-presente">Entregado</span>' : '<span class="badge b-ausente">No entregado</span>';
-      
+
       let contenidoHtml = '—';
       if(e.entrega_id) {
           contenidoHtml = '';
@@ -753,7 +994,7 @@ async function abrirVerEntregas(tarea_id, titulo) {
 async function calificarEntrega(entrega_id) {
   const nota = document.getElementById(`n_${entrega_id}`).value;
   const obs = document.getElementById(`o_${entrega_id}`).value;
-  
+
   const fd = new URLSearchParams();
   fd.append('action', 'calificar');
   const _csrfT3 = document.querySelector('meta[name="csrf-token"]');
@@ -761,7 +1002,7 @@ async function calificarEntrega(entrega_id) {
   fd.append('entrega_id', entrega_id);
   fd.append('nota', nota);
   fd.append('observacion', obs);
-  
+
   try {
     const r = await fetch('api/tareas.php', { method: 'POST', body: fd });
     const text = await r.text();
@@ -775,10 +1016,10 @@ async function loadForo() {
   if (!MATERIA_ID) return;
   try {
     const r = await fetch(`api/foro.php?action=get_mensajes&materia_id=${MATERIA_ID}`);
-    const text = await r.text(); 
-    
+    const text = await r.text();
+
     try {
-        const mensajes = JSON.parse(text); 
+        const mensajes = JSON.parse(text);
         if (mensajes.error) {
             console.error("Error del servidor:", mensajes.error, mensajes.detalle);
             return;
@@ -795,7 +1036,7 @@ async function loadForo() {
 
 function renderMessages(mensajes) {
   const chatBox = document.getElementById('chat-box');
-  chatBox.innerHTML = ''; 
+  chatBox.innerHTML = '';
 
   if(mensajes.length === 0) {
     chatBox.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.9rem;">No hay mensajes aún en esta materia. ¡Rompe el hielo!</div>';
@@ -902,10 +1143,10 @@ document.getElementById('chat-form').addEventListener('submit', async (e) => {
         body: JSON.stringify({ mensaje, respuesta_a, csrf_token: _csrfMeta ? _csrfMeta.content : '' })
     });
     const text = await r.text();
-    
+
     try {
         const result = JSON.parse(text);
-        if(result.success) loadForo(); 
+        if(result.success) loadForo();
         else console.error("Error del servidor:", result.error);
     } catch(err) {
         console.error("El servidor devolvió HTML en vez de JSON al enviar:", text);

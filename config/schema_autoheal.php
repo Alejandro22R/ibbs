@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 21);
+define('IBBS_SCHEMA_VERSION', 22);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -327,6 +327,30 @@ if (!function_exists('ibbs_autoheal_schema')) {
                 CONSTRAINT `autoheal_ne_ibfk_2` FOREIGN KEY (`docente_usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `autoheal_ne_ibfk_3` FOREIGN KEY (`revisado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            // 018_aula_secciones.sql — secciones/semanas del Aula Virtual
+            // (estilo Moodle): el docente agrupa anuncios/materiales/
+            // actividades en secciones tipo "Semana 1"; `seccion_id` nulo
+            // cae en el bucket "General" implícito de la UI. Sin FK formal
+            // a propósito — api/aula.php pone seccion_id=NULL en todo su
+            // contenido antes de borrar la sección.
+            "CREATE TABLE IF NOT EXISTS `aula_secciones` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `titulo` VARCHAR(150) NOT NULL,
+                `descripcion` VARCHAR(500) DEFAULT NULL,
+                `orden` INT(11) NOT NULL DEFAULT 0,
+                `visible` TINYINT(1) NOT NULL DEFAULT 1,
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia_orden` (`materia_id`,`orden`),
+                CONSTRAINT `autoheal_asec_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            "ALTER TABLE `aula_anuncios` ADD COLUMN IF NOT EXISTS `seccion_id` INT(11) DEFAULT NULL AFTER `materia_id`",
+            "ALTER TABLE `aula_anuncios` ADD INDEX IF NOT EXISTS `idx_seccion` (`seccion_id`)",
+            "ALTER TABLE `aula_materiales` ADD COLUMN IF NOT EXISTS `seccion_id` INT(11) DEFAULT NULL AFTER `materia_id`",
+            "ALTER TABLE `aula_materiales` ADD INDEX IF NOT EXISTS `idx_seccion` (`seccion_id`)",
+            "ALTER TABLE `aula_actividades` ADD COLUMN IF NOT EXISTS `seccion_id` INT(11) DEFAULT NULL AFTER `materia_id`",
+            "ALTER TABLE `aula_actividades` ADD INDEX IF NOT EXISTS `idx_seccion` (`seccion_id`)",
         ];
 
         foreach ($ddl as $sql) {
