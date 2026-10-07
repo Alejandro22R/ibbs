@@ -144,23 +144,15 @@ if(!in_array($_rol,['superadmin','admin'])){
         </div>
       </div>
 
-      <!-- Tab Calificaciones — resumen de solo lectura de esta materia.
-           Para cargar o corregir una nota final, siempre desde "Cargar
-           Notas" (modulo_notas.php) — así hay un solo lugar donde se
-           puede editar, en vez de dos formularios distintos para lo
-           mismo. -->
+      <!-- Tab Calificaciones — notas finales + Plan de Notas, todo en
+           un solo lugar en vez de tener que ir a otro módulo. -->
       <div class="tab-pane" data-pane-group="eM" data-pane="cal">
         <div id="calMateriaResumen" style="margin-bottom:1rem;"></div>
-        <div class="section-label" style="margin-bottom:.5rem;display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;">
-          <span>NOTA FINAL POR ALUMNO</span>
-          <a href="modulo_notas.php" class="btn btn-sm btn-secondary" style="text-transform:none;letter-spacing:normal;font-weight:600;">
-            <i class="bx bx-edit-alt"></i> Cargar / corregir en Cargar Notas
-          </a>
-        </div>
+        <div class="section-label" style="margin-bottom:.5rem;">NOTA FINAL POR ALUMNO</div>
         <div class="tbl-wrap" style="margin-bottom:1.6rem;">
           <table>
-            <thead><tr><th style="text-align:left;">Alumno</th><th style="text-align:center;">Nota final</th><th style="text-align:center;">Resultado</th></tr></thead>
-            <tbody id="tbCalAlumnos"><tr class="empty-row"><td colspan="3"><span class="spin"></span></td></tr></tbody>
+            <thead><tr><th style="text-align:left;">Alumno</th><th style="text-align:center;">Nota final</th><th style="text-align:center;">Resultado</th><th style="width:90px;"></th></tr></thead>
+            <tbody id="tbCalAlumnos"><tr class="empty-row"><td colspan="4"><span class="spin"></span></td></tr></tbody>
           </table>
         </div>
         <div class="section-label" style="margin-bottom:.5rem;">PLAN DE NOTAS (ACTIVIDADES DEL PROFESOR)</div>
@@ -170,18 +162,37 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
 </div>
 
+<!-- MODAL: editar nota final de un alumno, desde la pestaña Calificaciones -->
+<div class="modal-backdrop" id="mCalNotaFinal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-head">
+      <h3>Nota Final</h3>
+      <button class="modal-close" onclick="closeModal('mCalNotaFinal')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cnfAid">
+      <p id="cnfAlumnoNombre" style="font-weight:700;color:var(--ink);margin-bottom:1rem;text-align:center;"></p>
+      <div class="field" style="margin-bottom:1rem;">
+        <label>Calificación (0-20, aprueba con 15)</label>
+        <input type="number" id="cnfNota" min="0" max="20" step="0.1" style="font-size:1.8rem;text-align:center;font-weight:700;padding:1rem;">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger btn-sm" id="cnfBtnBorrar" style="margin-right:auto;" onclick="borrarNotaFinalMateria()">Borrar nota</button>
+      <button class="btn btn-secondary" onclick="closeModal('mCalNotaFinal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarNotaFinalMateria()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let _mid=null;
 const MI_ROL='<?=$_rol?>';
 document.addEventListener('ibbs:ready', () => loadMaterias());
 
-// Ojo: esto tiene que esperar a 'ibbs:ready' — ajax() recién se define
-// en layout/foot.php, que se incluye DESPUÉS de este <script>. Antes
-// esto corría de una (IIFE sin esperar nada) y tiraba "ajax is not
-// defined" en cada carga de la página, sin excepción.
-document.addEventListener('ibbs:ready', async () => {
+(async()=>{
   // Cargar docentes para el modal de Crear y el de Editar
-  const d=await ajax('docente_all_simple');
+  const d=await ajax('docente_all_simple'); 
   if(d?.ok) {
     const opts = '<option value="">— Seleccionar —</option>'+d.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
     
@@ -199,7 +210,7 @@ document.addEventListener('ibbs:ready', async () => {
   if(a?.ok) {
       document.getElementById('selAddA').innerHTML='<option value="">— Seleccionar —</option>'+a.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
   }
-});
+})();
 
 function estadoBadge(e){ 
     const m={en_curso:'b-tardanza',pendiente:'b-ausente',culminada:'b-presente'}; 
@@ -358,7 +369,7 @@ async function cargarNotasFinalesMateria() {
     <div class="scard c1"><div><div class="scard-val" data-countup>${promedio}</div><div class="scard-key">Promedio</div></div></div>
   </div>`;
 
-  if (!alumnos.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Esta materia todavía no tiene alumnos inscritos.</td></tr>'; return; }
+  if (!alumnos.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Esta materia todavía no tiene alumnos inscritos.</td></tr>'; return; }
   tbody.innerHTML = alumnos.map(a => {
     const tieneNota = a.nota_final !== null;
     const aprobada = tieneNota && parseFloat(a.nota_final) >= 15;
@@ -366,8 +377,36 @@ async function cargarNotasFinalesMateria() {
       <td style="text-align:left;font-weight:700;">${hCalM(a.apellido)}, ${hCalM(a.nombre)}</td>
       <td style="text-align:center;font-family:'DM Serif Display',serif;font-size:1.1rem;color:${tieneNota ? (aprobada?'#16a34a':'#dc2626') : 'var(--muted)'};">${tieneNota ? parseFloat(a.nota_final).toFixed(1) : '—'}</td>
       <td style="text-align:center;"><span class="badge ${!tieneNota ? '' : (aprobada?'b-presente':'b-ausente')}">${!tieneNota ? 'Sin nota' : (aprobada?'Aprobado':'Reprobado')}</span></td>
+      <td style="text-align:center;"><button class="btn btn-sm btn-secondary" onclick="abrirNotaFinalMateria(${a.id},'${hCalM(a.apellido+', '+a.nombre).replace(/'/g,"\\'")}',${tieneNota ? a.nota_final : 'null'})"><i class="bx bx-pencil"></i></button></td>
     </tr>`;
   }).join('');
+}
+
+function abrirNotaFinalMateria(alumnoId, nombre, notaActual) {
+  document.getElementById('cnfAid').value = alumnoId;
+  document.getElementById('cnfAlumnoNombre').textContent = nombre;
+  document.getElementById('cnfNota').value = notaActual !== null ? notaActual : '';
+  document.getElementById('cnfBtnBorrar').style.display = notaActual !== null ? 'inline-flex' : 'none';
+  openModal('mCalNotaFinal');
+}
+
+async function guardarNotaFinalMateria() {
+  const nota = parseFloat(document.getElementById('cnfNota').value);
+  if (isNaN(nota) || nota < 0 || nota > 20) { Ibbs.error('Ingresa una nota entre 0 y 20.'); return; }
+  const d = await ajax('nota_guardar', {
+    materia_id: _mid, alumno_id: document.getElementById('cnfAid').value,
+    nota, fecha: new Date().toISOString().slice(0,10),
+  });
+  if (d?.ok) { toast(d.msg); closeModal('mCalNotaFinal'); cargarNotasFinalesMateria(); }
+  else toast(d?.msg || 'Error', 'err');
+}
+
+async function borrarNotaFinalMateria() {
+  const rr = await Ibbs.confirm({title:'¿Borrar nota?', text:'Esta acción eliminará la nota final del alumno en esta materia.', confirm:'Sí, borrar', danger:true});
+  if (!rr.isConfirmed) return;
+  const d = await ajax('nota_borrar', { materia_id: _mid, alumno_id: document.getElementById('cnfAid').value });
+  if (d?.ok) { toast(d.msg); closeModal('mCalNotaFinal'); cargarNotasFinalesMateria(); }
+  else toast(d?.msg || 'Error', 'err');
 }
 
 // Plan de Notas (actividades del profesor) — mismo endpoint que ya usa

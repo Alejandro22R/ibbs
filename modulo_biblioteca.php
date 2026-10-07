@@ -104,8 +104,7 @@ $esAdmin = in_array($_rol,['superadmin','admin']);
 </div>
 
 <style>
-.tab-btn.act{background:#1a4d2e;color:#f5f0e8;}
-html[data-theme="dark"] .tab-btn.act{border:1px solid rgba(57,255,20,.4);}
+.tab-btn.act{background:var(--ink);color:var(--lime);}
 .libro-cover{width:36px;height:50px;object-fit:cover;border-radius:4px;background:var(--cream);}
 </style>
 
@@ -220,13 +219,21 @@ async function loadCompras(){
     <td><span class="badge ${c.estado==='activado'?'b-activo':c.estado==='rechazado'?'b-inactivo':'b-tardanza'}">${c.estado}</span></td>
     <td class="td-actions">
       ${c.estado==='pendiente'?`
-        <a class="btn btn-sm btn-success" href="modulo_herramientas.php#solicitudes" title="Activar/rechazar en Herramientas › Solicitudes">✓ Revisar</a>
+        <button class="btn btn-sm btn-success" onclick="aprobarCompra(${c.id})">✓ Activar</button>
+        <button class="btn btn-sm btn-danger" onclick="rechazarCompra(${c.id})">✕ Rechazar</button>
       `:'—'}
     </td></tr>`).join('');
 }
-// Activar/rechazar una compra se hace desde Herramientas › Solicitudes
-// (la bandeja única para todo lo pendiente: alumnos, materias y libros) —
-// esta tabla es solo para ver el historial completo de compras.
+async function aprobarCompra(id){
+  const d = await ajax('compra_aprobar', {id}, 'api/biblioteca.php');
+  if(d?.ok){ toast(d.msg); loadCompras(); } else Ibbs.error(d?.msg||'Error');
+}
+async function rechazarCompra(id){
+  ibbsConfirm('¿Rechazar esta compra? Revisá bien el comprobante antes de confirmar.', async ()=>{
+    const d = await ajax('compra_rechazar', {id}, 'api/biblioteca.php');
+    if(d?.ok){ toast(d.msg); loadCompras(); } else Ibbs.error(d?.msg||'Error');
+  });
+}
 async function loadDatosPago(){
   const d = await ajax('datos_pago_get', {}, 'api/biblioteca.php');
   if(!d?.ok) return;

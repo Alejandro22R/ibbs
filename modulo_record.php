@@ -50,7 +50,7 @@ mysqli_close($con);
 }
 
 .profile-bar {
-  background: linear-gradient(135deg,#1a4d2e 0%,#1e5c36 100%);
+  background: var(--ink);
   border-radius: 16px;
   padding: 1.5rem;
   color: #fff;
@@ -203,7 +203,7 @@ mysqli_close($con);
   <div class="profile-bar">
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
       <div style="display:flex; align-items:center; gap:1.2rem;">
-        <div id="recAva" style="width:48px; height:48px; border-radius:50%; background:#f5f0e8; color:#1a4d2e; font-family:'DM Serif Display',serif; font-size:1.4rem; display:flex; align-items:center; justify-content:center; font-weight:700;"></div>
+        <div id="recAva" style="width:48px; height:48px; border-radius:50%; background:var(--lime); color:var(--ink); font-family:'DM Serif Display',serif; font-size:1.4rem; display:flex; align-items:center; justify-content:center; font-weight:700;"></div>
         <div>
           <h3 id="recAlumnoNombre" style="font-family:'DM Serif Display',serif; font-size:1.25rem; color:#fff; margin:0;"></h3>
           <p id="recAlumnoMeta" style="font-size:.82rem; color:rgba(255,255,255,.5); margin-top:2px;"></p>

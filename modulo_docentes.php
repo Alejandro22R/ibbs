@@ -180,7 +180,7 @@ async function loadDocentes(){
     <td><span class="badge b-profesor">${r.nm}</span></td>
     <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignar(${r.id}, '${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" style="background:#1a4d2e;color:#f5f0e8;">Asignar</button>
+      <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignar(${r.id}, '${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" style="background:var(--ink);color:var(--lime);">Asignar</button>
       <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
       <button class="btn btn-sm btn-primary" onclick="editDoc(${r.id})">Editar</button>
       <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=trabajo&docente_id=${r.id}" target="_blank" title="Constancia de Trabajo">📄 Trabajo</a>

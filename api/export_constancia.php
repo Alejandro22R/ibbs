@@ -10,18 +10,14 @@
  * alumno_id. Queda un registro en la auditoría de quién la emitió y
  * para quién.
  *
- * La Constancia de Notas solo incluye una materia si el administrador
- * la confirmó de alguna de las dos formas posibles — y además está
- * 100% calificada (ningún alumno de esa materia con nota_final en
- * NULL):
- *   (a) la marcó "culminada" (materia_set_estado, modulo_materias.php,
- *       exclusivo de admin/superadmin) — esto cubre las notas que el
- *       propio admin cargó directo en modulo_notas.php ("Cargar
- *       Notas"), la única pantalla desde donde se puede hacer eso; o
- *   (b) existe un envío de notas (api/notas_envio.php) con estado
- *       "aprobado" — el profesor las propuso en su Plan de Notas y el
- *       admin las revisó y aprobó desde Herramientas.
- * Una materia en curso, sin ninguna de las dos confirmaciones, o con
+ * La Constancia de Notas solo incluye una materia en la tabla de
+ * calificaciones si las tres condiciones del flujo de aprobación se
+ * cumplieron: (1) el administrador ya marcó la materia "culminada"
+ * (materia_set_estado, exclusivo de admin/superadmin), (2) existe un
+ * envío de notas (api/notas_envio.php) de esa materia con estado
+ * "aprobado" — es decir, el profesor las cargó y el administrador las
+ * revisó y confirmó — y (3) ningún alumno de la materia quedó con
+ * nota_final en NULL. Una materia en curso, sin notas aprobadas, o con
  * notas incompletas, nunca aparece — evita que el récord oficial
  * muestre una nota a medias o sin confirmar.
  *
@@ -69,20 +65,17 @@ if ($tipo === 'trabajo') {
     if (!$alumno) die('Alumno no encontrado.');
     log_audit($con, $uid, 'CONSTANCIA_'.strtoupper($tipo).'_GENERAR', "alumno=$aid");
 
-    // Materias culminada O con un envío de notas aprobado, y 100%
-    // calificadas (ningún alumno de esa materia con nota_final
+    // Solo materias culminadas, con un envío de notas aprobado, y
+    // 100% calificadas (ningún alumno de esa materia con nota_final
     // pendiente) — ver la nota al principio del archivo.
     $materias = [];
     if ($tipo === 'notas') {
         $r = mysqli_query($con, "SELECT ma.nota_final,m.nombre mn,m.codigo mc
                                   FROM materia_alumno ma JOIN materias m ON m.id=ma.materia_id
-                                  WHERE ma.alumno_id=$aid
-                                    AND (
-                                        m.estado='culminada'
-                                        OR EXISTS (
-                                            SELECT 1 FROM notas_envios ne
-                                            WHERE ne.materia_id=ma.materia_id AND ne.estado='aprobado'
-                                        )
+                                  WHERE ma.alumno_id=$aid AND m.estado='culminada'
+                                    AND EXISTS (
+                                        SELECT 1 FROM notas_envios ne
+                                        WHERE ne.materia_id=ma.materia_id AND ne.estado='aprobado'
                                     )
                                     AND NOT EXISTS (
                                         SELECT 1 FROM materia_alumno ma2

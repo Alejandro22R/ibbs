@@ -56,12 +56,9 @@ html, body { height: 100%; }
 
 body {
   font-family: 'Nunito', sans-serif;
-  /* Fondo con un toque de verde institucional en una sola esquina — no
-     los dos, para que no se sienta "todo verde" apenas se carga una
-     página — más un leve calor dorado en la otra para variar. */
   background:
-    radial-gradient(circle at 88% -8%, rgba(57,255,20,.045) 0%, transparent 40%),
-    radial-gradient(circle at -6% 102%, rgba(201,154,46,.05) 0%, transparent 38%),
+    radial-gradient(circle at 88% -8%, rgba(57,255,20,.07) 0%, transparent 42%),
+    radial-gradient(circle at -6% 102%, rgba(26,77,46,.05) 0%, transparent 38%),
     var(--cream);
   background-attachment: fixed;
   display: flex;
@@ -70,8 +67,8 @@ body {
 }
 html[data-theme="dark"] body {
   background:
-    radial-gradient(circle at 88% -8%, rgba(57,255,20,.04) 0%, transparent 42%),
-    radial-gradient(circle at -6% 102%, rgba(201,154,46,.035) 0%, transparent 38%),
+    radial-gradient(circle at 88% -8%, rgba(57,255,20,.05) 0%, transparent 42%),
+    radial-gradient(circle at -6% 102%, rgba(57,255,20,.03) 0%, transparent 38%),
     #162b1f;
   background-attachment: fixed;
 }
@@ -378,17 +375,15 @@ html[data-theme="dark"] body {
 }
 .btn-primary:hover::before { left: 130%; }
 
-/* ── Primary: dark sólido, texto claro — el lime queda como acento
-   puntual (el brillo al pasar el mouse, el glow del hover) en vez de
-   ser el color principal del botón que más se repite en toda la app. ── */
+/* ── Primary: dark sólido con lime neon ── */
 .btn-primary {
   background: var(--grad-ink);
-  color: var(--cream);
+  color: var(--lime);
   box-shadow: 0 2px 0 rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.08);
 }
 .btn-primary:hover {
   background: linear-gradient(135deg, var(--ink2) 0%, #246b40 100%);
-  box-shadow: 0 6px 16px rgba(57,255,20,.18), 0 2px 0 rgba(0,0,0,.2);
+  box-shadow: 0 6px 20px rgba(57,255,20,.25), 0 2px 0 rgba(0,0,0,.2);
   transform: translateY(-1px);
 }
 .btn-primary:active { transform: translateY(0); box-shadow: 0 1px 0 rgba(0,0,0,.2); }
@@ -445,11 +440,8 @@ html[data-theme="dark"] body {
 .btn-sm:active { transform: translateY(0) !important; }
 
 /* ── Dark mode button adjustments ── */
-/* En modo oscuro el botón primario sigue siendo oscuro con un borde
-   lime — no un botón entero en lime neón, que resultaba demasiado
-   brillante y cansador al repetirse en cada acción de cada página. */
-html[data-theme="dark"] .btn-primary  { background: linear-gradient(135deg,#1c3e28 0%,#17331f 100%); color: #d8edda; border: 1px solid rgba(57,255,20,.35); box-shadow: 0 2px 0 rgba(0,0,0,.3); }
-html[data-theme="dark"] .btn-primary:hover { background: linear-gradient(135deg,#234a30 0%,#1c3e28 100%); border-color: #39ff14; box-shadow: 0 4px 16px rgba(57,255,20,.2), 0 2px 0 rgba(0,0,0,.2); }
+html[data-theme="dark"] .btn-primary  { background: #39ff14; color: #1a4d2e; box-shadow: 0 2px 0 rgba(0,0,0,.3), 0 0 0 0 rgba(57,255,20,0); }
+html[data-theme="dark"] .btn-primary:hover { background: #4aff28; box-shadow: 0 4px 20px rgba(57,255,20,.35), 0 2px 0 rgba(0,0,0,.2); }
 html[data-theme="dark"] .btn-danger   { border-color: #7f1d1d; color: #f87171; }
 html[data-theme="dark"] .btn-danger:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
 html[data-theme="dark"] .btn-success  { border-color: #14532d; color: #4ade80; }
@@ -517,7 +509,7 @@ tr:hover td { background:rgba(46,204,16,.045); }
   transition:transform .4s cubic-bezier(.34,1.56,.64,1);
 }
 #toast.show { transform:translateX(-50%) translateY(0); }
-#toast.ok  { background:#1a4d2e; color:#f5f0e8; box-shadow:0 4px 20px rgba(57,255,20,.15); }
+#toast.ok  { background:var(--ink); color:var(--lime); box-shadow:0 4px 20px rgba(57,255,20,.2); }
 #toast.err { background:#2c0b08; color:#ff8a80; box-shadow:0 4px 16px rgba(220,38,38,.2); }
 .tdot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
 .ok .tdot  { background:var(--lime); box-shadow:0 0 6px var(--lime); }
@@ -878,8 +870,8 @@ html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder { color: #60826a; }
 html[data-theme="dark"] input:focus,
 html[data-theme="dark"] select:focus {
-  border-color: #4ade80;
-  box-shadow: 0 0 0 3px rgba(74,222,128,.12);
+  border-color: #39ff14;
+  box-shadow: 0 0 0 3px rgba(57,255,20,.1);
 }
 html[data-theme="dark"] label        { color: #60826a; }
 
@@ -1021,7 +1013,7 @@ input[type="number"]:hover, select:hover, textarea:hover {
   border-radius: 14px;
   transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease;
 }
-.card:hover { box-shadow: var(--shadow-md); border-color: rgba(26,77,46,.22); }
+.card:hover { box-shadow: var(--shadow-md); border-color: rgba(57,255,20,.25); }
 html[data-theme="dark"] .card:hover { box-shadow: 0 4px 24px rgba(0,0,0,.25); }
 
 /* ══ ENTRADA ANIMADA — tarjetas y stat-cards aparecen con un leve

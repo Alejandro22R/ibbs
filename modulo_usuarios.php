@@ -158,7 +158,7 @@ async function loadUsuarios() {
     return `<tr>
       <td style="text-align:left;">
         <div style="display:flex;align-items:center;gap:.6rem;">
-          <div style="width:32px;height:32px;border-radius:50%;background:var(--ink2);color:#f5f0e8;font-family:'DM Serif Display',serif;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${h(u.usuario[0].toUpperCase())}</div>
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--ink2);color:var(--lime);font-family:'DM Serif Display',serif;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${h(u.usuario[0].toUpperCase())}</div>
           <div><strong style="font-size:.88rem;">${h(u.usuario)}</strong></div>
         </div>
       </td>

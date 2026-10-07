@@ -3,13 +3,8 @@ $page_title  = 'Calificaciones';
 $page_sub    = 'Nota final por materia · Escala 0–20 · Aprueba con 15';
 $active_link = 'notas';
 include __DIR__.'/layout/head.php';
-// Solo admin/superadmin: cargar la nota final de un alumno se hace
-// únicamente desde acá. El profesor propone sus notas en su Plan de
-// Notas (portal_docente.php) y el admin las revisa y confirma acá o
-// desde Herramientas > Solicitudes > Notas por aprobar — nunca las
-// carga él mismo de forma directa, para que siempre pasen por esa
-// revisión (ver api/notas_envio.php).
-if(!in_array($_rol,['superadmin','admin'])){
+// Solo admin, superadmin y profesor
+if(!in_array($_rol,['superadmin','admin','profesor'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
 
@@ -205,7 +200,7 @@ async function loadTabla() {
         <td>${i+1}</td>
         <td style="text-align:left;">
           <div style="display:flex;align-items:center;gap:.6rem;">
-            <div style="width:32px;height:32px;flex-shrink:0;border-radius:50%;background:#1a4d2e;color:#f5f0e8;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.95rem;">${inicial}</div>
+            <div style="width:32px;height:32px;flex-shrink:0;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.95rem;">${inicial}</div>
             <div><strong>${h(al.apellido)}</strong>, ${h(al.nombre)}</div>
           </div>
         </td>

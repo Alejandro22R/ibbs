@@ -57,9 +57,6 @@ mysqli_close($con);
         <h3>Materias Inscritas</h3>
         <div style="display:flex;gap:.5rem;align-items:center;">
           <span id="badgeInscritas" class="badge b-alumno">0</span>
-          <a href="modulo_notas.php" class="btn btn-sm btn-secondary" style="font-size:.72rem;" title="Cargar o corregir la nota final de este alumno">
-            <i class="bx bx-edit-alt"></i> Cargar Notas
-          </a>
           <a id="btnPlanilla" href="#" onclick="abrirPlanilla(event)" class="btn btn-sm btn-primary" style="display:none;font-size:.72rem;">
             <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             PDF Planilla
@@ -114,17 +111,53 @@ mysqli_close($con);
   </div>
 </div>
 
+<!-- MODAL NOTA -->
+<div class="modal-backdrop" id="mCalif">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-head">
+      <h3 id="mCalifTitulo">Nota Final</h3>
+      <button class="modal-close" onclick="closeModal('mCalif')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cAid"><input type="hidden" id="cMid">
+      <div style="text-align:center;margin-bottom:1.4rem;">
+        <div id="califPreview" style="font-family:'DM Serif Display',serif;font-size:4.5rem;line-height:1;transition:color .3s;color:var(--muted);">—</div>
+        <div id="califEstado" style="font-size:.78rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-top:.4rem;color:var(--muted);">SIN NOTA</div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.2rem;">Escala 0–20 · Aprueba con 15</div>
+      </div>
+      <div class="field" style="margin-bottom:1rem;">
+        <label>Nota Final (0–20)</label>
+        <input type="number" id="califVal" min="0" max="20" step="0.1" data-only="decimal" placeholder="0.0"
+          style="font-size:1.8rem;padding:1rem;text-align:center;" oninput="prevCalif(this.value)">
+      </div>
+      <div class="field" style="margin-bottom:1.2rem;">
+        <label>Fecha</label>
+        <input type="date" id="califFecha" value="<?=date('Y-m-d')?>">
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-bottom:.3rem;">
+          <span>0</span><span style="color:var(--amber);font-weight:700;">← 15 aprueba</span><span>20</span>
+        </div>
+        <div style="height:8px;background:var(--cream);border-radius:4px;overflow:hidden;position:relative;">
+          <div style="position:absolute;left:0;top:0;height:100%;width:75%;background:rgba(57,255,20,.12);border-right:2px dashed var(--lime2);pointer-events:none;"></div>
+          <div id="califBar" style="position:absolute;left:0;top:0;height:100%;width:0;border-radius:4px;transition:width .25s,background .25s;background:var(--muted);"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button id="btnBorrarCalif" class="btn btn-danger btn-sm" style="margin-right:auto;display:none;" onclick="borrarCalif()">Borrar nota</button>
+      <button class="btn btn-secondary" onclick="closeModal('mCalif')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCalif()">Guardar nota</button>
+    </div>
+  </div>
+</div>
 
 <script>
 let _aid = null;
 const MI_ROL = '<?=$_rol?>';
 
-// Cargar el select de exportar planilla — tiene que esperar a
-// 'ibbs:ready': ajax() recién se define en layout/foot.php, que se
-// incluye DESPUÉS de este <script> (mismo bug que tenía
-// modulo_materias.php: antes esto tiraba "ajax is not defined" en
-// cada carga de la página, sin excepción).
-document.addEventListener('ibbs:ready', async () => {
+// Cargar el select de exportar planilla
+(async () => {
   const d = await ajax('materia_list');
   if (!d?.ok) return;
   const sel = document.getElementById('selMateriaExport');
@@ -134,7 +167,7 @@ document.addEventListener('ibbs:ready', async () => {
     const btn = document.getElementById('btnExportPlanilla');
     btn.href = sel.value ? 'api/export_pdf.php?materia_id=' + sel.value : '#';
   };
-});
+})();
 
 async function cargarAlumno(id) {
   if (!id) {
@@ -189,11 +222,12 @@ async function cargarAlumno(id) {
             ${m.docentes ? `<div style="font-size:.7rem;color:var(--muted);">${h(m.docentes)}</div>` : ''}
           </td>
           <td style="text-align:center;">
-            <span style="display:inline-block;border:1.5px ${nv!==null?'solid':'dashed'} ${nv!==null?(ok?'#bbf7d0':'#fecaca'):'var(--border)'};
-                   border-radius:8px;padding:4px 12px;font-family:'DM Serif Display',serif;
-                   font-size:1.15rem;${cls};min-width:58px;" title="La nota se carga desde Cargar Notas">
+            <button onclick="openCalif(${_aid},${m.id},'${h(m.nombre)}',${nv !== null ? nv : 'null'})"
+              style="background:none;border:1.5px ${nv!==null?'solid':'dashed'} ${nv!==null?(ok?'#bbf7d0':'#fecaca'):'var(--border)'};
+                     border-radius:8px;padding:4px 12px;cursor:pointer;font-family:'DM Serif Display',serif;
+                     font-size:1.15rem;${cls};min-width:58px;" title="Clic para editar nota">
               ${nv !== null ? nv.toFixed(1) : '—'}
-            </span>
+            </button>
           </td>
           <td style="text-align:center;">
             ${nv !== null
@@ -238,6 +272,60 @@ function abrirPlanilla(e) {
   // Exporta la primera materia inscrita — si solo hay una
   const rows = document.querySelectorAll('#tbInscritas tr:not(.empty-row)');
   toast('Usa el selector de "Exportar planilla PDF" en el panel derecho para elegir qué materia exportar.');
+}
+
+function openCalif(aid, mid, nombre, valActual) {
+  document.getElementById('cAid').value = aid;
+  document.getElementById('cMid').value = mid;
+  document.getElementById('mCalifTitulo').textContent = nombre;
+  const v = document.getElementById('califVal');
+  v.value = (valActual !== null && valActual !== 'null') ? valActual : '';
+  prevCalif(v.value);
+  document.getElementById('btnBorrarCalif').style.display =
+    (valActual !== null && valActual !== 'null') ? 'inline-flex' : 'none';
+  openModal('mCalif');
+  setTimeout(() => v.focus(), 120);
+}
+
+function prevCalif(v) {
+  const pv = document.getElementById('califPreview');
+  const pe = document.getElementById('califEstado');
+  const bar = document.getElementById('califBar');
+  const n = parseFloat(String(v).replace(',','.'));
+  if (v === '' || isNaN(n)) {
+    pv.textContent='—'; pv.style.color='var(--muted)';
+    pe.textContent='SIN NOTA'; pe.style.color='var(--muted)';
+    bar.style.width='0%'; return;
+  }
+  bar.style.width = Math.min(n/20*100,100)+'%';
+  if(n>=15){ pv.style.color='#16a34a'; pe.textContent='✓ APROBADO'; pe.style.color='#16a34a'; bar.style.background='#22c55e'; }
+  else if(n>=10){ pv.style.color='#ca8a04'; pe.textContent='⚠ REPROBADO'; pe.style.color='#ca8a04'; bar.style.background='#f59e0b'; }
+  else { pv.style.color='#dc2626'; pe.textContent='✗ REPROBADO'; pe.style.color='#dc2626'; bar.style.background='#ef4444'; }
+  pv.textContent = n%1===0 ? n+'.0' : n.toFixed(1);
+}
+
+async function guardarCalif() {
+  const val = parseFloat(String(document.getElementById('califVal').value).replace(',','.'));
+  if (isNaN(val)||val<0||val>20) { Ibbs.error('La nota debe ser un número entre <b>0</b> y <b>20</b>.','Nota inválida'); return; }
+  const d = await ajax('nota_guardar', {
+    alumno_id:  document.getElementById('cAid').value,
+    materia_id: document.getElementById('cMid').value,
+    nota: val,
+    fecha: document.getElementById('califFecha').value,
+  });
+  if (d?.ok) { toast(d.msg); closeModal('mCalif'); cargarAlumno(_aid); }
+  else toast(d?.msg || 'Error', 'err');
+}
+
+async function borrarCalif() {
+  const rn = await Ibbs.confirm({title:'¿Borrar nota?',text:'Se eliminará la nota de este alumno en esta materia.',confirm:'Sí, borrar',danger:true});
+  if(!rn.isConfirmed) return;
+  const d = await ajax('nota_borrar', {
+    alumno_id:  document.getElementById('cAid').value,
+    materia_id: document.getElementById('cMid').value,
+  });
+  if (d?.ok) { toast(d.msg); closeModal('mCalif'); cargarAlumno(_aid); }
+  else toast(d?.msg || 'Error', 'err');
 }
 
 function h(s) { const d = document.createElement('div'); d.textContent = String(s??''); return d.innerHTML; }

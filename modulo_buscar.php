@@ -70,7 +70,7 @@ async function buscarPersonas(q) {
   lista.style.display = 'block';
   lista.innerHTML = d.data.map(p => `
     <div onclick="verPersona(${p.id},'${p.tipo}')" style="display:flex;align-items:center;gap:.7rem;padding:.6rem .5rem;border-radius:8px;cursor:pointer;transition:background .15s;" onmouseover="this.style.background='var(--cream)'" onmouseout="this.style.background='transparent'">
-      <div style="width:34px;height:34px;border-radius:50%;background:#1a4d2e;color:#f5f0e8;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">${h((p.nombre||'?')[0])}</div>
+      <div style="width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">${h((p.nombre||'?')[0])}</div>
       <div style="flex:1;">
         <div style="font-weight:700;font-size:.86rem;color:var(--ink);">${h(p.apellido)}, ${h(p.nombre)}</div>
         <div style="font-size:.74rem;color:var(--muted);">CI: ${h(p.cedula)}</div>

@@ -115,7 +115,7 @@ async function loadAlumnos(){
     <td><strong>${r.cedula}</strong></td>
     <td>
       <div style="display:flex;align-items:center;gap:.6rem;">
-        <div style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:#1a4d2e;color:#f5f0e8;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.9rem;">${(r.nombre||'?').charAt(0).toUpperCase()}</div>
+        <div style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.9rem;">${(r.nombre||'?').charAt(0).toUpperCase()}</div>
         <span>${r.apellido}, ${r.nombre}</span>
       </div>
     </td>
@@ -127,7 +127,8 @@ async function loadAlumnos(){
     <td>${estadoSolicitud(r)}</td>
     <td class="td-actions">
       ${r.aprobado!==null && r.aprobado=='0' ? `
-        <a class="btn btn-sm btn-success" href="modulo_herramientas.php#solicitudes" title="Revisar y aceptar/rechazar en Herramientas › Solicitudes">✓ Revisar solicitud</a>
+        <button class="btn btn-sm btn-success" onclick="aprobarAlumno(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" title="Aceptar solicitud de ingreso">✓ Aceptar</button>
+        <button class="btn btn-sm btn-danger" onclick="rechazarAlumno(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" title="Rechazar solicitud de ingreso">✕ Rechazar</button>
       ` : ''}
       <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
       <button class="btn btn-sm btn-primary" onclick="editA(${r.id})">Editar</button>
@@ -142,9 +143,18 @@ function estadoSolicitud(r){
   if(r.usuario_activo=='0') return '<span class="badge b-inactivo">Rechazado</span>';
   return '<span class="badge b-activo">Aprobado</span>';
 }
-// Aceptar/rechazar una solicitud de ingreso se hace desde Herramientas ›
-// Solicitudes (ver link "Revisar solicitud" arriba) — así hay una sola
-// cola de revisión para esto, en vez de un botón más acá y otro allá.
+async function aprobarAlumno(id,n){
+  ibbsConfirm(`¿Aceptar la solicitud de ingreso de "${n}"?`, async ()=>{
+    const d=await ajax('alumno_aprobar',{id});
+    if(d?.ok){toast(d.msg);loadAlumnos();}else Ibbs.error(d?.msg||'Error');
+  });
+}
+async function rechazarAlumno(id,n){
+  ibbsConfirm(`¿Rechazar la solicitud de ingreso de "${n}"? Su cuenta quedará inactiva.`, async ()=>{
+    const d=await ajax('alumno_rechazar',{id});
+    if(d?.ok){toast(d.msg);loadAlumnos();}else Ibbs.error(d?.msg||'Error');
+  });
+}
 async function createAlumno(e){
   e.preventDefault(); const fd=new FormData(e.target); fd.append('action','alumno_create');
   const _csrf=document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token',_csrf?_csrf.content:'');

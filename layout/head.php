@@ -96,12 +96,7 @@ function can($perm){
     <?php if(in_array($_rol,['superadmin','admin'])): ?>
     <li><a href="modulo_notas.php" class="sb-link <?=$active_link==='notas'?'act':''?>" data-tour="nav-notas"><i class="bx bx-edit-alt"></i><span class="sb-lbl">Cargar Notas</span></a></li>
     <?php elseif($_rol==='profesor'): ?>
-    <!-- El profesor carga sus notas en su Plan de Notas (portal_docente.php)
-         y de ahí las manda a aprobación — ya no tiene acceso directo a
-         modulo_notas.php, para que no existan dos caminos distintos
-         para lo mismo (uno de ellos sin pasar por la aprobación del
-         administrador). -->
-    <li><a href="portal_docente.php" class="sb-link" data-tour="nav-notas"><i class="bx bx-edit-alt"></i><span class="sb-lbl">Cargar Notas</span></a></li>
+    <li><a href="modulo_notas.php" class="sb-link <?=$active_link==='notas'?'act':''?>" data-tour="nav-notas"><i class="bx bx-edit-alt"></i><span class="sb-lbl">Cargar Notas</span></a></li>
     <?php endif; ?>
     <?php if(in_array($_rol,['superadmin','admin','profesor'])): ?>
     <li><a href="modulo_aula.php" class="sb-link <?=$active_link==='aula'?'act':''?>" data-tour="nav-aula"><i class="bx bx-chalkboard"></i><span class="sb-lbl">Aula Virtual</span></a></li>
