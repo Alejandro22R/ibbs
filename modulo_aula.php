@@ -16,13 +16,17 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
 <style>
 /* ── Aula Virtual: banner + nav lateral + secciones (estilo Moodle) ── */
 .aula-banner{
-  background:var(--grad-ink); border-radius:16px; padding:1.6rem 1.8rem;
+  /* Verde sólido fijo (no usa --ink/--ink2: esas variables se invierten
+     en modo oscuro y volvían el banner blanco-a-verde en vez de un
+     verde uniforme). */
+  background:linear-gradient(135deg, #123c25 0%, #1c6b3c 100%);
+  border-radius:16px; padding:1.6rem 1.8rem;
   margin-bottom:1.3rem; position:relative; overflow:hidden;
-  box-shadow:0 8px 28px rgba(0,0,0,.12);
+  box-shadow:0 8px 28px rgba(0,0,0,.18);
 }
 .aula-banner::before{
   content:''; position:absolute; inset:0;
-  background:radial-gradient(circle at 85% -20%, rgba(57,255,20,.18), transparent 60%);
+  background:radial-gradient(circle at 85% -30%, rgba(57,255,20,.22), transparent 55%);
 }
 .aula-banner h2{ font-family:'DM Serif Display',serif; font-size:1.7rem; color:#fff; position:relative; }
 .aula-banner .meta{ color:rgba(255,255,255,.65); font-size:.82rem; margin-top:.3rem; position:relative; display:flex; gap:1rem; flex-wrap:wrap; }
