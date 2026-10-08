@@ -109,6 +109,9 @@ function can($perm){
     <?php if(in_array($_rol,['superadmin','admin','profesor'])): ?>
     <li><a href="modulo_biblioteca.php" class="sb-link <?=$active_link==='biblioteca'?'act':''?>"><i class="bx bx-library"></i><span class="sb-lbl">Biblioteca</span></a></li>
     <?php endif; ?>
+    <?php if(in_array($_rol,['superadmin','admin'])): ?>
+    <li><a href="modulo_pagos.php" class="sb-link <?=$active_link==='pagos'?'act':''?>" data-tour="nav-pagos"><i class="bx bx-dollar-circle"></i><span class="sb-lbl">Pagos</span></a></li>
+    <?php endif; ?>
 
     <?php if(in_array($_rol,['superadmin','admin','profesor'])): ?>
     <div class="sb-section">Comunicación</div>

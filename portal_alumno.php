@@ -327,6 +327,12 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             <button data-tour="nav-biblioteca" onclick="switchView('biblioteca', this); loadBiblioteca();" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-book w-5 text-center"></i> <span class="font-medium text-sm">Biblioteca</span>
             </button>
+            <button data-tour="nav-pagos" onclick="switchView('pagos', this); loadMisPagos();" class="nav-btn w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-dollar-sign w-5 text-center"></i> <span class="font-medium text-sm">Mis Pagos</span>
+                </div>
+                <span id="badgePagosPendientes" class="hidden bg-ibbs-lime text-ibbs-ink text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ibbs-badge-pulse"></span>
+            </button>
 
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-6 mb-3 px-3">Cuenta</p>
             <button id="navBtnPerfil" data-tour="nav-perfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
@@ -866,6 +872,34 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     </div>
                     <input type="hidden" id="comprarLibroId">
                     <button onclick="confirmarCompraLibro()" id="btnConfirmarCompra" class="w-full btn-ibbs py-2.5 rounded-lg text-sm font-bold">Enviar solicitud de compra</button>
+                </div>
+            </div>
+
+            <!-- VISTA: MIS PAGOS -->
+            <div id="view-pagos" class="view-section hidden space-y-5">
+                <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
+                    <h2 class="text-2xl font-serif text-ibbs-ink">Mis Pagos</h2>
+                </div>
+                <div id="pagosLista" class="space-y-3">
+                    <p class="text-sm text-ibbs-muted italic">Cargando…</p>
+                </div>
+            </div>
+
+            <!-- MODAL SUBIR COMPROBANTE DE PAGO -->
+            <div id="modalSubirComprobantePago" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-serif font-bold text-ibbs-ink">Subir comprobante</h3>
+                        <button onclick="document.getElementById('modalSubirComprobantePago').classList.add('hidden')" class="text-ibbs-muted hover:text-ibbs-ink"><i class="fas fa-times"></i></button>
+                    </div>
+                    <p id="pagoComprobanteConcepto" class="text-sm font-bold"></p>
+                    <div id="datosPagoBoxPago" class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 text-xs text-ibbs-ink space-y-1"></div>
+                    <div>
+                        <label class="text-xs font-bold uppercase tracking-wide text-ibbs-muted">Captura del pago móvil o transferencia</label>
+                        <input type="file" id="comprobantePagoInput" accept="image/png,image/jpeg,image/webp" class="w-full mt-1 border border-ibbs-border rounded-lg px-3 py-2 text-xs bg-white file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-ibbs-ink file:text-white file:text-xs file:font-bold">
+                    </div>
+                    <input type="hidden" id="pagoComprobanteId">
+                    <button onclick="confirmarSubirComprobantePago()" class="w-full btn-ibbs py-2.5 rounded-lg text-sm font-bold">Enviar comprobante</button>
                 </div>
             </div>
 
@@ -1415,6 +1449,94 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             btn.disabled = false; btn.textContent = 'Enviar solicitud de compra';
         }
 
+        // ── Mis Pagos (mensualidad / inscripción) ──────────────────
+        let _misPagos = [];
+        let _datosPagoCache = null;
+        async function loadMisPagos() {
+            const cont = document.getElementById('pagosLista');
+            cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">Cargando…</p>';
+            const r = await fetch('api/pagos.php', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('action', 'mis_pagos'); const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : ''); return fd; })() });
+            const d = await r.json();
+            if (!d.ok) { cont.innerHTML = `<p class="text-sm text-red-600">${hBib(d.msg || 'Error al cargar tus pagos.')}</p>`; return; }
+            _misPagos = d.data;
+            const pendientes = _misPagos.filter(p => p.estado === 'pendiente' || p.estado === 'rechazado').length;
+            const badge = document.getElementById('badgePagosPendientes');
+            if (pendientes > 0) { badge.textContent = pendientes; badge.classList.remove('hidden'); }
+            else badge.classList.add('hidden');
+
+            if (!_misPagos.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">No tenés cobros registrados todavía.</p>'; return; }
+            const estadoInfo = {
+                pendiente:  { label: 'Pendiente de pago', cls: 'bg-amber-100 text-amber-700' },
+                en_revision:{ label: 'Comprobante en revisión', cls: 'bg-blue-100 text-blue-700' },
+                pagado:     { label: 'Pagado', cls: 'bg-green-100 text-green-700' },
+                rechazado:  { label: 'Comprobante rechazado — subí uno nuevo', cls: 'bg-red-100 text-red-700' },
+            };
+            cont.innerHTML = _misPagos.map(p => {
+                const ei = estadoInfo[p.estado] || { label: p.estado, cls: 'bg-gray-100 text-gray-700' };
+                const puedeSubir = p.estado === 'pendiente' || p.estado === 'rechazado';
+                return `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border p-4 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <p class="font-bold text-ibbs-ink">${hBib(p.concepto)}</p>
+                        <p class="text-xs text-ibbs-muted">${p.tipo === 'mensualidad' ? 'Mensualidad' : 'Inscripción'} · $${parseFloat(p.monto).toFixed(2)}${p.fecha_vencimiento ? ' · Vence ' + p.fecha_vencimiento : ''}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold px-3 py-1 rounded-full ${ei.cls}">${ei.label}</span>
+                        ${puedeSubir ? `<button onclick="abrirModalSubirComprobantePago(${p.id})" class="btn-ibbs text-xs font-bold px-3 py-1.5 rounded-lg">Subir comprobante</button>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function abrirModalSubirComprobantePago(id) {
+            const pago = _misPagos.find(p => p.id == id);
+            if (!pago) return;
+            document.getElementById('pagoComprobanteId').value = id;
+            document.getElementById('pagoComprobanteConcepto').textContent = pago.concepto + ' — $' + parseFloat(pago.monto).toFixed(2);
+            if (!_datosPagoCache) {
+                const r = await fetch('api/biblioteca.php', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('action', 'datos_pago_get'); const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : ''); return fd; })() });
+                const d = await r.json();
+                _datosPagoCache = d.ok ? d.data : {};
+            }
+            const p2 = _datosPagoCache || {};
+            const box = document.getElementById('datosPagoBoxPago');
+            if (!p2.titular && !p2.pago_movil_telefono && !p2.cuenta) {
+                box.innerHTML = 'La administración todavía no cargó los datos de pago. Consultá directamente en el instituto cómo realizar el pago antes de subir tu comprobante.';
+            } else {
+                box.innerHTML = [
+                    p2.titular ? `<div><strong>Titular:</strong> ${hBib(p2.titular)}</div>` : '',
+                    p2.banco ? `<div><strong>Banco:</strong> ${hBib(p2.banco)}</div>` : '',
+                    p2.cuenta ? `<div><strong>Cuenta:</strong> ${hBib(p2.cuenta)}</div>` : '',
+                    p2.cedula_rif ? `<div><strong>CI/RIF:</strong> ${hBib(p2.cedula_rif)}</div>` : '',
+                    p2.pago_movil_telefono ? `<div><strong>Pago Móvil:</strong> ${hBib(p2.pago_movil_telefono)}</div>` : '',
+                    p2.instrucciones ? `<div class="mt-1 italic">${hBib(p2.instrucciones)}</div>` : '',
+                ].join('');
+            }
+            document.getElementById('modalSubirComprobantePago').classList.remove('hidden');
+        }
+
+        async function confirmarSubirComprobantePago() {
+            const id = document.getElementById('pagoComprobanteId').value;
+            const file = document.getElementById('comprobantePagoInput').files[0];
+            if (!file) { Ibbs.warn('Adjuntá la captura de tu pago primero.'); return; }
+            const fd = new FormData();
+            fd.append('action', 'pago_subir_comprobante');
+            fd.append('id', id);
+            fd.append('comprobante', file);
+            const m = document.querySelector('meta[name="csrf-token"]');
+            fd.append('csrf_token', m ? m.content : '');
+            try {
+                const r = await fetch('api/pagos.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) {
+                    document.getElementById('modalSubirComprobantePago').classList.add('hidden');
+                    document.getElementById('comprobantePagoInput').value = '';
+                    await Ibbs.success(d.msg || 'Listo.');
+                    loadMisPagos();
+                } else Ibbs.error(d.msg || 'No se pudo enviar el comprobante.');
+            } catch (e) { console.error(e); Ibbs.error('Error de conexión.'); }
+        }
+        document.addEventListener('DOMContentLoaded', () => { loadMisPagos(); });
+
         <?php if (empty($materias)): ?>
         // Primer ingreso sin materias: lo primero que ve el alumno es la
         // pantalla para inscribirse, no el dashboard vacío — salvo que
@@ -1610,6 +1732,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'Mirá todas las actividades de cada materia, su fecha límite y cuánto vale, para no perderte de nada — las notas en sí las ves en "Calificaciones".' },
                 { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Descargá tu Constancia de Estudio o de Notas cuando quieras, gratis y al instante — la de Notas solo incluye las materias ya culminadas y 100% calificadas.' },
                 { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explorá los libros que tus profesores fueron subiendo: los gratuitos se descargan directo, y en los de pago te vamos a pedir tu comprobante antes de darte acceso.' },
+                { selector: '[data-tour="nav-pagos"]', title: 'Mis Pagos', text: 'Acá vas a ver tus cobros de mensualidad e inscripción. Cuando tengas uno pendiente, subí la captura de tu pago móvil o transferencia y quedará en revisión hasta que administración lo confirme.' },
                 { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tu foto, tus datos personales y tu contraseña. Al escribir una contraseña en cualquier parte del sistema vas a ver un ícono de ojo al lado — tocalo si querés revisar lo que escribiste antes de guardar.' },
                 { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras volver a ver este recorrido completo, tocá acá. ¡Éxitos en tus estudios!' }
             ]
