@@ -16,15 +16,23 @@ $res_mat = mysqli_query($con, "SELECT id, nombre FROM materias WHERE activo = 1"
 if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row;
 ?>
 
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
-  <a href="api/export_plantilla.php?tipo=docentes" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
-  <button class="btn btn-primary" onclick="openModal('mCD')">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem;">
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+    <a href="api/export_plantilla.php?tipo=docentes" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
+    <button class="btn btn-secondary" onclick="IbbsExport.table('#tblD','docentes-ibbs')" title="Descargar esta lista como Excel/CSV">
+      <i class="bx bx-download"></i> Excel
+    </button>
+    <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_DOCENTES)" title="Ver el tutorial de esta página otra vez">
+      <i class="bx bx-play-circle"></i> Tutorial
+    </button>
+  </div>
+  <button class="btn btn-primary" onclick="openModal('mCD')" data-tour="doc-nuevo">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Nuevo Docente
   </button>
 </div>
 
-<div class="card">
+<div class="card" data-tour="doc-tabla">
   <div class="card-head">
     <h3>Historial de Docentes</h3>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
@@ -34,10 +42,17 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:140px;">
     </div>
   </div>
+  <div id="barraLoteDoc" style="display:none;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--cream);border-bottom:1px solid var(--border);padding:.6rem 1rem;">
+    <span id="loteDocCount" style="font-size:.82rem;font-weight:700;color:var(--ink2);">0 seleccionados</span>
+    <button class="btn btn-sm btn-danger" onclick="eliminarDocentesSeleccionados()">🗑 Eliminar seleccionados</button>
+    <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionDocentes()" style="margin-left:auto;">Cancelar selección</button>
+  </div>
   <div class="tbl-wrap">
     <table id="tblD">
-      <thead><tr><th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Especialidad</th><th>Materias</th><th>Estado</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyD"><tr class="empty-row"><td colspan="8"><span class="spin"></span></td></tr></tbody>
+      <thead><tr>
+        <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllDoc" onchange="toggleAllDocentes(this)" title="Seleccionar todo"></th>
+        <th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Especialidad</th><th>Materias</th><th>Estado</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyD"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -160,18 +175,20 @@ async function loadDocentes(){
   const d = await ajax('docente_list'); 
   console.log('[IBBS] docente_list response:', d); 
   
-  if(!d?.ok){ 
-      document.getElementById('tbodyD').innerHTML='<tr class="empty-row"><td colspan="8">'+( d?.msg||'Error al conectar')+'</td></tr>'; 
-      return; 
-  }
-  
-  const tb = document.getElementById('tbodyD');
-  if(!d.data.length){
-      tb.innerHTML='<tr class="empty-row"><td colspan="8">Sin docentes.</td></tr>';
+  limpiarSeleccionDocentes();
+  if(!d?.ok){
+      document.getElementById('tbodyD').innerHTML='<tr class="empty-row"><td colspan="9">'+( d?.msg||'Error al conectar')+'</td></tr>';
       return;
   }
-  
+
+  const tb = document.getElementById('tbodyD');
+  if(!d.data.length){
+      tb.innerHTML='<tr class="empty-row"><td colspan="9">Sin docentes.</td></tr>';
+      return;
+  }
+
   tb.innerHTML = d.data.map(r => `<tr>
+    <td style="text-align:center;"><input type="checkbox" class="chkDoc" value="${r.id}" onchange="actualizarBarraLoteDocentes()"></td>
     <td><strong>${r.cedula}</strong></td>
     <td>${r.apellido}, ${r.nombre}</td>
     <td style="font-size:.82rem;">${r.correo}</td>
@@ -334,6 +351,46 @@ function abrirModalAsignar(id, nombre) {
   document.getElementById('fAMD').reset();
   openModal('mAMD');
 }
+
+function toggleAllDocentes(cb){
+  document.querySelectorAll('.chkDoc').forEach(c => c.checked = cb.checked);
+  actualizarBarraLoteDocentes();
+}
+function actualizarBarraLoteDocentes(){
+  const n = document.querySelectorAll('.chkDoc:checked').length;
+  const total = document.querySelectorAll('.chkDoc').length;
+  const chkAll = document.getElementById('chkAllDoc');
+  chkAll.checked = total>0 && n===total;
+  chkAll.indeterminate = n>0 && n<total;
+  document.getElementById('barraLoteDoc').style.display = n ? 'flex' : 'none';
+  if(n) document.getElementById('loteDocCount').textContent = n + (n===1?' seleccionado':' seleccionados');
+}
+function limpiarSeleccionDocentes(){
+  document.querySelectorAll('.chkDoc').forEach(c => c.checked = false);
+  const chkAll = document.getElementById('chkAllDoc');
+  if(chkAll){ chkAll.checked = false; chkAll.indeterminate = false; }
+  const barra = document.getElementById('barraLoteDoc');
+  if(barra) barra.style.display = 'none';
+}
+async function eliminarDocentesSeleccionados(){
+  const ids = Array.from(document.querySelectorAll('.chkDoc:checked')).map(c => c.value);
+  if(!ids.length) return;
+  const rr = await Ibbs.confirm({title:'¿Eliminar docentes?', text:`Se eliminarán ${ids.length} docente(s). Esta acción es irreversible.`, confirm:'Sí, eliminar', danger:true});
+  if(!rr.isConfirmed) return;
+  const d = await ajax('docente_eliminar_lote', {ids: ids.join(',')});
+  if(d?.ok){ toast(d.msg); loadDocentes(); } else toast(d?.msg||'Error', 'err');
+}
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_DOCENTES = {
+  storageKey: 'ibbs_tour_docentes_v1',
+  steps: [
+    { selector: '[data-tour="doc-nuevo"]', title: 'Registrar un docente', text: 'Carga el docente y le creás de una su cuenta de acceso (foro, aula virtual, tareas) con una contraseña inicial.' },
+    { selector: '[data-tour="doc-tabla"]', title: 'Gestionar docentes', text: 'Asigná materias, mirá el perfil con sus materias y asistencias, generá la Constancia de Trabajo o eliminá. Marcando varios (o todos con la casilla del encabezado) podés eliminar en lote.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_DOCENTES));
 
 async function asignarMateriaSubmit(e) {
   e.preventDefault();

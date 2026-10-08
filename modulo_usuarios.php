@@ -9,14 +9,17 @@ if($_rol !== 'superadmin'){
 }
 
 ?>
-<div style="display:flex;justify-content:flex-end;margin-bottom:1.2rem;">
-  <button class="btn btn-primary" onclick="openModal('mCU')">
+<div style="display:flex;justify-content:flex-end;gap:.6rem;margin-bottom:1.2rem;">
+  <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_USUARIOS)" title="Ver el tutorial de esta página otra vez">
+    <i class="bx bx-play-circle"></i> Tutorial
+  </button>
+  <button class="btn btn-primary" onclick="openModal('mCU')" data-tour="usu-nuevo">
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     Nuevo Usuario
   </button>
 </div>
 
-<div class="card">
+<div class="card" data-tour="usu-tabla">
   <div class="card-head">
     <h3>Usuarios del sistema</h3>
     <div style="display:flex;gap:.5rem;">
@@ -29,10 +32,18 @@ if($_rol !== 'superadmin'){
       </button>
     </div>
   </div>
+  <div id="barraLoteUsu" style="display:none;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--cream);border-bottom:1px solid var(--border);padding:.6rem 1rem;">
+    <span id="loteUsuCount" style="font-size:.82rem;font-weight:700;color:var(--ink2);">0 seleccionados</span>
+    <button class="btn btn-sm btn-success" onclick="loteAccionUsuarios('activar')">✓ Activar</button>
+    <button class="btn btn-sm btn-secondary" onclick="loteAccionUsuarios('desactivar')">⏸ Desactivar</button>
+    <button class="btn btn-sm btn-danger" onclick="loteAccionUsuarios('eliminar')">🗑 Eliminar</button>
+    <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionUsuarios()" style="margin-left:auto;">Cancelar selección</button>
+  </div>
   <div class="tbl-wrap">
     <table id="tblU">
       <thead>
         <tr>
+          <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllUsu" onchange="toggleAllUsuarios(this)" title="Seleccionar todo"></th>
           <th style="text-align:left;">Usuario</th>
           <th style="text-align:left;">Correo</th>
           <th>Rol</th>
@@ -42,7 +53,7 @@ if($_rol !== 'superadmin'){
         </tr>
       </thead>
       <tbody id="tbodyU">
-        <tr class="empty-row"><td colspan="6"><span class="spin"></span></td></tr>
+        <tr class="empty-row"><td colspan="7"><span class="spin"></span></td></tr>
       </tbody>
     </table>
   </div>
@@ -143,12 +154,13 @@ document.addEventListener('ibbs:ready', () => loadUsuarios());
 async function loadUsuarios() {
   const d = await ajax('usuario_list');
   const tb = document.getElementById('tbodyU');
+  limpiarSeleccionUsuarios();
   if (!d?.ok) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="6">' + (d?.msg || 'Error al cargar') + '</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="7">' + (d?.msg || 'Error al cargar') + '</td></tr>';
     return;
   }
   if (!d.data.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="6">Sin usuarios registrados.</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="7">Sin usuarios registrados.</td></tr>';
     return;
   }
   tb.innerHTML = d.data.map(u => {
@@ -156,6 +168,7 @@ async function loadUsuarios() {
     const rolBadge = `<span class="badge ${ROL_BADGE[u.rol]||'b-profesor'}">${ROL_LABEL[u.rol]||u.rol}</span>`;
     const actBadge = `<span class="badge ${u.activo=='1'?'b-activo':'b-inactivo'}">${u.activo=='1'?'Activo':'Inactivo'}</span>`;
     return `<tr>
+      <td style="text-align:center;"><input type="checkbox" class="chkUsu" value="${u.id}" onchange="actualizarBarraLoteUsuarios()"></td>
       <td style="text-align:left;">
         <div style="display:flex;align-items:center;gap:.6rem;">
           <div style="width:32px;height:32px;border-radius:50%;background:var(--ink2);color:var(--lime);font-family:'DM Serif Display',serif;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${h(u.usuario[0].toUpperCase())}</div>
@@ -173,6 +186,45 @@ async function loadUsuarios() {
       </td>
     </tr>`;
   }).join('');
+}
+
+function toggleAllUsuarios(cb){
+  document.querySelectorAll('.chkUsu').forEach(c => c.checked = cb.checked);
+  actualizarBarraLoteUsuarios();
+}
+
+function actualizarBarraLoteUsuarios(){
+  const n = document.querySelectorAll('.chkUsu:checked').length;
+  const total = document.querySelectorAll('.chkUsu').length;
+  const chkAll = document.getElementById('chkAllUsu');
+  chkAll.checked = total>0 && n===total;
+  chkAll.indeterminate = n>0 && n<total;
+  document.getElementById('barraLoteUsu').style.display = n ? 'flex' : 'none';
+  if(n) document.getElementById('loteUsuCount').textContent = n + (n===1?' seleccionado':' seleccionados');
+}
+
+function limpiarSeleccionUsuarios(){
+  document.querySelectorAll('.chkUsu').forEach(c => c.checked = false);
+  const chkAll = document.getElementById('chkAllUsu');
+  if(chkAll){ chkAll.checked = false; chkAll.indeterminate = false; }
+  const barra = document.getElementById('barraLoteUsu');
+  if(barra) barra.style.display = 'none';
+}
+
+const LOTE_USU_TEXTOS = {
+  activar:    {title:'¿Activar cuentas?', text:'Se activarán las cuentas seleccionadas.', confirm:'Sí, activar', danger:false},
+  desactivar: {title:'¿Desactivar cuentas?', text:'Las personas seleccionadas no van a poder iniciar sesión.', confirm:'Sí, desactivar', danger:false},
+  eliminar:   {title:'¿Eliminar cuentas?', text:'Esta acción no se puede deshacer. Tu propia cuenta nunca se elimina así.', confirm:'Sí, eliminar', danger:true},
+};
+
+async function loteAccionUsuarios(sub){
+  const ids = Array.from(document.querySelectorAll('.chkUsu:checked')).map(c => c.value);
+  if(!ids.length) return;
+  const t = LOTE_USU_TEXTOS[sub];
+  const rr = await Ibbs.confirm({title:t.title, text:t.text, confirm:t.confirm, danger:t.danger});
+  if(!rr.isConfirmed) return;
+  const d = await ajax('usuario_lote', {sub_accion: sub, ids: ids.join(',')});
+  if(d?.ok){ toast(d.msg); loadUsuarios(); } else toast(d?.msg||'Error', 'err');
 }
 
 async function crearUsuario(e) {
@@ -255,5 +307,16 @@ function filtrarUsuarios() {
     tr.style.display = (matchN && matchC) ? '' : 'none';
   });
 }
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_USUARIOS = {
+  storageKey: 'ibbs_tour_usuarios_v1',
+  steps: [
+    { selector: '[data-tour="usu-nuevo"]', title: 'Crear cuentas de acceso', text: 'Acá creás las cuentas con las que alumnos, docentes y otros administradores inician sesión — usuario, correo, contraseña y rol.' },
+    { selector: '[data-tour="usu-tabla"]', title: 'Gestionar usuarios', text: 'Podés activar, desactivar, editar o eliminar cada cuenta. Marcando varias (o todas con la casilla del encabezado) podés activar, desactivar o eliminar en lote.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_USUARIOS));
 </script>
 <?php include __DIR__.'/layout/foot.php'; ?>

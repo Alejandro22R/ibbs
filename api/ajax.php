@@ -488,6 +488,16 @@ if($action==='docente_delete'){
     log_audit($con,$uid,'DOCENTE_DELETE',"ID=$id");
     echo json_encode(['ok'=>true,'msg'=>'Eliminado.']); exit;
 }
+if($action==='docente_eliminar_lote'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $ids=array_values(array_unique(array_filter(array_map('intval',explode(',',trim($_POST['ids']??''))))));
+    if(!$ids){echo json_encode(['ok'=>false,'msg'=>'No hay docentes seleccionados.']);exit;}
+    $idsq=implode(',',$ids);
+    mysqli_query($con,"DELETE FROM docentes WHERE id IN ($idsq)");
+    $n=mysqli_affected_rows($con);
+    log_audit($con,$uid,'DOCENTE_ELIMINAR_LOTE',"ids=$idsq n=$n");
+    echo json_encode(['ok'=>true,'msg'=>"$n docente(s) eliminado(s).",'eliminados'=>$n]); exit;
+}
 if($action==='docente_list'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $r=mysqli_query($con,"SELECT d.*,COUNT(DISTINCT md.materia_id) nm FROM docentes d LEFT JOIN materia_docente md ON md.docente_id=d.id GROUP BY d.id ORDER BY d.apellido,d.nombre");
@@ -549,6 +559,44 @@ if($action==='alumno_delete'){
     $id=(int)($_POST['id']??0); mysqli_query($con,"DELETE FROM alumnos WHERE id=$id");
     log_audit($con,$uid,'ALUMNO_DELETE',"ID=$id");
     echo json_encode(['ok'=>true,'msg'=>'Eliminado.']); exit;
+}
+// Aprobar/rechazar/eliminar varios alumnos a la vez (selección
+// múltiple de la tabla). Aprobar/rechazar se omiten solos para un
+// alumno sin solicitud de ingreso pendiente (sin usuario_id), igual
+// que las versiones de a uno.
+if($action==='alumno_lote'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $sub=trim($_POST['sub_accion']??'');
+    if(!in_array($sub,['aprobar','rechazar','eliminar'],true)){echo json_encode(['ok'=>false,'msg'=>'Acción inválida.']);exit;}
+    $ids=array_values(array_unique(array_filter(array_map('intval',explode(',',trim($_POST['ids']??''))))));
+    if(!$ids){echo json_encode(['ok'=>false,'msg'=>'No hay alumnos seleccionados.']);exit;}
+    $ok=0; $omitidos=0;
+    foreach($ids as $id){
+        $al=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,usuario_id,nombre,apellido FROM alumnos WHERE id=$id LIMIT 1"));
+        if(!$al){ $omitidos++; continue; }
+        if($sub==='eliminar'){
+            mysqli_query($con,"DELETE FROM alumnos WHERE id=$id");
+            log_audit($con,$uid,'ALUMNO_DELETE',"ID=$id (lote)");
+            $ok++; continue;
+        }
+        if(!$al['usuario_id']){ $omitidos++; continue; }
+        $uidAlumno=(int)$al['usuario_id'];
+        if($sub==='aprobar'){
+            mysqli_query($con,"UPDATE usuarios SET aprobado=1 WHERE id=$uidAlumno");
+            mysqli_query($con,"UPDATE alumnos SET regular=1 WHERE id=$id");
+            log_audit($con,$uid,'ALUMNO_APROBAR',"alumno=$id usuario=$uidAlumno (lote)");
+            notificar_usuario($con,$uidAlumno,'solicitud_aprobada','¡Tu ingreso fue aprobado!','Ya podés iniciar sesión e inscribirte en tus materias.');
+            mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
+        } else {
+            mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=$uidAlumno");
+            log_audit($con,$uid,'ALUMNO_RECHAZAR',"alumno=$id usuario=$uidAlumno (lote)");
+            notificar_usuario($con,$uidAlumno,'solicitud_rechazada','Tu solicitud de ingreso fue rechazada','Contactá a la administración si creés que es un error.');
+            mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
+        }
+        $ok++;
+    }
+    $msg="$ok alumno(s) actualizados.".($omitidos?" $omitidos omitido(s) (no aplica o no tiene solicitud pendiente).":'');
+    echo json_encode(['ok'=>true,'msg'=>$msg,'actualizados'=>$ok,'omitidos'=>$omitidos]); exit;
 }
 if($action==='alumno_list'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
@@ -839,6 +887,31 @@ if($action==='usuario_delete'){
     mysqli_query($con,"DELETE FROM usuarios WHERE id=$id");
     log_audit($con,$uid,'USUARIO_DELETE',"ID=$id");
     echo json_encode(['ok'=>true,'msg'=>'Usuario eliminado.']); exit;
+}
+
+// Activar/desactivar/eliminar varios usuarios a la vez (selección
+// múltiple) — la propia cuenta siempre se omite, igual que en las
+// versiones de a uno.
+if($action==='usuario_lote'){
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede hacer esto.']);exit;}
+    $sub=trim($_POST['sub_accion']??'');
+    if(!in_array($sub,['activar','desactivar','eliminar'],true)){echo json_encode(['ok'=>false,'msg'=>'Acción inválida.']);exit;}
+    $ids=array_values(array_unique(array_filter(array_map('intval',explode(',',trim($_POST['ids']??''))))));
+    if(!$ids){echo json_encode(['ok'=>false,'msg'=>'No hay usuarios seleccionados.']);exit;}
+    $ok=0; $omitidos=0;
+    foreach($ids as $id){
+        if($id===$uid){ $omitidos++; continue; }
+        if($sub==='eliminar'){
+            mysqli_query($con,"DELETE FROM usuarios WHERE id=$id");
+        } else {
+            $nuevo=$sub==='activar'?1:0;
+            mysqli_query($con,"UPDATE usuarios SET activo=$nuevo WHERE id=$id");
+        }
+        $ok++;
+    }
+    log_audit($con,$uid,'USUARIO_LOTE_'.strtoupper($sub),"ids=".implode(',',$ids)." ok=$ok");
+    $msg="$ok usuario(s) actualizados.".($omitidos?" $omitidos omitido(s) (tu propia cuenta no se puede modificar así).":'');
+    echo json_encode(['ok'=>true,'msg'=>$msg,'actualizados'=>$ok,'omitidos'=>$omitidos]); exit;
 }
 
 // Test de versión (para verificar que es el archivo correcto)

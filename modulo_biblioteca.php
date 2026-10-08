@@ -10,24 +10,37 @@ if(!in_array($_rol,['superadmin','admin','profesor'])){
 $esAdmin = in_array($_rol,['superadmin','admin']);
 ?>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem;">
-  <div class="tabs-nav" style="display:flex;gap:.4rem;">
+  <div class="tabs-nav" style="display:flex;gap:.4rem;flex-wrap:wrap;">
     <button class="btn btn-secondary tab-btn act" data-tab="catalogo" onclick="showTab('catalogo',this)">📚 <?=$esAdmin?'Catálogo':'Mis Libros'?></button>
     <?php if($esAdmin): ?>
     <button class="btn btn-secondary tab-btn" data-tab="compras" onclick="showTab('compras',this)">🧾 Solicitudes de Compra</button>
     <button class="btn btn-secondary tab-btn" data-tab="pago" onclick="showTab('pago',this)">💳 Datos de Pago</button>
     <?php endif; ?>
+    <button class="btn btn-secondary" onclick="IbbsExport.table('#tblLibros','biblioteca-ibbs')" title="Descargar esta lista como Excel/CSV">
+      <i class="bx bx-download"></i> Excel
+    </button>
+    <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_BIBLIOTECA)" title="Ver el tutorial de esta página otra vez">
+      <i class="bx bx-play-circle"></i> Tutorial
+    </button>
   </div>
-  <button class="btn btn-primary" onclick="abrirNuevoLibro()"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo Libro</button>
+  <button class="btn btn-primary" onclick="abrirNuevoLibro()" data-tour="bib-nuevo"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo Libro</button>
 </div>
 
 <!-- TAB: CATÁLOGO -->
 <div id="tab-catalogo" class="tab-pane">
-  <div class="card">
+  <div class="card" data-tour="bib-tabla">
     <div class="card-head"><h3><?=$esAdmin?'Todos los libros':'Los libros que subiste'?></h3></div>
+    <div id="barraLoteLibros" style="display:none;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--cream);border-bottom:1px solid var(--border);padding:.6rem 1rem;">
+      <span id="loteLibrosCount" style="font-size:.82rem;font-weight:700;color:var(--ink2);">0 seleccionados</span>
+      <button class="btn btn-sm btn-danger" onclick="eliminarLibrosSeleccionados()">🗑 Eliminar seleccionados</button>
+      <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionLibros()" style="margin-left:auto;">Cancelar selección</button>
+    </div>
     <div class="tbl-wrap">
       <table id="tblLibros">
-        <thead><tr><th></th><th>Título</th><th>Autor</th><th>Categoría</th><th>Precio</th><?php if($esAdmin):?><th>Subido por</th><?php endif;?><th>Estado</th><th>Acciones</th></tr></thead>
-        <tbody id="tbodyLibros"><tr class="empty-row"><td colspan="8"><span class="spin"></span></td></tr></tbody>
+        <thead><tr>
+          <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllLibros" onchange="toggleAllLibros(this)" title="Seleccionar todo"></th>
+          <th></th><th>Título</th><th>Autor</th><th>Categoría</th><th>Precio</th><?php if($esAdmin):?><th>Subido por</th><?php endif;?><th>Estado</th><th>Acciones</th></tr></thead>
+        <tbody id="tbodyLibros"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
       </table>
     </div>
   </div>
@@ -123,9 +136,11 @@ document.addEventListener('ibbs:ready', () => loadLibros());
 async function loadLibros(){
   const d = await ajax('libro_list', {}, 'api/biblioteca.php');
   const tb = document.getElementById('tbodyLibros');
-  if(!d?.ok){ tb.innerHTML = `<tr class="empty-row"><td colspan="8">${d?.msg||'Error al conectar'}</td></tr>`; return; }
-  if(!d.data.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="8">Sin libros todavía.</td></tr>'; return; }
+  limpiarSeleccionLibros();
+  if(!d?.ok){ tb.innerHTML = `<tr class="empty-row"><td colspan="9">${d?.msg||'Error al conectar'}</td></tr>`; return; }
+  if(!d.data.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="9">Sin libros todavía.</td></tr>'; return; }
   tb.innerHTML = d.data.map(r => `<tr>
+    <td style="text-align:center;"><input type="checkbox" class="chkLibro" value="${r.id}" onchange="actualizarBarraLoteLibros()"></td>
     <td>${r.portada?`<img class="libro-cover" src="${r.portada}">`:'📖'}</td>
     <td><strong>${h(r.titulo)}</strong></td>
     <td style="font-size:.82rem;">${h(r.autor||'—')}</td>
@@ -202,6 +217,46 @@ async function eliminarLibro(id, titulo){
     if(d?.ok){ toast(d.msg); loadLibros(); } else Ibbs.error(d?.msg||'Error');
   });
 }
+
+function toggleAllLibros(cb){
+  document.querySelectorAll('.chkLibro').forEach(c => c.checked = cb.checked);
+  actualizarBarraLoteLibros();
+}
+function actualizarBarraLoteLibros(){
+  const n = document.querySelectorAll('.chkLibro:checked').length;
+  const total = document.querySelectorAll('.chkLibro').length;
+  const chkAll = document.getElementById('chkAllLibros');
+  chkAll.checked = total>0 && n===total;
+  chkAll.indeterminate = n>0 && n<total;
+  document.getElementById('barraLoteLibros').style.display = n ? 'flex' : 'none';
+  if(n) document.getElementById('loteLibrosCount').textContent = n + (n===1?' seleccionado':' seleccionados');
+}
+function limpiarSeleccionLibros(){
+  document.querySelectorAll('.chkLibro').forEach(c => c.checked = false);
+  const chkAll = document.getElementById('chkAllLibros');
+  if(chkAll){ chkAll.checked = false; chkAll.indeterminate = false; }
+  const barra = document.getElementById('barraLoteLibros');
+  if(barra) barra.style.display = 'none';
+}
+async function eliminarLibrosSeleccionados(){
+  const ids = Array.from(document.querySelectorAll('.chkLibro:checked')).map(c => c.value);
+  if(!ids.length) return;
+  const rr = await Ibbs.confirm({title:'¿Eliminar libros?', text:`Se eliminarán ${ids.length} libro(s) y sus archivos. Esta acción es irreversible.`, confirm:'Sí, eliminar', danger:true});
+  if(!rr.isConfirmed) return;
+  const d = await ajax('libro_eliminar_lote', {ids: ids.join(',')}, 'api/biblioteca.php');
+  if(d?.ok){ toast(d.msg); loadLibros(); } else toast(d?.msg||'Error', 'err');
+}
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_BIBLIOTECA = {
+  storageKey: 'ibbs_tour_biblioteca_v1',
+  steps: [
+    { selector: '[data-tour="bib-nuevo"]', title: 'Subir un libro', text: 'Cargá el archivo (PDF o EPUB), portada y precio — si el precio es 0 queda gratis para quien lo descargue.' },
+    { selector: '[data-tour="bib-tabla"]', title: 'Gestionar el catálogo', text: 'Editá, ocultá o eliminá cada libro. Marcando varios (o todos con la casilla del encabezado) podés eliminarlos de una.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_BIBLIOTECA));
 
 <?php if($esAdmin): ?>
 async function loadCompras(){

@@ -9,11 +9,19 @@ if(!in_array($_rol,['superadmin','admin'])){
 }
 
 ?>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
-  <a href="api/export_plantilla.php?tipo=alumnos" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
-  <button class="btn btn-primary" onclick="openModal('mCA')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo Alumno</button>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem;">
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+    <a href="api/export_plantilla.php?tipo=alumnos" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
+    <button class="btn btn-secondary" onclick="IbbsExport.table('#tblA','alumnos-ibbs')" title="Descargar esta lista como Excel/CSV">
+      <i class="bx bx-download"></i> Excel
+    </button>
+    <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_ALUMNOS)" title="Ver el tutorial de esta página otra vez">
+      <i class="bx bx-play-circle"></i> Tutorial
+    </button>
+  </div>
+  <button class="btn btn-primary" onclick="openModal('mCA')" data-tour="alum-nuevo"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo Alumno</button>
 </div>
-<div class="card">
+<div class="card" data-tour="alum-tabla">
   <div class="card-head">
     <h3>Registro de Alumnos</h3>
     <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
@@ -27,10 +35,19 @@ if(!in_array($_rol,['superadmin','admin'])){
       </div>
     </div>
   </div>
+  <div id="barraLoteAlum" style="display:none;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--cream);border-bottom:1px solid var(--border);padding:.6rem 1rem;">
+    <span id="loteAlumCount" style="font-size:.82rem;font-weight:700;color:var(--ink2);">0 seleccionados</span>
+    <button class="btn btn-sm btn-success" onclick="loteAccionAlumnos('aprobar')" title="Aprueba la solicitud de ingreso de los seleccionados que tengan una pendiente">✓ Aceptar solicitudes</button>
+    <button class="btn btn-sm btn-danger" onclick="loteAccionAlumnos('rechazar')" title="Rechaza la solicitud de ingreso de los seleccionados que tengan una pendiente">✕ Rechazar solicitudes</button>
+    <button class="btn btn-sm btn-danger" onclick="loteAccionAlumnos('eliminar')">🗑 Eliminar</button>
+    <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionAlumnos()" style="margin-left:auto;">Cancelar selección</button>
+  </div>
   <div class="tbl-wrap">
     <table id="tblA">
-      <thead><tr><th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Solicitud</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyA"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
+      <thead><tr>
+        <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllAlum" onchange="toggleAllAlumnos(this)" title="Seleccionar todo"></th>
+        <th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Solicitud</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyA"><tr class="empty-row"><td colspan="10"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -108,10 +125,13 @@ if(!in_array($_rol,['superadmin','admin'])){
 document.addEventListener('ibbs:ready', () => loadAlumnos());
 async function loadAlumnos(){
   const ciudad=document.getElementById('filtCiudad').value.trim();
-  console.log('[IBBS] Calling alumno_list...'); const d=await ajax('alumno_list',{ciudad}); console.log('[IBBS] alumno_list response:', d); if(!d?.ok){ document.getElementById('tbodyA').innerHTML='<tr class="empty-row"><td colspan="9">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  console.log('[IBBS] Calling alumno_list...'); const d=await ajax('alumno_list',{ciudad}); console.log('[IBBS] alumno_list response:', d);
+  limpiarSeleccionAlumnos();
+  if(!d?.ok){ document.getElementById('tbodyA').innerHTML='<tr class="empty-row"><td colspan="10">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
   const tb=document.getElementById('tbodyA');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="9">Sin alumnos.</td></tr>';return;}
+  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="10">Sin alumnos.</td></tr>';return;}
   tb.innerHTML=d.data.map(r=>`<tr>
+    <td style="text-align:center;"><input type="checkbox" class="chkAlum" value="${r.id}" onchange="actualizarBarraLoteAlumnos()"></td>
     <td><strong>${r.cedula}</strong></td>
     <td>
       <div style="display:flex;align-items:center;gap:.6rem;">
@@ -214,6 +234,52 @@ async function delA(id,n){
   });
 }
 function filterTable(t,q){document.querySelectorAll('#'+t+' tbody tr:not(.empty-row)').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none');}
+
+function toggleAllAlumnos(cb){
+  document.querySelectorAll('.chkAlum').forEach(c => c.checked = cb.checked);
+  actualizarBarraLoteAlumnos();
+}
+function actualizarBarraLoteAlumnos(){
+  const n = document.querySelectorAll('.chkAlum:checked').length;
+  const total = document.querySelectorAll('.chkAlum').length;
+  const chkAll = document.getElementById('chkAllAlum');
+  chkAll.checked = total>0 && n===total;
+  chkAll.indeterminate = n>0 && n<total;
+  document.getElementById('barraLoteAlum').style.display = n ? 'flex' : 'none';
+  if(n) document.getElementById('loteAlumCount').textContent = n + (n===1?' seleccionado':' seleccionados');
+}
+function limpiarSeleccionAlumnos(){
+  document.querySelectorAll('.chkAlum').forEach(c => c.checked = false);
+  const chkAll = document.getElementById('chkAllAlum');
+  if(chkAll){ chkAll.checked = false; chkAll.indeterminate = false; }
+  const barra = document.getElementById('barraLoteAlum');
+  if(barra) barra.style.display = 'none';
+}
+const LOTE_ALUM_TEXTOS = {
+  aprobar:  {title:'¿Aceptar solicitudes?', text:'Se aprueban los seleccionados que tengan una solicitud de ingreso pendiente (el resto se omite).', confirm:'Sí, aceptar', danger:false},
+  rechazar: {title:'¿Rechazar solicitudes?', text:'Se rechazan los seleccionados que tengan una solicitud pendiente — su cuenta queda desactivada.', confirm:'Sí, rechazar', danger:true},
+  eliminar: {title:'¿Eliminar alumnos?', text:'Esta acción es irreversible.', confirm:'Sí, eliminar', danger:true},
+};
+async function loteAccionAlumnos(sub){
+  const ids = Array.from(document.querySelectorAll('.chkAlum:checked')).map(c => c.value);
+  if(!ids.length) return;
+  const t = LOTE_ALUM_TEXTOS[sub];
+  const rr = await Ibbs.confirm({title:t.title, text:t.text, confirm:t.confirm, danger:t.danger});
+  if(!rr.isConfirmed) return;
+  const d = await ajax('alumno_lote', {sub_accion: sub, ids: ids.join(',')});
+  if(d?.ok){ toast(d.msg); loadAlumnos(); } else toast(d?.msg||'Error', 'err');
+}
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_ALUMNOS = {
+  storageKey: 'ibbs_tour_alumnos_v1',
+  steps: [
+    { selector: '[data-tour="alum-nuevo"]', title: 'Registrar un alumno', text: 'Carga manual — para cuando el alumno no se inscribe solo desde su portal.' },
+    { selector: '[data-tour="alum-tabla"]', title: 'Gestionar alumnos', text: 'Aceptá o rechazá solicitudes de ingreso, editá, mirá el perfil, generá constancias o eliminá. Marcando varios (o todos con la casilla del encabezado) podés aceptar, rechazar o eliminar en lote.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_ALUMNOS));
 
 function filtrarAlumnos() {
   const qN = (document.getElementById('fAlumNombre')?.value||'').toLowerCase();

@@ -231,6 +231,28 @@ if ($action === 'libro_delete') {
     echo json_encode(['ok'=>true,'msg'=>'Libro eliminado.']); exit;
 }
 
+// Eliminar varios libros a la vez — mismo chequeo de permiso por
+// libro que la versión de a uno (admin/superadmin, o el profesor
+// dueño de ese libro). El resto se omite en vez de fallar todo el lote.
+if ($action === 'libro_eliminar_lote') {
+    $ids = array_values(array_unique(array_filter(array_map('intval', explode(',', trim($_POST['ids'] ?? ''))))));
+    if (!$ids) json_fail('No hay libros seleccionados.');
+    $ok = 0; $omitidos = 0;
+    foreach ($ids as $id) {
+        $libro = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM libros WHERE id=$id LIMIT 1"));
+        if (!$libro) { $omitidos++; continue; }
+        $puede = in_array($rol, ['superadmin','admin']) || ((int)$libro['creado_por'] === $uid);
+        if (!$puede) { $omitidos++; continue; }
+        mysqli_query($con, "DELETE FROM libros WHERE id=$id");
+        if ($libro['portada'] && file_exists(__DIR__.'/../'.$libro['portada'])) @unlink(__DIR__.'/../'.$libro['portada']);
+        if ($libro['archivo'] && file_exists(__DIR__.'/../'.$libro['archivo'])) @unlink(__DIR__.'/../'.$libro['archivo']);
+        log_audit($con, $uid, 'LIBRO_ELIMINAR', "ID=$id titulo=".$libro['titulo']." (lote)");
+        $ok++;
+    }
+    $msg = "$ok libro(s) eliminado(s)." . ($omitidos ? " $omitidos omitido(s) por falta de permiso." : '');
+    echo json_encode(['ok'=>true,'msg'=>$msg,'eliminados'=>$ok,'omitidos'=>$omitidos]); exit;
+}
+
 /* ════ DATOS DE PAGO DE LA INSTITUCIÓN ══════════════════════════ */
 if ($action === 'datos_pago_get') {
     $d = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM datos_pago WHERE id=1 LIMIT 1"));
