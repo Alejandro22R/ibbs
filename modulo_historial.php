@@ -10,8 +10,14 @@ if($_rol !== 'superadmin'){
 
 ?>
 
+<div style="display:flex;justify-content:flex-end;margin-bottom:.6rem;">
+  <button class="btn btn-secondary btn-sm" onclick="IbbsTour.replay(window.IBBS_TOUR_HISTORIAL)" title="Ver el tutorial de esta página otra vez">
+    <i class="bx bx-play-circle"></i> Tutorial
+  </button>
+</div>
+
 <!-- ═══ SUMMARY CARDS ════════════════════════════════════ -->
-<div id="resCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.7rem;margin-bottom:1.3rem;"></div>
+<div id="resCards" data-tour="hist-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.7rem;margin-bottom:1.3rem;"></div>
 
 <!-- ═══ TOOLBAR ══════════════════════════════════════════ -->
 <div class="card" style="margin-bottom:1rem;">
@@ -19,7 +25,7 @@ if($_rol !== 'superadmin'){
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.7rem;">
 
       <!-- Filtros -->
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;" data-tour="hist-filtros">
         <select id="filtTipo" onchange="cargar()" class="ibbs-sel">
           <option value="">Todos los tipos</option>
           <option value="nota">Notas</option>
@@ -329,6 +335,18 @@ function exportarCSV() {
 }
 
 document.addEventListener('ibbs:ready', () => cargar());
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_HISTORIAL = {
+  storageKey: 'ibbs_tour_historial_v1',
+  steps: [
+    { selector: '[data-tour="hist-resumen"]', title: 'Historial de Actividad', text: 'Todo lo que pasó en el sistema: notas cargadas, inscripciones, asistencias y cambios de usuarios — de un vistazo.' },
+    { selector: '[data-tour="hist-filtros"]', title: 'Filtrar', text: 'Filtrá por tipo de actividad o por fecha para encontrar algo puntual.' },
+    { selector: '#chkAll', title: 'Seleccionar y eliminar', text: 'Marcá uno o varios registros (o todos con esta casilla) para eliminarlos en lote, o exportá el historial filtrado a Excel/CSV.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_HISTORIAL));
 </script>
 
 <?php include __DIR__.'/layout/foot.php'; ?>

@@ -153,20 +153,25 @@ mysqli_close($con);
 <!-- ═══════════════════════════════════════════════════
   INTERFAZ DE PANTALLA (Para la Gestión de Alumnos)
 ═══════════════════════════════════════════════════════ -->
-<div class="no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem;">
+<div class="no-print" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; flex-wrap:wrap; gap:.8rem;">
   <div>
     <h2 style="font-family:'DM Serif Display', serif; font-size: 1.8rem; color: var(--ink);"><?= $page_title ?></h2>
     <p style="font-size: .85rem; color: var(--muted);"><?= $page_sub ?></p>
   </div>
-  <!-- Botón de acción para imprimir / guardar PDF oficial -->
-  <button id="btnPrint" class="btn btn-primary" onclick="window.print()" disabled style="display:flex; align-items:center; gap:0.5rem; background-color: #1a4d2e; border-color: #1a4d2e; color: #39ff14;">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-    Descargar PDF / Imprimir Constancia
-  </button>
+  <div style="display:flex;align-items:center;gap:.6rem;">
+    <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_RECORD)" title="Ver el tutorial de esta página otra vez">
+      <i class="bx bx-play-circle"></i> Tutorial
+    </button>
+    <!-- Botón de acción para imprimir / guardar PDF oficial -->
+    <button id="btnPrint" class="btn btn-primary" onclick="window.print()" disabled data-tour="rec-imprimir" style="display:flex; align-items:center; gap:0.5rem; background-color: #1a4d2e; border-color: #1a4d2e; color: #39ff14;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Descargar PDF / Imprimir Constancia
+    </button>
+  </div>
 </div>
 
 <!-- Buscador Dinámico de Alumno -->
-<div class="search-card no-print">
+<div class="search-card no-print" data-tour="rec-buscador">
   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1rem; margin-bottom:1rem;">
     <div class="field" style="margin:0;">
       <label>Buscar por Nombre o Apellido</label>
@@ -588,6 +593,17 @@ async function cargarRecordAlumno(id) {
 document.addEventListener('ibbs:ready', () => {
   filtrarAlumnosSelect();
 });
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_RECORD = {
+  storageKey: 'ibbs_tour_record_v1',
+  steps: [
+    { selector: '[data-tour="rec-buscador"]', title: 'Record Académico', text: 'Buscá por nombre o cédula y elegí un alumno — vas a ver todas sus materias, notas, asistencia y promedio por período de un vistazo.' },
+    { selector: '[data-tour="rec-imprimir"]', title: 'Constancia oficial', text: 'Una vez elegido el alumno, este botón se habilita y genera la Constancia de Calificaciones con el membrete institucional, lista para descargar o imprimir.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_RECORD));
 </script>
 
 <?php include __DIR__.'/layout/foot.php'; ?>

@@ -595,8 +595,8 @@ window.IBBS_TOUR_NOTAS = {
   storageKey: 'ibbs_tour_notas_v1',
   steps: [
     { selector: '[data-tour="notas-tab-materia"]', title: 'Por Materia', text: 'El día a día: elegís una materia y cargás la nota final de cada alumno inscrito, uno por uno.' },
-    { selector: '[data-tour="notas-tab-alumno"]', title: 'Histórico por Alumno', text: 'Para digitalizar notas en papel: elegís UN alumno y cargás de una vez todas sus materias y notas, agregando las que falten.' },
-    { selector: '[data-tour="notas-tab-excel"]', title: 'Importar desde Excel/CSV', text: 'Para cargar MUCHOS alumnos de una: subís una planilla con cédula/materia/período/nota y revisás qué va a pasar antes de confirmar nada.' },
+    { selector: '[data-tour="notas-tab-alumno"]', title: 'Histórico por Alumno — tu carpeta de notas en papel', text: '¿Tenés la carpeta de un alumno con 20 materias ya cursadas? Entrá acá, elegilo en el selector, y por cada materia de su carpeta: si no aparece en la lista, usá "+ Agregar al récord" para sumarla primero; después escribí la nota (0-20) en cada fila. Cuando termines todas, un solo clic en "Guardar todas las notas" las deja registradas en su expediente — no hace falta guardar una por una.' },
+    { selector: '[data-tour="notas-tab-excel"]', title: 'Importar desde Excel/CSV — para muchos alumnos de una', text: 'Si lo que tenés son planillas viejas de Excel con muchos alumnos: 1) "Descargar plantilla .csv" te da el formato exacto (cédula, materia, período, nota). 2) Llenala con tus datos y subila con "Ver vista previa" — te muestra fila por fila qué va a pasar, SIN guardar nada todavía. 3) Si se ve bien, "Confirmar e importar" la deja toda cargada de una. El alumno tiene que existir ya en el sistema; si una materia histórica no existe, se crea sola.' },
   ],
   auto: true,
 };

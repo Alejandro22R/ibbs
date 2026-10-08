@@ -17,8 +17,14 @@ while($f=mysqli_fetch_assoc($ra)) $lista_alumnos[]=$f;
 mysqli_close($con);
 ?>
 
+<div style="display:flex;justify-content:flex-end;margin-bottom:.6rem;">
+  <button class="btn btn-secondary btn-sm" onclick="IbbsTour.replay(window.IBBS_TOUR_HERRAMIENTAS)" title="Ver el tutorial de esta página otra vez">
+    <i class="bx bx-play-circle"></i> Tutorial
+  </button>
+</div>
+
 <!-- Sub-tabs nav -->
-<div class="tools-tabnav">
+<div class="tools-tabnav" data-tour="herr-tabs">
   <?php
   $tabs=[
     ['notif','<svg viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>', 'Notificaciones'],
@@ -981,6 +987,16 @@ async function generarCert() {
 
 // Load notifications - fallback triggers
 document.addEventListener('ibbs:ready', ()=>{ loadNotifs(); loadSolicitudes(); });
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_HERRAMIENTAS = {
+  storageKey: 'ibbs_tour_herramientas_v1',
+  steps: [
+    { selector: '[data-tour="herr-tabs"]', title: 'Herramientas', text: '"Notificaciones" para avisar algo a todos o a un grupo. "Solicitudes" para revisar notas que un profesor envió a aprobar. "Certificados" para generar constancias manuales. ' + (document.querySelector('[data-tab="audit"]') ? '"Historial de acciones" para auditar qué hizo cada usuario del sistema.' : '') },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_HERRAMIENTAS));
 window.addEventListener('load', ()=>{ 
   setTimeout(()=>{
     const el = document.getElementById('notifList');
