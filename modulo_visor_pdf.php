@@ -133,10 +133,10 @@ function actualizarLista() {
   }
   lista.innerHTML = nombres.map(n => {
     const activo = n === pdfActivo;
-    return `<div onclick="seleccionarPdf('${n.replace(/'/g,"\\'")}'')" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .7rem;border-radius:8px;cursor:pointer;margin-bottom:.2rem;background:${activo?'rgba(57,255,20,.08)':'transparent'};border:1px solid ${activo?'rgba(57,255,20,.2)':'transparent'};transition:all .15s;">
+    return `<div onclick="seleccionarPdf('${n.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;gap:.5rem;padding:.55rem .7rem;border-radius:8px;cursor:pointer;margin-bottom:.2rem;background:${activo?'rgba(57,255,20,.08)':'transparent'};border:1px solid ${activo?'rgba(57,255,20,.2)':'transparent'};transition:all .15s;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${activo?'var(--lime)':'var(--muted)'}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       <span style="flex:1;font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:${activo?'var(--lime)':'var(--ink)'};font-weight:${activo?700:400};" title="${n}">${n}</span>
-      <span onclick="event.stopPropagation();cerrarPdf('${n.replace(/'/g,"\\'")}'')" style="color:var(--muted);font-size:.9rem;line-height:1;cursor:pointer;padding:.1rem .2rem;border-radius:4px;" title="Cerrar">×</span>
+      <span onclick="event.stopPropagation();cerrarPdf('${n.replace(/'/g,"\\'")}')" style="color:var(--muted);font-size:.9rem;line-height:1;cursor:pointer;padding:.1rem .2rem;border-radius:4px;" title="Cerrar">×</span>
     </div>`;
   }).join('');
 }
