@@ -220,8 +220,14 @@ if($action==='materia_add_docente'){
             }
         }
     }
-    $st=mysqli_prepare($con,"INSERT INTO materia_docente(materia_id,docente_id) VALUES(?,?)");
+    // asignado_en: NULL en filas viejas (de antes de este seguimiento),
+    // con fecha solo en las asignaciones hechas de acá en adelante —
+    // así el "expediente" del docente cuenta materias dictadas desde
+    // que se activó el seguimiento, sin inventar fechas para el pasado.
+    mysqli_query($con,"ALTER TABLE materia_docente ADD COLUMN IF NOT EXISTS asignado_en DATETIME NULL DEFAULT NULL");
+    $st=mysqli_prepare($con,"INSERT INTO materia_docente(materia_id,docente_id,asignado_en) VALUES(?,?,NOW())");
     mysqli_stmt_bind_param($st,'ii',$mid,$did); mysqli_stmt_execute($st);
+    log_audit($con,$uid,'MATERIA_DOCENTE_ASIGNAR',"materia=$mid docente=$did");
     echo json_encode(['ok'=>true,'msg'=>'Docente asignado.']); exit;
 }
 if($action==='materia_remove_docente'){
@@ -509,8 +515,11 @@ if($action==='docente_get'){
     $id=(int)($_POST['id']??0);
     $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM docentes WHERE id=$id"));
     if(!$f){echo json_encode(['ok'=>false,'msg'=>'No encontrado.']);exit;}
-    $rm=mysqli_query($con,"SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado FROM materias m JOIN materia_docente md ON md.materia_id=m.id WHERE md.docente_id=$id");
-    $f['materias']=[]; while($m=mysqli_fetch_assoc($rm)) $f['materias'][]=$m;
+    mysqli_query($con,"ALTER TABLE materia_docente ADD COLUMN IF NOT EXISTS asignado_en DATETIME NULL DEFAULT NULL");
+    $rm=mysqli_query($con,"SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado,md.asignado_en FROM materias m JOIN materia_docente md ON md.materia_id=m.id WHERE md.docente_id=$id");
+    $f['materias']=[]; $enExpediente=0;
+    while($m=mysqli_fetch_assoc($rm)){ if($m['asignado_en']) $enExpediente++; $f['materias'][]=$m; }
+    $f['materias_expediente']=$enExpediente;
     $ra=mysqli_query($con,"SELECT estado,COUNT(*) cnt FROM asistencias WHERE docente_id=$id AND tipo='docente' GROUP BY estado");
     $f['asistencias']=[]; while($a=mysqli_fetch_assoc($ra)) $f['asistencias'][$a['estado']]=(int)$a['cnt'];
     echo json_encode(['ok'=>true,'data'=>$f]); exit;

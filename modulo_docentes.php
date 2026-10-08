@@ -127,7 +127,7 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
 <!-- MODAL PERFIL -->
 <div class="modal-backdrop" id="mPD">
   <div class="modal md">
-    <div class="modal-head"><h3>Perfil del Docente</h3>
+    <div class="modal-head"><h3>Perfil y Expediente del Docente</h3>
       <button class="modal-close" onclick="closeModal('mPD')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body" id="perfilD"></div>
@@ -311,12 +311,17 @@ async function verPerfil(id){
         <span class="profile-chip ${r.activo?'lime':''}">${r.activo?'Activo':'Inactivo'}</span>
       </div>
     </div>
-    <div class="form-grid" style="margin-bottom:1.5rem;">
-      <div style="background:var(--cream);border-radius:12px;padding:1rem;text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:2rem;">${r.materias.length}</div><div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Materias</div></div>
+    <div class="form-grid" style="margin-bottom:1rem;">
+      <div style="background:var(--cream);border-radius:12px;padding:1rem;text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:2rem;">${r.materias.length}</div><div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Materias (total)</div></div>
+      <div style="background:var(--cream);border-radius:12px;padding:1rem;text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:2rem;color:var(--lime2);">${r.materias_expediente}</div><div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">En expediente</div></div>
       <div style="background:var(--cream);border-radius:12px;padding:1rem;text-align:center;"><div style="font-family:'DM Serif Display',serif;font-size:2rem;">${tot}</div><div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);">Asistencias</div></div>
     </div>
+    <p style="font-size:.72rem;color:var(--muted);margin-bottom:1rem;">El "expediente" cuenta las materias asignadas <strong>desde que se activó este seguimiento</strong> — las asignaciones de antes no se cargaron retroactivamente.</p>
     <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.6rem;">Materias</p>
-    ${r.materias.length?r.materias.map(m=>`<div style="display:flex;justify-content:space-between;padding:.55rem .8rem;background:var(--cream);border-radius:8px;margin-bottom:.35rem;font-size:.85rem;"><span><strong>${m.codigo}</strong> · ${m.nombre}</span><span class="badge ${m.estado==='culminada'?'b-presente':'b-tardanza'}" style="font-size:.68rem;">${m.estado||'en_curso'}</span></div>`).join(''):'<em style="color:var(--muted);font-size:.84rem;">Sin materias.</em>'}
+    ${r.materias.length?r.materias.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem .8rem;background:var(--cream);border-radius:8px;margin-bottom:.35rem;font-size:.85rem;">
+      <span><strong>${m.codigo}</strong> · ${m.nombre}${m.asignado_en?` <span style="font-size:.68rem;color:var(--muted);">— asignada ${m.asignado_en.substring(0,10)}</span>`:''}</span>
+      <span class="badge ${m.estado==='culminada'?'b-presente':'b-tardanza'}" style="font-size:.68rem;">${m.estado||'en_curso'}</span>
+    </div>`).join(''):'<em style="color:var(--muted);font-size:.84rem;">Sin materias.</em>'}
     <hr class="divider">
     <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.6rem;">Asistencias</p>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">${Object.entries({presente:'b-presente',ausente:'b-ausente',tardanza:'b-tardanza',justificado:'b-justificado'}).map(([k,c])=>`<span class="badge ${c}">${k}: ${asist[k]||0}</span>`).join('')}</div>`;
@@ -386,7 +391,7 @@ window.IBBS_TOUR_DOCENTES = {
   storageKey: 'ibbs_tour_docentes_v1',
   steps: [
     { selector: '[data-tour="doc-nuevo"]', title: 'Registrar un docente', text: 'Carga el docente y le creás de una su cuenta de acceso (foro, aula virtual, tareas) con una contraseña inicial.' },
-    { selector: '[data-tour="doc-tabla"]', title: 'Gestionar docentes', text: 'Asigná materias, mirá el perfil con sus materias y asistencias, generá la Constancia de Trabajo o eliminá. Marcando varios (o todos con la casilla del encabezado) podés eliminar en lote.' },
+    { selector: '[data-tour="doc-tabla"]', title: 'Gestionar docentes', text: 'Asigná materias, mirá el "Perfil" (incluye su expediente: cuántas materias dictó desde que se activó el seguimiento), generá la Constancia de Trabajo o eliminá. Marcando varios (o todos con la casilla del encabezado) podés eliminar en lote.' },
   ],
   auto: true,
 };

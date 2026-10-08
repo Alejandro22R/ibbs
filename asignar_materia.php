@@ -34,7 +34,8 @@ if (mysqli_num_rows($resultado) > 0) {
 }
 
 // 2. Insertar la nueva asignación
-$stmt = mysqli_prepare($con, "INSERT INTO materia_docente (docente_id, materia_id) VALUES (?, ?)");
+mysqli_query($con, "ALTER TABLE materia_docente ADD COLUMN IF NOT EXISTS asignado_en DATETIME NULL DEFAULT NULL");
+$stmt = mysqli_prepare($con, "INSERT INTO materia_docente (docente_id, materia_id, asignado_en) VALUES (?, ?, NOW())");
 mysqli_stmt_bind_param($stmt, "ii", $docente_id, $materia_id);
 
 if (mysqli_stmt_execute($stmt)) {
