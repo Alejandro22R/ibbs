@@ -11,7 +11,7 @@ if(!in_array($_rol,['superadmin','admin'])){
 ?>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;gap:.6rem;flex-wrap:wrap;">
   <a href="api/export_plantilla.php?tipo=materias" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
-  <div style="display:flex;gap:.6rem;">
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
     <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_MATERIAS)" title="Ver el tutorial de esta página otra vez">
       <i class="bx bx-play-circle"></i> Tutorial
     </button>

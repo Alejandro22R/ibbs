@@ -555,7 +555,10 @@ tr:hover td { background:rgba(46,204,16,.045); }
 .profile-chip.lime { background:rgba(57,255,20,.15); color:var(--lime); }
 
 /* ══ TABS ════════════════════════════════════════════════════ */
-.tabs-nav { display:flex; border-bottom:2px solid var(--border); margin-bottom:1.5rem; gap:0; }
+/* overflow-x:auto — en pantallas angostas, con 3+ pestañas (ej. Cargar
+   Notas) la última quedaba cortada fuera de la pantalla sin forma de
+   llegar a ella; ahora se puede deslizar en vez de perderse. */
+.tabs-nav { display:flex; border-bottom:2px solid var(--border); margin-bottom:1.5rem; gap:0; overflow-x:auto; -webkit-overflow-scrolling:touch; }
 .tab-btn {
   padding:.6rem 1.2rem; background:none; border:none; position:relative;
   font-family:'Nunito',sans-serif; font-size:.84rem; font-weight:500;
