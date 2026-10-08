@@ -12,17 +12,20 @@ if(!in_array($_rol,['superadmin','admin'])){
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;gap:.6rem;flex-wrap:wrap;">
   <a href="api/export_plantilla.php?tipo=materias" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
   <div style="display:flex;gap:.6rem;">
-    <button class="btn btn-secondary" onclick="abrirGestorPeriodos()" title="Los años/semestres en los que se dictan las materias — útil para ordenar el historial académico">
+    <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_MATERIAS)" title="Ver el tutorial de esta página otra vez">
+      <i class="bx bx-play-circle"></i> Tutorial
+    </button>
+    <button class="btn btn-secondary" onclick="abrirGestorPeriodos()" title="Los años/semestres en los que se dictan las materias — útil para ordenar el historial académico" data-tour="mat-periodos">
       <i class="bx bx-calendar"></i> Períodos
     </button>
-    <button class="btn btn-primary" onclick="openModal('mCreateMateria')">
+    <button class="btn btn-primary" onclick="openModal('mCreateMateria')" data-tour="mat-nueva">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Nueva Materia
     </button>
   </div>
 </div>
 
-<div class="card">
+<div class="card" data-tour="mat-tabla">
   <div class="card-head">
     <h3>Materias registradas</h3>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
@@ -573,6 +576,18 @@ async function cargarPlanNotasMateria() {
 
   cont.innerHTML = resumen + tabla;
 }
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_MATERIAS = {
+  storageKey: 'ibbs_tour_materias_v1',
+  steps: [
+    { selector: '[data-tour="mat-nueva"]', title: 'Crear una materia', text: 'Acá creás cada materia que se dicta: nombre, código, días/horario y el docente asignado — todo desde un mismo formulario.' },
+    { selector: '[data-tour="mat-periodos"]', title: 'Períodos académicos', text: 'Antes de cargar materias de años anteriores, creá acá el período (año/semestre) al que pertenecen — eso permite ver después, en el Récord del alumno, en qué año cursó cada cosa.' },
+    { selector: '[data-tour="mat-tabla"]', title: 'Editar, inscribir, culminar', text: 'Desde "Editar" podés asignar docentes, inscribir alumnos y ver sus calificaciones de esa materia. El botón "Culminar" marca la materia como terminada; la nota final siempre se carga desde Cargar Notas, no desde acá.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_MATERIAS));
 </script>
 
 <?php include __DIR__.'/layout/foot.php'; ?>

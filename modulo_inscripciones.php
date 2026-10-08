@@ -15,7 +15,12 @@ while($f=mysqli_fetch_assoc($r)) $alumnos_list[]=$f;
 mysqli_close($con);
 ?>
 
-<div class="card" style="margin-bottom:1.4rem;">
+<div style="display:flex;justify-content:flex-end;margin-bottom:.6rem;">
+  <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_INSCRIPCIONES)" title="Ver el tutorial de esta página otra vez">
+    <i class="bx bx-play-circle"></i> Tutorial
+  </button>
+</div>
+<div class="card" style="margin-bottom:1.4rem;" data-tour="insc-selector">
   <div class="card-body">
     <div class="field">
       <label>Seleccionar Alumno</label>
@@ -25,6 +30,7 @@ mysqli_close($con);
         <option value="<?=$a['id']?>"><?=htmlspecialchars($a['apellido'].', '.$a['nombre'])?> (<?=htmlspecialchars($a['cedula'])?>)</option>
         <?php endforeach; ?>
       </select>
+      <p style="font-size:.78rem;color:var(--muted);margin-top:.6rem;">Al elegir un alumno vas a poder inscribirlo en materias disponibles, ver sus materias actuales (con su nota, de solo lectura — para cargar/corregir una nota siempre desde "Cargar Notas") y exportar su planilla en PDF.</p>
     </div>
   </div>
 </div>
@@ -332,5 +338,15 @@ async function borrarCalif() {
 }
 
 function h(s) { const d = document.createElement('div'); d.textContent = String(s??''); return d.innerHTML; }
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_INSCRIPCIONES = {
+  storageKey: 'ibbs_tour_inscripciones_v1',
+  steps: [
+    { selector: '[data-tour="insc-selector"]', title: 'Inscripciones', text: 'Elegí un alumno para inscribirlo en materias disponibles o ver su planilla. Esta página es para gestionar inscripciones — las notas se cargan siempre desde "Cargar Notas".' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_INSCRIPCIONES));
 </script>
 <?php include __DIR__.'/layout/foot.php'; ?>

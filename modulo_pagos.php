@@ -24,13 +24,18 @@ mysqli_close($con);
         Registrás un cobro (mensualidad o inscripción) para un alumno. El alumno lo ve en su portal y sube su comprobante de pago, o vos lo marcás "Pagado" directo si te pagó en efectivo. Los datos bancarios/pago móvil que ve el alumno son los mismos que ya configuraste en Biblioteca › Datos de Pago.
       </div>
     </div>
-    <a href="modulo_biblioteca.php" class="btn" style="background:#fff;color:#15803d;font-weight:800;flex-shrink:0;" onclick="sessionStorage.setItem('ibbs_bib_tab','pago')">
-      <i class="bx bx-credit-card"></i> Ver Datos de Pago
-    </a>
+    <div style="display:flex;flex-direction:column;gap:.5rem;flex-shrink:0;">
+      <a href="modulo_biblioteca.php" class="btn" style="background:#fff;color:#15803d;font-weight:800;" onclick="sessionStorage.setItem('ibbs_bib_tab','pago')">
+        <i class="bx bx-credit-card"></i> Ver Datos de Pago
+      </a>
+      <button class="btn" style="background:rgba(255,255,255,.18);color:#fff;font-weight:700;" onclick="IbbsTour.replay(window.IBBS_TOUR_PAGOS)">
+        <i class="bx bx-play-circle"></i> Ver tutorial
+      </button>
+    </div>
   </div>
 </div>
 
-<div id="pagosInfoCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.8rem;margin-bottom:1.4rem;">
+<div id="pagosInfoCards" data-tour="pagos-resumen" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.8rem;margin-bottom:1.4rem;">
   <div class="empty-row" style="grid-column:1/-1;"><span class="spin"></span></div>
 </div>
 
@@ -50,7 +55,7 @@ mysqli_close($con);
         <option value="pagado">Pagado</option>
         <option value="rechazado">Rechazado</option>
       </select>
-      <button class="btn btn-primary" onclick="openModal('mCrearPago')">
+      <button class="btn btn-primary" onclick="openModal('mCrearPago')" data-tour="pagos-registrar">
         <i class="bx bx-plus"></i> Registrar cobro
       </button>
     </div>
@@ -205,5 +210,16 @@ async function eliminarPago(id){
   if(d?.ok){ toast(d.msg); loadPagos(); loadPagosResumen(); } else toast(d?.msg||'Error', 'err');
 }
 function h(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_PAGOS = {
+  storageKey: 'ibbs_tour_pagos_v1',
+  steps: [
+    { selector: '[data-tour="pagos-resumen"]', title: 'Resumen rápido', text: 'De un vistazo: cuántos cobros están pendientes, cuántos ya se pagaron, y los montos totales.' },
+    { selector: '[data-tour="pagos-registrar"]', title: 'Registrar un cobro', text: 'Elegís el alumno, si es mensualidad o inscripción, el monto y el concepto (ej. "Mensualidad Octubre 2026"). El alumno lo va a ver en su portal apenas lo registrés.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_PAGOS));
 </script>
 <?php include __DIR__.'/layout/foot.php'; ?>

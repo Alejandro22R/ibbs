@@ -25,10 +25,15 @@ mysqli_close($con);
 <!-- Un profesor solo necesita "Por Materia" (ve sus propias materias
      asignadas) — la carga histórica y la importación son trabajo
      administrativo de migración, no algo que un profesor haga. -->
-<div class="tabs-nav" data-tour="notas-tabs">
-  <button class="tab-btn active" data-tab-group="notas" data-tab="materia" onclick="switchTab('notas','materia')">Por Materia</button>
-  <button class="tab-btn" data-tab-group="notas" data-tab="alumno" onclick="switchTab('notas','alumno')">Histórico por Alumno</button>
-  <button class="tab-btn" data-tab-group="notas" data-tab="excel" onclick="switchTab('notas','excel')">Importar desde Excel/CSV</button>
+<div style="display:flex;justify-content:flex-end;margin-bottom:.6rem;">
+  <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_NOTAS)" title="Ver el tutorial de esta página otra vez">
+    <i class="bx bx-play-circle"></i> Tutorial
+  </button>
+</div>
+<div class="tabs-nav">
+  <button class="tab-btn active" data-tab-group="notas" data-tab="materia" onclick="switchTab('notas','materia')" data-tour="notas-tab-materia">Por Materia</button>
+  <button class="tab-btn" data-tab-group="notas" data-tab="alumno" onclick="switchTab('notas','alumno')" data-tour="notas-tab-alumno">Histórico por Alumno</button>
+  <button class="tab-btn" data-tab-group="notas" data-tab="excel" onclick="switchTab('notas','excel')" data-tour="notas-tab-excel">Importar desde Excel/CSV</button>
 </div>
 <?php endif; ?>
 
@@ -584,6 +589,18 @@ async function confirmarCSV() {
   document.getElementById('btnConfirmarCSV').disabled = true;
   Ibbs.success(`${d.resumen.ok} nota(s) importada(s) correctamente.`);
 }
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_NOTAS = {
+  storageKey: 'ibbs_tour_notas_v1',
+  steps: [
+    { selector: '[data-tour="notas-tab-materia"]', title: 'Por Materia', text: 'El día a día: elegís una materia y cargás la nota final de cada alumno inscrito, uno por uno.' },
+    { selector: '[data-tour="notas-tab-alumno"]', title: 'Histórico por Alumno', text: 'Para digitalizar notas en papel: elegís UN alumno y cargás de una vez todas sus materias y notas, agregando las que falten.' },
+    { selector: '[data-tour="notas-tab-excel"]', title: 'Importar desde Excel/CSV', text: 'Para cargar MUCHOS alumnos de una: subís una planilla con cédula/materia/período/nota y revisás qué va a pasar antes de confirmar nada.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_NOTAS));
 <?php endif; ?>
 </script>
 <?php include __DIR__.'/layout/foot.php'; ?>
