@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 21);
+define('IBBS_SCHEMA_VERSION', 23);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -42,6 +42,57 @@ if (!function_exists('ibbs_autoheal_schema')) {
         if (is_file($marcador)) return;
 
         $ddl = [
+            // 019_tareas_entregas_foro_base.sql — `tareas`, `entregas` y
+            // `foro_mensajes` son de las funciones más viejas del campus
+            // (anteriores al sistema de migraciones) y nunca habían
+            // quedado enganchadas acá ni en ningún .sql del repo — solo
+            // existían porque alguien las creó a mano hace tiempo en la
+            // base de datos de producción. Un entorno nuevo (clonar el
+            // repo + base de datos vacía) se queda sin estas tres tablas
+            // y api/tareas.php y el Foro truenan con una pantalla en
+            // blanco apenas alguien las usa. Van primero en el array:
+            // las ALTER de 004/005/016/017 (más abajo) las dan por
+            // existentes.
+            "CREATE TABLE IF NOT EXISTS `tareas` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `titulo` VARCHAR(200) NOT NULL,
+                `descripcion` TEXT DEFAULT NULL,
+                `archivo` VARCHAR(255) DEFAULT NULL,
+                `fecha_limite` DATETIME NOT NULL,
+                `nota_maxima` DECIMAL(5,2) DEFAULT 20.00,
+                `creado_en` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia` (`materia_id`),
+                CONSTRAINT `autoheal_tareas_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            "CREATE TABLE IF NOT EXISTS `entregas` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `tarea_id` INT(11) NOT NULL,
+                `alumno_id` INT(11) NOT NULL,
+                `texto_respuesta` TEXT DEFAULT NULL,
+                `archivo` VARCHAR(255) DEFAULT NULL,
+                `fecha_entrega` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                `nota` DECIMAL(5,2) DEFAULT NULL,
+                `observacion_docente` TEXT DEFAULT NULL,
+                PRIMARY KEY (`id`),
+                UNIQUE KEY `autoheal_uq_tarea_alumno` (`tarea_id`,`alumno_id`),
+                KEY `idx_alumno` (`alumno_id`),
+                CONSTRAINT `autoheal_entregas_ibfk_1` FOREIGN KEY (`tarea_id`) REFERENCES `tareas` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `autoheal_entregas_ibfk_2` FOREIGN KEY (`alumno_id`) REFERENCES `alumnos` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            "CREATE TABLE IF NOT EXISTS `foro_mensajes` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `usuario_nombre` VARCHAR(100) NOT NULL,
+                `rol` VARCHAR(20) NOT NULL DEFAULT 'alumno',
+                `mensaje` TEXT NOT NULL,
+                `respuesta_a` INT(11) DEFAULT NULL,
+                `fecha` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_respuesta_a` (`respuesta_a`),
+                CONSTRAINT `autoheal_foro_ibfk_1` FOREIGN KEY (`respuesta_a`) REFERENCES `foro_mensajes` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
             // 004_notificaciones_tiempo_real.sql
             "ALTER TABLE `notificaciones` MODIFY `tipo` VARCHAR(30) NOT NULL DEFAULT 'info'",
             "ALTER TABLE `notificaciones` ADD COLUMN IF NOT EXISTS `materia_id` INT(11) DEFAULT NULL AFTER `usuario_id`",
@@ -327,6 +378,30 @@ if (!function_exists('ibbs_autoheal_schema')) {
                 CONSTRAINT `autoheal_ne_ibfk_2` FOREIGN KEY (`docente_usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `autoheal_ne_ibfk_3` FOREIGN KEY (`revisado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            // 018_aula_secciones.sql — secciones/semanas del Aula Virtual
+            // (estilo Moodle): el docente agrupa anuncios/materiales/
+            // actividades en secciones tipo "Semana 1"; `seccion_id` nulo
+            // cae en el bucket "General" implícito de la UI. Sin FK formal
+            // a propósito — api/aula.php pone seccion_id=NULL en todo su
+            // contenido antes de borrar la sección.
+            "CREATE TABLE IF NOT EXISTS `aula_secciones` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `materia_id` INT(11) NOT NULL,
+                `titulo` VARCHAR(150) NOT NULL,
+                `descripcion` VARCHAR(500) DEFAULT NULL,
+                `orden` INT(11) NOT NULL DEFAULT 0,
+                `visible` TINYINT(1) NOT NULL DEFAULT 1,
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia_orden` (`materia_id`,`orden`),
+                CONSTRAINT `autoheal_asec_ibfk_1` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+            "ALTER TABLE `aula_anuncios` ADD COLUMN IF NOT EXISTS `seccion_id` INT(11) DEFAULT NULL AFTER `materia_id`",
+            "ALTER TABLE `aula_anuncios` ADD INDEX IF NOT EXISTS `idx_seccion` (`seccion_id`)",
+            "ALTER TABLE `aula_materiales` ADD COLUMN IF NOT EXISTS `seccion_id` INT(11) DEFAULT NULL AFTER `materia_id`",
+            "ALTER TABLE `aula_materiales` ADD INDEX IF NOT EXISTS `idx_seccion` (`seccion_id`)",
+            "ALTER TABLE `aula_actividades` ADD COLUMN IF NOT EXISTS `seccion_id` INT(11) DEFAULT NULL AFTER `materia_id`",
+            "ALTER TABLE `aula_actividades` ADD INDEX IF NOT EXISTS `idx_seccion` (`seccion_id`)",
         ];
 
         foreach ($ddl as $sql) {

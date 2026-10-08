@@ -69,11 +69,127 @@ if ($action === 'materia_info') {
     ]]); exit;
 }
 
+/* ════ SECCIONES (semanas/unidades, estilo Moodle) ═══════════ */
+if ($action === 'seccion_list') {
+    $mid = (int)($_POST['materia_id'] ?? 0);
+    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    $soloVisibles = !materia_puede_gestionar($con, $uid, $_rol, $mid);
+    $sql = "SELECT id,titulo,descripcion,orden,visible FROM aula_secciones WHERE materia_id=?".
+           ($soloVisibles ? " AND visible=1" : "")." ORDER BY orden, id";
+    $st = mysqli_prepare($con, $sql);
+    mysqli_stmt_bind_param($st, 'i', $mid);
+    mysqli_stmt_execute($st);
+    $r = mysqli_stmt_get_result($st);
+    $rows = []; while ($f = mysqli_fetch_assoc($r)) $rows[] = $f;
+    echo json_encode(['ok'=>true,'data'=>$rows]); exit;
+}
+
+if ($action === 'seccion_create') {
+    $mid = (int)($_POST['materia_id'] ?? 0);
+    if (!materia_puede_gestionar($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    $titulo = trim($_POST['titulo'] ?? '');
+    $descripcion = trim($_POST['descripcion'] ?? '');
+    if ($titulo === '') json_fail('Ponle un título a la sección.');
+    if (mb_strlen($titulo) > 150) json_fail('El título es muy largo.');
+
+    $stMax = mysqli_prepare($con, "SELECT COALESCE(MAX(orden),-1)+1 sig FROM aula_secciones WHERE materia_id=?");
+    mysqli_stmt_bind_param($stMax, 'i', $mid);
+    mysqli_stmt_execute($stMax);
+    $orden = (int)(mysqli_fetch_assoc(mysqli_stmt_get_result($stMax))['sig'] ?? 0);
+
+    $st = mysqli_prepare($con, "INSERT INTO aula_secciones(materia_id,titulo,descripcion,orden) VALUES(?,?,?,?)");
+    mysqli_stmt_bind_param($st, 'issi', $mid, $titulo, $descripcion, $orden);
+    if (!mysqli_stmt_execute($st)) json_fail('No se pudo crear la sección.');
+    log_audit($con, $uid, 'AULA_SECCION_CREATE', "materia=$mid");
+    echo json_encode(['ok'=>true,'msg'=>'Sección creada.','data'=>['id'=>mysqli_insert_id($con)]]); exit;
+}
+
+if ($action === 'seccion_update') {
+    $id  = (int)($_POST['id'] ?? 0);
+    $mid = (int)($_POST['materia_id'] ?? 0);
+    if (!materia_puede_gestionar($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    $titulo = trim($_POST['titulo'] ?? '');
+    $descripcion = trim($_POST['descripcion'] ?? '');
+    $visible = !empty($_POST['visible']) ? 1 : 0;
+    if ($titulo === '') json_fail('Ponle un título a la sección.');
+
+    $st = mysqli_prepare($con, "UPDATE aula_secciones SET titulo=?,descripcion=?,visible=? WHERE id=? AND materia_id=?");
+    mysqli_stmt_bind_param($st, 'ssiii', $titulo, $descripcion, $visible, $id, $mid);
+    mysqli_stmt_execute($st);
+    echo json_encode(['ok'=>true,'msg'=>'Sección actualizada.']); exit;
+}
+
+if ($action === 'seccion_delete') {
+    $id  = (int)($_POST['id'] ?? 0);
+    $mid = (int)($_POST['materia_id'] ?? 0);
+    if (!materia_puede_gestionar($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+
+    // Desagrupa el contenido (nunca lo borra) antes de quitar la sección.
+    foreach (['aula_anuncios','aula_materiales','aula_actividades'] as $tabla) {
+        $stN = mysqli_prepare($con, "UPDATE `$tabla` SET seccion_id=NULL WHERE seccion_id=? AND materia_id=?");
+        mysqli_stmt_bind_param($stN, 'ii', $id, $mid);
+        mysqli_stmt_execute($stN);
+    }
+    $st = mysqli_prepare($con, "DELETE FROM aula_secciones WHERE id=? AND materia_id=?");
+    mysqli_stmt_bind_param($st, 'ii', $id, $mid);
+    mysqli_stmt_execute($st);
+    log_audit($con, $uid, 'AULA_SECCION_DELETE', "id=$id");
+    echo json_encode(['ok'=>true,'msg'=>'Sección eliminada. Su contenido se movió a General.']); exit;
+}
+
+if ($action === 'seccion_reorder') {
+    $mid = (int)($_POST['materia_id'] ?? 0);
+    if (!materia_puede_gestionar($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    $orden = json_decode($_POST['orden'] ?? '[]', true);
+    if (!is_array($orden)) json_fail('Datos inválidos.');
+
+    $st = mysqli_prepare($con, "UPDATE aula_secciones SET orden=? WHERE id=? AND materia_id=?");
+    foreach ($orden as $pos => $seccionId) {
+        $seccionId = (int)$seccionId;
+        if (!$seccionId) continue;
+        mysqli_stmt_bind_param($st, 'iii', $pos, $seccionId, $mid);
+        mysqli_stmt_execute($st);
+    }
+    echo json_encode(['ok'=>true,'msg'=>'Orden guardado.']); exit;
+}
+
+// Confirma que, si se manda seccion_id, esa sección exista y sea de la
+// misma materia — evita colgar contenido de la sección de otra materia.
+if (!function_exists('aula_seccion_valida')) {
+    function aula_seccion_valida($con, $mid, $seccionId) {
+        if (!$seccionId) return null;
+        $st = mysqli_prepare($con, "SELECT id FROM aula_secciones WHERE id=? AND materia_id=? LIMIT 1");
+        mysqli_stmt_bind_param($st, 'ii', $seccionId, $mid);
+        mysqli_stmt_execute($st);
+        return mysqli_fetch_assoc(mysqli_stmt_get_result($st)) ? $seccionId : null;
+    }
+}
+
+// Mueve un anuncio/material/actividad existente a otra sección (o a
+// "General" si seccion_id llega vacío) sin tener que reabrir todo su
+// formulario de edición — usado por el selector de sección en cada
+// tarjeta de contenido del aula.
+if ($action === 'contenido_mover_seccion') {
+    $mid = (int)($_POST['materia_id'] ?? 0);
+    if (!materia_puede_gestionar($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    $tipo = trim($_POST['tipo'] ?? '');
+    $id   = (int)($_POST['id'] ?? 0);
+    $tablas = ['anuncio'=>'aula_anuncios','material'=>'aula_materiales','actividad'=>'aula_actividades'];
+    if (!isset($tablas[$tipo]) || !$id) json_fail('Contenido no válido.');
+    $seccionId = aula_seccion_valida($con, $mid, (int)($_POST['seccion_id'] ?? 0));
+
+    $tabla = $tablas[$tipo];
+    $st = mysqli_prepare($con, "UPDATE `$tabla` SET seccion_id=? WHERE id=? AND materia_id=?");
+    mysqli_stmt_bind_param($st, 'iii', $seccionId, $id, $mid);
+    mysqli_stmt_execute($st);
+    echo json_encode(['ok'=>true,'msg'=>'Movido.']); exit;
+}
+
 /* ════ ANUNCIOS ═════════════════════════════════════════════ */
 if ($action === 'anuncio_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
     if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
-    $st = mysqli_prepare($con, "SELECT a.id,a.titulo,a.contenido,a.fijado,a.creado_en,u.usuario autor
+    $st = mysqli_prepare($con, "SELECT a.id,a.titulo,a.contenido,a.fijado,a.seccion_id,a.creado_en,u.usuario autor
                                  FROM aula_anuncios a JOIN usuarios u ON u.id=a.usuario_id
                                  WHERE a.materia_id=? ORDER BY a.fijado DESC, a.creado_en DESC");
     mysqli_stmt_bind_param($st, 'i', $mid);
@@ -89,11 +205,12 @@ if ($action === 'anuncio_create') {
     $titulo    = trim($_POST['titulo'] ?? '');
     $contenido = trim($_POST['contenido'] ?? '');
     $fijado    = !empty($_POST['fijado']) ? 1 : 0;
+    $seccionId = aula_seccion_valida($con, $mid, (int)($_POST['seccion_id'] ?? 0));
     if ($titulo === '' || $contenido === '') json_fail('Completa título y contenido.');
     if (mb_strlen($titulo) > 150) json_fail('El título es muy largo.');
 
-    $st = mysqli_prepare($con, "INSERT INTO aula_anuncios(materia_id,usuario_id,titulo,contenido,fijado) VALUES(?,?,?,?,?)");
-    mysqli_stmt_bind_param($st, 'iissi', $mid, $uid, $titulo, $contenido, $fijado);
+    $st = mysqli_prepare($con, "INSERT INTO aula_anuncios(materia_id,usuario_id,titulo,contenido,fijado,seccion_id) VALUES(?,?,?,?,?,?)");
+    mysqli_stmt_bind_param($st, 'iissii', $mid, $uid, $titulo, $contenido, $fijado, $seccionId);
     if (!mysqli_stmt_execute($st)) json_fail('No se pudo publicar el anuncio.');
     log_audit($con, $uid, 'AULA_ANUNCIO_CREATE', "materia=$mid");
     notificar_materia($con, $mid, 'anuncio', "Nuevo anuncio: $titulo", $contenido, $uid);
@@ -107,12 +224,13 @@ if ($action === 'anuncio_update') {
     $titulo    = trim($_POST['titulo'] ?? '');
     $contenido = trim($_POST['contenido'] ?? '');
     $fijado    = !empty($_POST['fijado']) ? 1 : 0;
+    $seccionId = aula_seccion_valida($con, $mid, (int)($_POST['seccion_id'] ?? 0));
     if ($titulo === '' || $contenido === '') json_fail('Completa título y contenido.');
 
     // El WHERE incluye materia_id: evita editar un anuncio de otra materia
     // aunque alguien adivine el id.
-    $st = mysqli_prepare($con, "UPDATE aula_anuncios SET titulo=?, contenido=?, fijado=? WHERE id=? AND materia_id=?");
-    mysqli_stmt_bind_param($st, 'ssiii', $titulo, $contenido, $fijado, $id, $mid);
+    $st = mysqli_prepare($con, "UPDATE aula_anuncios SET titulo=?, contenido=?, fijado=?, seccion_id=? WHERE id=? AND materia_id=?");
+    mysqli_stmt_bind_param($st, 'ssiiii', $titulo, $contenido, $fijado, $seccionId, $id, $mid);
     mysqli_stmt_execute($st);
     echo json_encode(['ok'=>true,'msg'=>'Anuncio actualizado.']); exit;
 }
@@ -132,7 +250,7 @@ if ($action === 'anuncio_delete') {
 if ($action === 'material_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
     if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
-    $st = mysqli_prepare($con, "SELECT m.id,m.titulo,m.descripcion,m.archivo_nombre,m.archivo_tipo,m.tamano_bytes,m.creado_en,u.usuario autor
+    $st = mysqli_prepare($con, "SELECT m.id,m.titulo,m.descripcion,m.archivo_nombre,m.archivo_tipo,m.tamano_bytes,m.seccion_id,m.creado_en,u.usuario autor
                                  FROM aula_materiales m JOIN usuarios u ON u.id=m.usuario_id
                                  WHERE m.materia_id=? ORDER BY m.creado_en DESC");
     mysqli_stmt_bind_param($st, 'i', $mid);
@@ -193,9 +311,10 @@ if ($action === 'material_create') {
     $ruta = 'uploads/materiales/'.$fname;
     $nombreOriginal = mb_substr(basename($file['name']), 0, 255);
 
+    $seccionId = aula_seccion_valida($con, $mid, (int)($_POST['seccion_id'] ?? 0));
     $tamano = (int)$file['size'];
-    $st = mysqli_prepare($con, "INSERT INTO aula_materiales(materia_id,usuario_id,titulo,descripcion,archivo,archivo_nombre,archivo_tipo,tamano_bytes) VALUES(?,?,?,?,?,?,?,?)");
-    mysqli_stmt_bind_param($st, 'iisssssi', $mid, $uid, $titulo, $descripcion, $ruta, $nombreOriginal, $ext, $tamano);
+    $st = mysqli_prepare($con, "INSERT INTO aula_materiales(materia_id,usuario_id,titulo,descripcion,archivo,archivo_nombre,archivo_tipo,tamano_bytes,seccion_id) VALUES(?,?,?,?,?,?,?,?,?)");
+    mysqli_stmt_bind_param($st, 'iisssssii', $mid, $uid, $titulo, $descripcion, $ruta, $nombreOriginal, $ext, $tamano, $seccionId);
     if (!mysqli_stmt_execute($st)) { @unlink($dir.$fname); json_fail('No se pudo registrar el material.'); }
     log_audit($con, $uid, 'AULA_MATERIAL_CREATE', "materia=$mid archivo=$fname");
     notificar_materia($con, $mid, 'material', "Nuevo material: $titulo", $descripcion, $uid);
@@ -251,7 +370,7 @@ if ($action === 'material_download') {
 if ($action === 'actividad_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
     if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
-    $st = mysqli_prepare($con, "SELECT id,titulo,descripcion,tipo,nota_max,fecha,creado_en FROM aula_actividades WHERE materia_id=? ORDER BY (fecha IS NULL), fecha DESC, creado_en DESC");
+    $st = mysqli_prepare($con, "SELECT id,titulo,descripcion,tipo,nota_max,fecha,seccion_id,creado_en FROM aula_actividades WHERE materia_id=? ORDER BY (fecha IS NULL), fecha DESC, creado_en DESC");
     mysqli_stmt_bind_param($st, 'i', $mid);
     mysqli_stmt_execute($st);
     $r = mysqli_stmt_get_result($st);
@@ -267,20 +386,21 @@ if ($action === 'actividad_create' || $action === 'actividad_update') {
     $tipo        = trim($_POST['tipo'] ?? 'actividad');
     $notaMax     = (float)($_POST['nota_max'] ?? 20);
     $fecha       = trim($_POST['fecha'] ?? '') ?: null;
+    $seccionId   = aula_seccion_valida($con, $mid, (int)($_POST['seccion_id'] ?? 0));
     if ($titulo === '') json_fail('Ponle un título a la actividad.');
     if ($notaMax <= 0 || $notaMax > 1000) json_fail('La nota máxima no es válida.');
     if (!in_array($tipo, ['actividad','examen','taller','proyecto'])) $tipo = 'actividad';
 
     if ($action === 'actividad_create') {
-        $st = mysqli_prepare($con, "INSERT INTO aula_actividades(materia_id,usuario_id,titulo,descripcion,tipo,nota_max,fecha) VALUES(?,?,?,?,?,?,?)");
-        mysqli_stmt_bind_param($st, 'iisssds', $mid, $uid, $titulo, $descripcion, $tipo, $notaMax, $fecha);
+        $st = mysqli_prepare($con, "INSERT INTO aula_actividades(materia_id,usuario_id,titulo,descripcion,tipo,nota_max,fecha,seccion_id) VALUES(?,?,?,?,?,?,?,?)");
+        mysqli_stmt_bind_param($st, 'iisssdsi', $mid, $uid, $titulo, $descripcion, $tipo, $notaMax, $fecha, $seccionId);
         if (!mysqli_stmt_execute($st)) json_fail('No se pudo crear la actividad.');
         log_audit($con, $uid, 'AULA_ACTIVIDAD_CREATE', "materia=$mid");
         echo json_encode(['ok'=>true,'msg'=>'Actividad creada.']); exit;
     } else {
         $id = (int)($_POST['id'] ?? 0);
-        $st = mysqli_prepare($con, "UPDATE aula_actividades SET titulo=?,descripcion=?,tipo=?,nota_max=?,fecha=? WHERE id=? AND materia_id=?");
-        mysqli_stmt_bind_param($st, 'sssdsii', $titulo, $descripcion, $tipo, $notaMax, $fecha, $id, $mid);
+        $st = mysqli_prepare($con, "UPDATE aula_actividades SET titulo=?,descripcion=?,tipo=?,nota_max=?,fecha=?,seccion_id=? WHERE id=? AND materia_id=?");
+        mysqli_stmt_bind_param($st, 'sssdsiii', $titulo, $descripcion, $tipo, $notaMax, $fecha, $seccionId, $id, $mid);
         mysqli_stmt_execute($st);
         echo json_encode(['ok'=>true,'msg'=>'Actividad actualizada.']); exit;
     }

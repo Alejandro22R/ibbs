@@ -165,7 +165,45 @@ if ($action === 'ver_entregas') {
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
 
-/* ════ 5. DOCENTE: CALIFICAR ENTREGA ════════════════════════════════
+/* ════ 5. DOCENTE: ELIMINAR TAREA (y sus entregas) ═══════════════════ */
+if ($action === 'eliminar') {
+    $id  = (int)($_POST['id'] ?? 0);
+    $mid = (int)($_POST['materia_id'] ?? 0);
+    if (!materia_puede_gestionar($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+
+    // El WHERE incluye materia_id: evita borrar una tarea de otra materia
+    // aunque alguien adivine el id.
+    $st = mysqli_prepare($con, "SELECT archivo FROM tareas WHERE id=? AND materia_id=? LIMIT 1");
+    mysqli_stmt_bind_param($st, 'ii', $id, $mid);
+    mysqli_stmt_execute($st);
+    $tarea = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+    if (!$tarea) json_fail('Tarea no encontrada.');
+
+    // Borra los archivos de las entregas de los alumnos antes de que esas
+    // filas se vayan solas por el ON DELETE CASCADE de `entregas`.
+    $stArch = mysqli_prepare($con, "SELECT archivo FROM entregas WHERE tarea_id=? AND archivo IS NOT NULL");
+    mysqli_stmt_bind_param($stArch, 'i', $id);
+    mysqli_stmt_execute($stArch);
+    $r = mysqli_stmt_get_result($stArch);
+    while ($f = mysqli_fetch_assoc($r)) {
+        $ruta = __DIR__.'/../uploads/entregas/'.$f['archivo'];
+        if (is_file($ruta)) @unlink($ruta);
+    }
+
+    $stDel = mysqli_prepare($con, "DELETE FROM tareas WHERE id=? AND materia_id=?");
+    mysqli_stmt_bind_param($stDel, 'ii', $id, $mid);
+    if (!mysqli_stmt_execute($stDel)) json_fail('No se pudo eliminar la tarea.');
+
+    if ($tarea['archivo']) {
+        $ruta = __DIR__.'/../uploads/tareas/'.$tarea['archivo'];
+        if (is_file($ruta)) @unlink($ruta);
+    }
+
+    log_audit($con, $uid, 'TAREA_DELETE', "id=$id");
+    echo json_encode(['ok'=>true,'msg'=>'Tarea eliminada (y sus entregas).']); exit;
+}
+
+/* ════ 6. DOCENTE: CALIFICAR ENTREGA ════════════════════════════════
  * El frontend no manda materia_id acá — se obtiene de la propia
  * entrega (vía tarea) para poder validar el permiso igual. */
 if ($action === 'calificar') {
