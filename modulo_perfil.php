@@ -24,12 +24,10 @@ mysqli_close($con);
     <div class="card-body">
       <div id="fotoWrap" style="position:relative;display:inline-block;margin-bottom:1.2rem;">
         <div id="fotoCircle" style="width:110px;height:110px;border-radius:50%;overflow:hidden;background:var(--ink);display:flex;align-items:center;justify-content:center;margin:0 auto;border:3px solid var(--lime2);cursor:pointer;" onclick="document.getElementById('inputFoto').click()" title="Cambiar foto">
-          <?php if(!empty($u['foto'])): ?>
-            <img id="fotoImg" src="<?=htmlspecialchars($u['foto'])?>" style="width:100%;height:100%;object-fit:cover;">
-          <?php else: ?>
-            <span id="fotoIni" style="font-family:'DM Serif Display',serif;font-size:2.5rem;color:var(--lime);"><?=strtoupper(mb_substr($u['usuario'],0,1))?></span>
-            <img id="fotoImg" src="" style="width:100%;height:100%;object-fit:cover;display:none;">
-          <?php endif; ?>
+          <?php $tieneFoto = !empty($u['foto']); ?>
+          <span id="fotoIni" style="font-family:'DM Serif Display',serif;font-size:2.5rem;color:var(--lime);<?=$tieneFoto?'display:none;':''?>"><?=strtoupper(mb_substr($u['usuario'],0,1))?></span>
+          <img id="fotoImg" src="<?=$tieneFoto?htmlspecialchars($u['foto']):''?>" style="width:100%;height:100%;object-fit:cover;<?=$tieneFoto?'':'display:none;'?>"
+            onerror="this.style.display='none';const i=document.getElementById('fotoIni');if(i)i.style.display='';">
         </div>
         <div style="position:absolute;bottom:4px;right:4px;width:28px;height:28px;background:var(--lime2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:none;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>

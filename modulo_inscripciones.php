@@ -156,8 +156,11 @@ mysqli_close($con);
 let _aid = null;
 const MI_ROL = '<?=$_rol?>';
 
-// Cargar el select de exportar planilla
-(async () => {
+// Cargar el select de exportar planilla — tiene que esperar a
+// 'ibbs:ready': ajax() recién se define en layout/foot.php, que se
+// incluye DESPUÉS de este <script> (antes esto tiraba "ajax is not
+// defined" en cada carga de la página, sin excepción).
+document.addEventListener('ibbs:ready', async () => {
   const d = await ajax('materia_list');
   if (!d?.ok) return;
   const sel = document.getElementById('selMateriaExport');
@@ -167,7 +170,7 @@ const MI_ROL = '<?=$_rol?>';
     const btn = document.getElementById('btnExportPlanilla');
     btn.href = sel.value ? 'api/export_pdf.php?materia_id=' + sel.value : '#';
   };
-})();
+});
 
 async function cargarAlumno(id) {
   if (!id) {

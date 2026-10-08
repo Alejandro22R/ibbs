@@ -144,9 +144,17 @@ if(!in_array($_rol,['superadmin','admin'])){
       <i class="bx bx-data" style="font-size:1.1rem;color:var(--ink);"></i>
       Tablas de la base de datos
     </h3>
-    <span style="font-size:.74rem;color:var(--muted);">Qué guarda cada una, en palabras simples</span>
+    <button type="button" class="btn btn-sm btn-secondary" id="btnToggleTablas" onclick="toggleTablasDetalle()">
+      <span id="btnToggleTablasTxt">Ver detalle técnico</span> <i class="bx bx-chevron-down" id="btnToggleTablasIco"></i>
+    </button>
   </div>
-  <div class="card-body" style="padding:0;">
+  <!-- Colapsado por defecto: esta lista es para quien quiera revisar el
+       detalle técnico (tabla por tabla), no algo que alguien necesite ver
+       para exportar/importar/reiniciar — dejarla siempre abierta sumaba
+       una pantalla larga de scroll a una página que para la mayoría es
+       solo "descargar el respaldo y listo". -->
+  <div id="bkTablasBody" class="card-body" style="padding:0;display:none;">
+    <p style="font-size:.78rem;color:var(--muted);padding:.9rem 1.1rem 0;">Qué guarda cada tabla, en palabras simples.</p>
     <div class="tbl-wrap">
       <table>
         <thead>
@@ -194,6 +202,14 @@ if(!in_array($_rol,['superadmin','admin'])){
 </div>
 
 <script>
+function toggleTablasDetalle() {
+  const body = document.getElementById('bkTablasBody');
+  const abierto = body.style.display !== 'none';
+  body.style.display = abierto ? 'none' : '';
+  document.getElementById('btnToggleTablasTxt').textContent = abierto ? 'Ver detalle técnico' : 'Ocultar detalle técnico';
+  document.getElementById('btnToggleTablasIco').className = abierto ? 'bx bx-chevron-down' : 'bx bx-chevron-up';
+}
+
 // Nombre amigable + ícono + categoría de cada tabla, para que la
 // lista de abajo tenga sentido para alguien sin conocimientos de
 // informática. Las tablas que no estén acá (ej. una nueva migración)

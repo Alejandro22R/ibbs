@@ -139,36 +139,13 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <script src="assets/ibbs-shortcuts.js"></script>
     <script src="assets/ibbs-notif-bell.js"></script>
 
-    <!-- Tailwind CSS con Configuración de Tema IBBS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        ibbs: {
-                            ink: '#1a4d2e',
-                            ink2: '#1e5c36',
-                            cream: '#f5f0e8',
-                            paper: '#fdfaf4',
-                            lime: '#39ff14',
-                            lime2: '#2ecc10',
-                            muted: '#7a8c72',
-                            border: '#e0d8c8',
-                            green: '#16a34a',
-                            red: '#dc2626',
-                            amber: '#d97706',
-                            blue: '#2563eb'
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Nunito', 'sans-serif'],
-                        serif: ['Playfair Display', 'serif'],
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind CSS con el tema IBBS, compilado localmente (antes se
+         cargaba en vivo desde cdn.tailwindcss.com: si esa conexión fallaba
+         o era lenta, toda la página perdía sus estilos y se veía como una
+         columna de texto gigante sin formato — "la pantallita se pone
+         grande"). Para regenerar tras cambiar clases de Tailwind en este
+         archivo: ver assets/libs/tailwind/README.md -->
+    <link rel="stylesheet" href="assets/libs/tailwind/ibbs-alumno.css">
     
     <style>
         body { font-family: 'Nunito', sans-serif; background-color: #f5f0e8; }

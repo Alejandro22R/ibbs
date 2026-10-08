@@ -141,7 +141,8 @@ function can($perm){
   <div class="sb-bottom">
     <a href="modulo_perfil.php" class="sb-action" style="text-decoration:none;" data-tour="nav-perfil">
       <?php if($_foto): ?>
-        <img src="<?=htmlspecialchars($_foto)?>" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+        <img src="<?=htmlspecialchars($_foto)?>" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';">
+        <i class="bx bx-user-circle" style="display:none;"></i>
       <?php else: ?>
         <i class="bx bx-user-circle"></i>
       <?php endif; ?>
@@ -197,7 +198,8 @@ function can($perm){
   </div>
   <div class="user-pill">
     <?php if($_foto): ?>
-      <img src="<?=htmlspecialchars($_foto)?>" style="width:30px;height:30px;border-radius:50%;object-fit:cover;">
+      <img src="<?=htmlspecialchars($_foto)?>" style="width:30px;height:30px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <div class="user-ava" style="display:none;"><?=$_ini?></div>
     <?php else: ?>
       <div class="user-ava"><?=$_ini?></div>
     <?php endif; ?>

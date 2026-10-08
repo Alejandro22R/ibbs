@@ -190,27 +190,31 @@ let _mid=null;
 const MI_ROL='<?=$_rol?>';
 document.addEventListener('ibbs:ready', () => loadMaterias());
 
-(async()=>{
+// Ojo: esto tiene que esperar a 'ibbs:ready' — ajax() recién se define
+// en layout/foot.php, que se incluye DESPUÉS de este <script>. Antes
+// esto corría de una vez (IIFE sin esperar nada) y tiraba "ajax is not
+// defined" en cada carga de la página, sin excepción.
+document.addEventListener('ibbs:ready', async () => {
   // Cargar docentes para el modal de Crear y el de Editar
-  const d=await ajax('docente_all_simple'); 
+  const d=await ajax('docente_all_simple');
   if(d?.ok) {
     const opts = '<option value="">— Seleccionar —</option>'+d.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
-    
+
     // Para el modal de Editar
     const selAddD = document.getElementById('selAddD');
     if(selAddD) selAddD.innerHTML = opts;
-    
+
     // Para el modal de Crear Materia (recién incorporado)
     const selCreateD = document.getElementById('selCreateD');
     if(selCreateD) selCreateD.innerHTML = '<option value="">— Sin asignar —</option>'+d.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
   }
-  
+
   // Cargar alumnos para el modal de Editar
-  const a=await ajax('alumno_all_simple'); 
+  const a=await ajax('alumno_all_simple');
   if(a?.ok) {
       document.getElementById('selAddA').innerHTML='<option value="">— Seleccionar —</option>'+a.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
   }
-})();
+});
 
 function estadoBadge(e){ 
     const m={en_curso:'b-tardanza',pendiente:'b-ausente',culminada:'b-presente'}; 
