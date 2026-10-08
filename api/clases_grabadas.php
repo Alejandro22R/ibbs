@@ -138,9 +138,15 @@ if ($action === 'clase_create' || $action === 'clase_update') {
         $st = mysqli_prepare($con, "INSERT INTO clases_grabadas(materia_id,usuario_id,titulo,descripcion,url,plataforma,fecha) VALUES(?,?,?,?,?,?,?)");
         mysqli_stmt_bind_param($st, 'iisssss', $mid, $uid, $titulo, $descripcion, $url, $plataforma, $fecha);
         if (!mysqli_stmt_execute($st)) json_fail('No se pudo guardar la clase.');
+        // mysqli_insert_id() hay que leerlo YA, antes de log_audit()/
+        // notificar_materia() — esas dos funciones hacen sus propios
+        // INSERT (audit_log, notificaciones) en esta misma conexión, y
+        // pisarían el id devuelto con el de ESOS inserts si se lee
+        // después.
+        $nuevoId = mysqli_insert_id($con);
         log_audit($con, $uid, 'CLASE_GRABADA_CREATE', "materia=$mid");
         notificar_materia($con, $mid, 'grabacion', "Nueva clase grabada: $titulo", $descripcion, $uid);
-        echo json_encode(['ok'=>true,'msg'=>'Clase grabada agregada.']); exit;
+        echo json_encode(['ok'=>true,'msg'=>'Clase grabada agregada.','id'=>$nuevoId]); exit;
     } else {
         $id = (int)($_POST['id'] ?? 0);
         // El WHERE incluye materia_id: evita editar una clase de otra

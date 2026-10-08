@@ -56,12 +56,18 @@ function vivo_generar_sala($materia_id) {
 function vivo_es_meet($url) {
     return url_host_es($url, ['meet.google.com']);
 }
+// Zoom reparte las reuniones entre muchos subdominios (zoom.us,
+// us02web.zoom.us, elinstituto.zoom.us...) — por eso usa
+// url_host_termina_en() en vez de una lista fija de hosts.
+function vivo_es_zoom($url) {
+    return url_host_termina_en($url, 'zoom.us');
+}
 /** Link al que efectivamente se une el usuario, o null si la sesión quedó mal formada. */
 function vivo_join_url($row) {
     if ($row['plataforma'] === 'jitsi' && !empty($row['sala'])) {
         return 'https://meet.jit.si/'.rawurlencode($row['sala']);
     }
-    if (in_array($row['plataforma'], ['meet','otro'], true) && !empty($row['url'])) {
+    if (in_array($row['plataforma'], ['meet','zoom','otro'], true) && !empty($row['url'])) {
         return $row['url'];
     }
     return null;
@@ -95,7 +101,8 @@ if ($action === 'vivo_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
     if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
 
-    $st = mysqli_prepare($con, "SELECT c.id,c.titulo,c.descripcion,c.plataforma,c.sala,c.url,c.fecha_hora,c.estado,u.usuario autor
+    mysqli_query($con, "ALTER TABLE clases_vivo ADD COLUMN IF NOT EXISTS grabacion_clase_id INT NULL DEFAULT NULL");
+    $st = mysqli_prepare($con, "SELECT c.id,c.titulo,c.descripcion,c.plataforma,c.sala,c.url,c.fecha_hora,c.estado,c.grabacion_clase_id,u.usuario autor
                                  FROM clases_vivo c JOIN usuarios u ON u.id=c.usuario_id
                                  WHERE c.materia_id=? ORDER BY c.fecha_hora DESC");
     mysqli_stmt_bind_param($st, 'i', $mid);
@@ -123,7 +130,7 @@ if ($action === 'vivo_create') {
 
     if ($titulo === '') json_fail('Ponle un título a la clase.');
     if (mb_strlen($titulo) > 150) json_fail('El título es muy largo.');
-    if (!in_array($plataforma, ['jitsi','meet','otro'], true)) $plataforma = 'jitsi';
+    if (!in_array($plataforma, ['jitsi','meet','zoom','otro'], true)) $plataforma = 'jitsi';
     $fecha = DateTime::createFromFormat('Y-m-d\TH:i', $fechaHora) ?: DateTime::createFromFormat('Y-m-d H:i:s', $fechaHora);
     if (!$fecha) json_fail('Fecha y hora no válidas.');
     $fechaHoraSql = $fecha->format('Y-m-d H:i:s');
@@ -135,6 +142,11 @@ if ($action === 'vivo_create') {
     } elseif ($plataforma === 'meet') {
         if (!url_es_valida($urlPegada) || !vivo_es_meet($urlPegada)) {
             json_fail('Pega un link válido de Google Meet (meet.google.com).');
+        }
+        $url = $urlPegada;
+    } elseif ($plataforma === 'zoom') {
+        if (!url_es_valida($urlPegada) || !vivo_es_zoom($urlPegada)) {
+            json_fail('Pega un link válido de Zoom (zoom.us).');
         }
         $url = $urlPegada;
     } else { // otro
@@ -193,6 +205,38 @@ if ($action === 'vivo_set_estado') {
         notificar_materia($con, $mid, 'clase_vivo', "¡Comenzó! $titulo", 'La clase en vivo ya está disponible — entra ahora.', $uid);
     }
     echo json_encode(['ok'=>true,'msg'=>'Estado actualizado.']); exit;
+}
+
+/* ════ VINCULAR GRABACIÓN ════════════════════════════════════════
+ * Después de dar la clase (por Meet/Zoom/Jitsi), el docente/admin
+ * graba la videollamada y pega el link ya subido a YouTube/Drive/
+ * Vimeo. El propio frontend ya llamó a api/clases_grabadas.php
+ * (clase_create) para darla de alta en el repositorio de Clases
+ * Grabadas — acá solo se guarda, en esta clase en vivo, cuál quedó
+ * su grabación, para no ofrecer "Guardar grabación" dos veces y
+ * poder mostrar el link directo a quien la busque después.
+ */
+if ($action === 'vivo_vincular_grabacion') {
+    $id  = (int)($_POST['id'] ?? 0);
+    $mid = (int)($_POST['materia_id'] ?? 0);
+    $gid = (int)($_POST['grabacion_clase_id'] ?? 0);
+    if (!materia_puede_gestionar($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    if (!$gid) json_fail('Falta la grabación a vincular.');
+
+    // La grabación tiene que ser de ESTA misma materia — evita vincular
+    // (o filtrar la existencia de) una clase grabada de otra materia
+    // con solo adivinar su id.
+    $stG = mysqli_prepare($con, "SELECT id FROM clases_grabadas WHERE id=? AND materia_id=? LIMIT 1");
+    mysqli_stmt_bind_param($stG, 'ii', $gid, $mid);
+    mysqli_stmt_execute($stG);
+    if (!mysqli_fetch_assoc(mysqli_stmt_get_result($stG))) json_fail('La grabación no pertenece a esta materia.');
+
+    mysqli_query($con, "ALTER TABLE clases_vivo ADD COLUMN IF NOT EXISTS grabacion_clase_id INT NULL DEFAULT NULL");
+    $st = mysqli_prepare($con, "UPDATE clases_vivo SET grabacion_clase_id=? WHERE id=? AND materia_id=?");
+    mysqli_stmt_bind_param($st, 'iii', $gid, $id, $mid);
+    mysqli_stmt_execute($st);
+    log_audit($con, $uid, 'CLASE_VIVO_GRABACION', "id=$id grabacion=$gid");
+    echo json_encode(['ok'=>true,'msg'=>'Grabación vinculada.']); exit;
 }
 
 /* ════ ELIMINAR ══════════════════════════════════════════════════ */

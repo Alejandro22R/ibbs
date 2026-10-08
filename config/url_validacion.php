@@ -31,3 +31,17 @@ if (!function_exists('url_host_es')) {
         return in_array(url_host($url), $dominios, true);
     }
 }
+
+if (!function_exists('url_host_termina_en')) {
+    /**
+     * true si el host de $url es EXACTAMENTE $sufijo, o es un subdominio
+     * suyo (termina en ".$sufijo"). Hace falta para plataformas como
+     * Zoom, que reparten las reuniones entre muchos subdominios
+     * (zoom.us, us02web.zoom.us, miinstituto.zoom.us...) — url_host_es()
+     * con una lista fija no alcanzaría sin enumerar cada uno.
+     */
+    function url_host_termina_en($url, $sufijo) {
+        $host = url_host($url);
+        return $host === $sufijo || substr($host, -(strlen($sufijo) + 1)) === '.'.$sufijo;
+    }
+}
