@@ -55,15 +55,28 @@ mysqli_close($con);
         <option value="pagado">Pagado</option>
         <option value="rechazado">Rechazado</option>
       </select>
+      <button class="btn btn-secondary" onclick="IbbsExport.table('#tablaPagos','historial-pagos')" title="Descargar la planilla completa (según los filtros de arriba) en Excel/CSV">
+        <i class="bx bx-download"></i> Exportar planilla
+      </button>
       <button class="btn btn-primary" onclick="openModal('mCrearPago')" data-tour="pagos-registrar">
         <i class="bx bx-plus"></i> Registrar cobro
       </button>
     </div>
   </div>
+  <div id="barraLotePagos" style="display:none;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--cream);border-bottom:1px solid var(--border);padding:.6rem 1rem;" data-tour="pagos-lote">
+    <span id="loteCount" style="font-size:.82rem;font-weight:700;color:var(--ink2);">0 seleccionados</span>
+    <button class="btn btn-sm btn-success" onclick="loteAccionPagos('marcar_pagado')" title="Marca como pagados los seleccionados que estén en estado Pendiente">✓ Marcar pagados</button>
+    <button class="btn btn-sm btn-success" onclick="loteAccionPagos('aprobar')" title="Aprueba el comprobante de los seleccionados que estén En revisión">✓ Aprobar</button>
+    <button class="btn btn-sm btn-danger" onclick="loteAccionPagos('rechazar')" title="Rechaza el comprobante de los seleccionados que estén En revisión">✕ Rechazar</button>
+    <button class="btn btn-sm btn-danger" onclick="loteAccionPagos('eliminar')" title="Elimina los cobros seleccionados">🗑 Eliminar</button>
+    <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionPagos()" style="margin-left:auto;">Cancelar selección</button>
+  </div>
   <div class="tbl-wrap">
-    <table>
-      <thead><tr><th style="text-align:left;">Alumno</th><th>Tipo</th><th style="text-align:left;">Concepto</th><th>Monto</th><th>Comprobante</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyPagos"><tr class="empty-row"><td colspan="8"><span class="spin"></span></td></tr></tbody>
+    <table id="tablaPagos">
+      <thead><tr>
+        <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllPagos" onchange="toggleAllPagos(this)" title="Seleccionar todo"></th>
+        <th style="text-align:left;">Alumno</th><th>Tipo</th><th style="text-align:left;">Concepto</th><th>Monto</th><th>Comprobante</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyPagos"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -154,9 +167,11 @@ async function loadPagos(){
   const estado = document.getElementById('fEstado').value;
   const d = await ajax('pago_list', {tipo, estado}, 'api/pagos.php');
   const tb = document.getElementById('tbodyPagos');
-  if(!d?.ok){ tb.innerHTML = `<tr class="empty-row"><td colspan="8">${d?.msg||'Error'}</td></tr>`; return; }
-  if(!d.data.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="8">Sin cobros registrados todavía.</td></tr>'; return; }
+  limpiarSeleccionPagos();
+  if(!d?.ok){ tb.innerHTML = `<tr class="empty-row"><td colspan="9">${d?.msg||'Error'}</td></tr>`; return; }
+  if(!d.data.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="9">Sin cobros registrados todavía.</td></tr>'; return; }
   tb.innerHTML = d.data.map(p => `<tr>
+    <td style="text-align:center;"><input type="checkbox" class="chkPago" value="${p.id}" onchange="actualizarBarraLotePagos()"></td>
     <td style="text-align:left;">${h(p.alumno_apellido)}, ${h(p.alumno_nombre)}<br><span style="font-size:.72rem;color:var(--muted);">CI: ${h(p.alumno_cedula)}</span></td>
     <td style="text-align:center;">${p.tipo==='mensualidad'?'Mensualidad':'Inscripción'}</td>
     <td style="text-align:left;">${h(p.concepto)}</td>
@@ -172,6 +187,45 @@ async function loadPagos(){
       `:''}
       ${p.estado!=='pagado'?`<button class="btn btn-sm btn-danger" onclick="eliminarPago(${p.id})" title="Eliminar">🗑</button>`:''}
     </td></tr>`).join('');
+}
+
+function toggleAllPagos(cb){
+  document.querySelectorAll('.chkPago').forEach(c => c.checked = cb.checked);
+  actualizarBarraLotePagos();
+}
+
+function actualizarBarraLotePagos(){
+  const n = document.querySelectorAll('.chkPago:checked').length;
+  const total = document.querySelectorAll('.chkPago').length;
+  document.getElementById('chkAllPagos').checked = total>0 && n===total;
+  document.getElementById('chkAllPagos').indeterminate = n>0 && n<total;
+  document.getElementById('barraLotePagos').style.display = n ? 'flex' : 'none';
+  if(n) document.getElementById('loteCount').textContent = n + (n===1?' seleccionado':' seleccionados');
+}
+
+function limpiarSeleccionPagos(){
+  document.querySelectorAll('.chkPago').forEach(c => c.checked = false);
+  const chkAll = document.getElementById('chkAllPagos');
+  if(chkAll){ chkAll.checked = false; chkAll.indeterminate = false; }
+  document.getElementById('barraLotePagos').style.display = 'none';
+}
+
+const LOTE_TEXTOS = {
+  marcar_pagado: {title:'¿Marcar como pagados?', text:'Se marcarán como pagados los seleccionados que estén Pendientes (el resto se omite).', confirm:'Sí, marcar pagados', danger:false},
+  aprobar:       {title:'¿Aprobar comprobantes?', text:'Se aprobarán los seleccionados que estén En revisión (el resto se omite).', confirm:'Sí, aprobar', danger:false},
+  rechazar:      {title:'¿Rechazar comprobantes?', text:'Se rechazarán los seleccionados que estén En revisión — el alumno deberá subir uno nuevo.', confirm:'Sí, rechazar', danger:true},
+  eliminar:      {title:'¿Eliminar cobros?', text:'Esta acción no se puede deshacer.', confirm:'Sí, eliminar', danger:true},
+};
+
+async function loteAccionPagos(sub){
+  const ids = Array.from(document.querySelectorAll('.chkPago:checked')).map(c => c.value);
+  if(!ids.length) return;
+  const t = LOTE_TEXTOS[sub];
+  const rr = await Ibbs.confirm({title:t.title, text:t.text, confirm:t.confirm, danger:t.danger});
+  if(!rr.isConfirmed) return;
+  const d = await ajax('pago_lote', {sub_accion: sub, ids: ids.join(',')}, 'api/pagos.php');
+  if(d?.ok){ toast(d.msg); loadPagos(); loadPagosResumen(); }
+  else toast(d?.msg||'Error', 'err');
 }
 
 function verComprobantePago(ruta){
@@ -217,6 +271,7 @@ window.IBBS_TOUR_PAGOS = {
   steps: [
     { selector: '[data-tour="pagos-resumen"]', title: 'Resumen rápido', text: 'De un vistazo: cuántos cobros están pendientes, cuántos ya se pagaron, y los montos totales.' },
     { selector: '[data-tour="pagos-registrar"]', title: 'Registrar un cobro', text: 'Elegís el alumno, si es mensualidad o inscripción, el monto y el concepto (ej. "Mensualidad Octubre 2026"). El alumno lo va a ver en su portal apenas lo registrés.' },
+    { selector: '#chkAllPagos', title: 'Seleccionar todo', text: 'Marcá la casilla de un cobro, o esta de arriba para marcarlos todos, y aparece una barra para aprobar, marcar pagado o eliminar varios a la vez — ya no hace falta uno por uno.' },
   ],
   auto: true,
 };

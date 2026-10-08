@@ -129,6 +129,52 @@ if ($action === 'pago_aprobar' || $action === 'pago_rechazar') {
     echo json_encode(['ok'=>true,'msg'=>$nuevoEstado === 'pagado' ? 'Pago confirmado.' : 'Pago rechazado.']); exit;
 }
 
+/* ════ ADMIN: acciones en lote (seleccionar todo / varios) ══════════
+ * Mismo efecto que marcar_pagado/aprobar/rechazar/eliminar de a uno,
+ * pero sobre varios cobros seleccionados a la vez. Una fila cuyo
+ * estado ya no admite esa transición (p. ej. intentar "aprobar" algo
+ * que ya no está en_revision) se cuenta como omitida en vez de romper
+ * el lote entero.
+ */
+if ($action === 'pago_lote') {
+    if (!in_array($rol, ['superadmin','admin'])) json_fail_pg('Sin permiso.');
+    $sub = trim($_POST['sub_accion'] ?? '');
+    if (!in_array($sub, ['marcar_pagado','aprobar','rechazar','eliminar'])) json_fail_pg('Acción inválida.');
+    $ids = array_values(array_unique(array_filter(array_map('intval', explode(',', trim($_POST['ids'] ?? ''))))));
+    if (!$ids) json_fail_pg('No hay cobros seleccionados.');
+
+    $ok = 0; $omitidos = 0;
+    foreach ($ids as $id) {
+        $p = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM pagos WHERE id=$id LIMIT 1"));
+        if (!$p) { $omitidos++; continue; }
+
+        if ($sub === 'marcar_pagado') {
+            if ($p['estado'] !== 'pendiente') { $omitidos++; continue; }
+            mysqli_query($con, "UPDATE pagos SET estado='pagado',revisado_por=$uid,revisado_en=NOW() WHERE id=$id");
+            log_audit($con, $uid, 'PAGO_MARCAR_PAGADO', "id=$id (lote)");
+            $ok++;
+        } elseif ($sub === 'aprobar' || $sub === 'rechazar') {
+            if ($p['estado'] !== 'en_revision') { $omitidos++; continue; }
+            $nuevoEstado = $sub === 'aprobar' ? 'pagado' : 'rechazado';
+            mysqli_query($con, "UPDATE pagos SET estado='$nuevoEstado',revisado_por=$uid,revisado_en=NOW() WHERE id=$id");
+            log_audit($con, $uid, 'PAGO_'.strtoupper($sub), "id=$id (lote)");
+            $stN = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,usuario_id,referencia_id) SELECT 'pago_revisado',?,?,usuario_id,? FROM alumnos WHERE id=?");
+            $tit = $nuevoEstado === 'pagado' ? 'Pago confirmado' : 'Pago rechazado';
+            $msg = $nuevoEstado === 'pagado' ? "Tu pago de \"{$p['concepto']}\" fue confirmado." : "Tu comprobante de \"{$p['concepto']}\" fue rechazado — subí uno nuevo.";
+            mysqli_stmt_bind_param($stN, 'ssii', $tit, $msg, $id, $p['alumno_id']);
+            mysqli_stmt_execute($stN);
+            $ok++;
+        } elseif ($sub === 'eliminar') {
+            if ($p['comprobante'] && file_exists(__DIR__.'/../'.$p['comprobante'])) @unlink(__DIR__.'/../'.$p['comprobante']);
+            mysqli_query($con, "DELETE FROM pagos WHERE id=$id");
+            log_audit($con, $uid, 'PAGO_ELIMINAR', "id=$id (lote)");
+            $ok++;
+        }
+    }
+    $msg = "$ok cobro(s) actualizados." . ($omitidos ? " $omitidos omitido(s) por no aplicar la acción a su estado actual." : '');
+    echo json_encode(['ok'=>true,'msg'=>$msg,'actualizados'=>$ok,'omitidos'=>$omitidos]); exit;
+}
+
 /* ════ ADMIN: eliminar un cobro (si se cargó mal) ═══════════════════ */
 if ($action === 'pago_eliminar') {
     if (!in_array($rol, ['superadmin','admin'])) json_fail_pg('Sin permiso.');
