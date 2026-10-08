@@ -9,7 +9,13 @@ if(!in_array($_rol,['superadmin','admin'])){
 }
 ?>
 
-<div class="card" style="max-width:560px;margin-bottom:1.5rem;">
+<div style="display:flex;justify-content:flex-end;margin-bottom:.6rem;">
+  <button class="btn btn-secondary btn-sm" onclick="IbbsTour.replay(window.IBBS_TOUR_BUSCAR)" title="Ver el tutorial de esta página otra vez">
+    <i class="bx bx-play-circle"></i> Tutorial
+  </button>
+</div>
+
+<div class="card" style="max-width:560px;margin-bottom:1.5rem;" data-tour="buscar-card">
   <div class="card-body">
     <div style="display:flex;gap:.7rem;">
       <div class="field" style="flex:1;margin:0;">
@@ -230,5 +236,15 @@ async function verPlanAlumnoMateria(materiaId, materiaNombre) {
     }).join('')}</tbody>
   </table></div>`;
 }
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_BUSCAR = {
+  storageKey: 'ibbs_tour_buscar_v1',
+  steps: [
+    { selector: '[data-tour="buscar-card"]', title: 'Buscar Personal', text: 'Escribí nombre, apellido o cédula (mín. 2 letras) y elegí de la lista — vas a ver el perfil completo del alumno o docente: sus materias, notas y asistencias, sin tener que ir módulo por módulo.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_BUSCAR));
 </script>
 <?php include __DIR__.'/layout/foot.php'; ?>

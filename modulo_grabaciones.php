@@ -20,6 +20,21 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
 </a>
 <?php endif; ?>
 
+<!-- Intro siempre visible (sirve de ancla fija para el tutorial, ya
+     que el selector y la lista de clases se muestran u ocultan según
+     si llega ?materia_id= en la URL). -->
+<div class="card" style="margin-bottom:1rem;" data-tour="grab-intro">
+  <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem;">
+    <div>
+      <div style="font-weight:700;font-size:.92rem;">Clases Grabadas</div>
+      <div style="font-size:.8rem;color:var(--muted);">Elegí una materia para ver sus videos de clase. Si sos el docente o un admin, de ahí también podés subir, editar o eliminar clases grabadas.</div>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="IbbsTour.replay(window.IBBS_TOUR_GRABACIONES)" title="Ver el tutorial de esta página otra vez">
+      <i class="bx bx-play-circle"></i> Tutorial
+    </button>
+  </div>
+</div>
+
 <!-- Selector de materia — se muestra cuando no llega ?materia_id= en la URL -->
 <div class="card" id="areaSelector" style="display:<?=$materia_id?'none':'block'?>;margin-bottom:1.4rem;">
   <div class="card-body">
@@ -194,6 +209,16 @@ function eliminarClase(id) {
     if (d?.ok) { toast(d.msg); loadClases(); } else Ibbs.error(d?.msg || 'Error');
   });
 }
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_GRABACIONES = {
+  storageKey: 'ibbs_tour_grabaciones_v1',
+  steps: [
+    { selector: '[data-tour="grab-intro"]', title: 'Clases Grabadas', text: 'Elegí una materia en el selector (o entrá desde Materias → 🎬 Grabadas) para ver sus videos. Si gestionás esa materia, un botón "Agregar clase grabada" te deja subir el link (YouTube, Drive o Vimeo) con título, descripción y fecha.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_GRABACIONES));
 </script>
 
 <?php include __DIR__.'/layout/foot.php'; ?>

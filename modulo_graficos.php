@@ -11,7 +11,13 @@ if(!in_array($_rol,['superadmin','admin','profesor'])){
 ?>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem;">
+<div style="display:flex;justify-content:flex-end;margin-bottom:.6rem;">
+  <button class="btn btn-secondary btn-sm" onclick="IbbsTour.replay(window.IBBS_TOUR_GRAFICOS)" title="Ver el tutorial de esta página otra vez">
+    <i class="bx bx-play-circle"></i> Tutorial
+  </button>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem;" data-tour="graf-grid">
   <!-- Registro alumnos -->
   <div class="card">
     <div class="card-head"><h3>Registro de Alumnos</h3><span style="font-size:.75rem;color:var(--muted);">Últimos 6 meses</span></div>
@@ -100,5 +106,15 @@ function meses(data){
   }
 })();
 });
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_GRAFICOS = {
+  storageKey: 'ibbs_tour_graficos_v1',
+  steps: [
+    { selector: '[data-tour="graf-grid"]', title: 'Gráficos', text: 'Estadísticas de un vistazo: alumnos y docentes registrados por mes, estado de las materias, resumen de asistencias y cuántas materias ha dictado cada docente. Son de solo lectura — nada para configurar acá.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_GRAFICOS));
 </script>
 <?php include __DIR__.'/layout/foot.php'; ?>
