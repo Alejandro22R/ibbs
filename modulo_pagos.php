@@ -56,7 +56,10 @@ mysqli_close($con);
         <option value="rechazado">Rechazado</option>
       </select>
       <button class="btn btn-secondary" onclick="IbbsExport.table('#tablaPagos','historial-pagos')" title="Descargar la planilla completa (según los filtros de arriba) en Excel/CSV">
-        <i class="bx bx-download"></i> Exportar planilla
+        <i class="bx bx-download"></i> Excel
+      </button>
+      <button class="btn btn-secondary" onclick="exportarPagosPDF()" title="Genera un reporte en PDF con el membrete institucional, con los filtros aplicados">
+        <i class="bx bx-file-pdf"></i> PDF
       </button>
       <button class="btn btn-primary" onclick="openModal('mCrearPago')" data-tour="pagos-registrar">
         <i class="bx bx-plus"></i> Registrar cobro
@@ -216,6 +219,15 @@ const LOTE_TEXTOS = {
   rechazar:      {title:'¿Rechazar comprobantes?', text:'Se rechazarán los seleccionados que estén En revisión — el alumno deberá subir uno nuevo.', confirm:'Sí, rechazar', danger:true},
   eliminar:      {title:'¿Eliminar cobros?', text:'Esta acción no se puede deshacer.', confirm:'Sí, eliminar', danger:true},
 };
+
+function exportarPagosPDF(){
+  const p = new URLSearchParams({
+    tipo: 'pagos',
+    tipo_pago: document.getElementById('fTipo').value || '',
+    estado: document.getElementById('fEstado').value || '',
+  });
+  window.open('api/export_lista_pdf.php?' + p.toString(), '_blank');
+}
 
 async function loteAccionPagos(sub){
   const ids = Array.from(document.querySelectorAll('.chkPago:checked')).map(c => c.value);

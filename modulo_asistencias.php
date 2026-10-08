@@ -19,14 +19,19 @@ mysqli_close($con);
   HEADER — Tabs + stats bar
 ═══════════════════════════════════════════════════════ -->
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.4rem;flex-wrap:wrap;gap:.8rem;">
-  <div class="ibbs-tabs">
+  <div class="ibbs-tabs" data-tour="asist-tabs">
     <button class="ibbs-tab ibbs-tab-active" data-tab="rapida">Paso de lista</button>
     <button class="ibbs-tab" data-tab="ocr">📷 Registro por Foto</button>
     <button class="ibbs-tab" data-tab="individual">Registro individual</button>
     <button class="ibbs-tab" data-tab="resumen">Resumen</button>
     <button class="ibbs-tab" data-tab="historial">Historial</button>
   </div>
-  <div id="statBar" style="display:flex;gap:.5rem;flex-wrap:wrap;"></div>
+  <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+    <div id="statBar" style="display:flex;gap:.5rem;flex-wrap:wrap;"></div>
+    <button class="btn btn-secondary btn-sm" onclick="IbbsTour.replay(window.IBBS_TOUR_ASISTENCIAS)" title="Ver el tutorial de esta página otra vez">
+      <i class="bx bx-play-circle"></i> Tutorial
+    </button>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════
@@ -35,7 +40,7 @@ mysqli_close($con);
 <div id="tab-rapida" class="ibbs-tab-pane active">
 
   <!-- Controles -->
-  <div class="card" style="margin-bottom:1rem;">
+  <div class="card" style="margin-bottom:1rem;" data-tour="asist-paso-lista">
     <div class="card-body" style="padding:1rem 1.2rem;">
       <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:.8rem;align-items:flex-end;">
         <div class="field" style="margin:0;">
@@ -79,7 +84,7 @@ mysqli_close($con);
       </div>
       <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
         <!-- Estado rápido buttons -->
-        <div style="display:flex;gap:.3rem;">
+        <div style="display:flex;gap:.3rem;" data-tour="asist-marcar-todos">
           <button class="ibbs-qbtn ibbs-qbtn-p" onclick="marcarTodos('presente')">Todos presentes</button>
           <button class="ibbs-qbtn ibbs-qbtn-a" onclick="marcarTodos('ausente')">Todos ausentes</button>
         </div>
@@ -352,11 +357,23 @@ mysqli_close($con);
         </select>
         <input type="date" id="filtHFecha" onchange="loadHistorial()" class="ibbs-filter-sel">
         <button class="btn btn-secondary btn-sm" onclick="limpiarHist()">Limpiar</button>
+        <button class="btn btn-secondary btn-sm" onclick="exportarHistorialCSV()" title="Descarga en Excel/CSV todo el historial filtrado (no solo esta página)">
+          <i class="bx bx-download"></i> Excel
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="exportarHistorialPDF()" title="Genera un reporte en PDF con el membrete institucional, con los filtros aplicados">
+          <i class="bx bx-file-pdf"></i> PDF
+        </button>
       </div>
+    </div>
+    <div id="barraLoteHist" style="display:none;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--cream);border-bottom:1px solid var(--border);padding:.6rem 1rem;">
+      <span id="loteHistCount" style="font-size:.82rem;font-weight:700;color:var(--ink2);">0 seleccionados</span>
+      <button class="btn btn-sm btn-danger" onclick="eliminarHistSeleccionados()">🗑 Eliminar seleccionados</button>
+      <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionHist()" style="margin-left:auto;">Cancelar selección</button>
     </div>
     <div class="tbl-wrap">
       <table>
         <thead><tr>
+          <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllHist" onchange="toggleAllHist(this)" title="Seleccionar todo (de esta página)"></th>
           <th>Fecha</th>
           <th>Persona</th>
           <th>Cédula</th>
@@ -366,7 +383,7 @@ mysqli_close($con);
           <th style="text-align:center;width:64px;"></th>
         </tr></thead>
         <tbody id="tbHist">
-          <tr class="empty-row"><td colspan="7"><span class="spin"></span></td></tr>
+          <tr class="empty-row"><td colspan="8"><span class="spin"></span></td></tr>
         </tbody>
       </table>
     </div>
@@ -849,12 +866,14 @@ function renderHist() {
   const pag = document.getElementById('histPag');
   const slice = _hData.slice((_hPage-1)*H_PER, _hPage*H_PER);
   const bMap = {presente:'b-presente',ausente:'b-ausente',tardanza:'b-tardanza',justificado:'b-justificado'};
+  limpiarSeleccionHist();
   if (!slice.length) {
-    tb.innerHTML='<tr class="empty-row"><td colspan="7">Sin registros para los filtros aplicados.</td></tr>';
+    tb.innerHTML='<tr class="empty-row"><td colspan="8">Sin registros para los filtros aplicados.</td></tr>';
     pag.innerHTML='';return;
   }
   tb.innerHTML = slice.map(r=>`
     <tr>
+      <td style="text-align:center;"><input type="checkbox" class="chkHist" value="${r.id}" onchange="actualizarBarraLoteHist()"></td>
       <td style="white-space:nowrap;font-size:.82rem;">${r.fecha||'—'}</td>
       <td><strong style="font-size:.84rem;">${r.persona||'—'}</strong></td>
       <td style="font-size:.78rem;color:var(--muted);">${r.cedula||'—'}</td>
@@ -874,6 +893,57 @@ function renderHist() {
 }
 
 function histPg(p){_hPage=p;renderHist();}
+
+function toggleAllHist(cb){
+  document.querySelectorAll('.chkHist').forEach(c => c.checked = cb.checked);
+  actualizarBarraLoteHist();
+}
+
+function actualizarBarraLoteHist(){
+  const n = document.querySelectorAll('.chkHist:checked').length;
+  const total = document.querySelectorAll('.chkHist').length;
+  const chkAll = document.getElementById('chkAllHist');
+  chkAll.checked = total>0 && n===total;
+  chkAll.indeterminate = n>0 && n<total;
+  document.getElementById('barraLoteHist').style.display = n ? 'flex' : 'none';
+  if(n) document.getElementById('loteHistCount').textContent = n + (n===1?' seleccionado':' seleccionados');
+}
+
+function limpiarSeleccionHist(){
+  document.querySelectorAll('.chkHist').forEach(c => c.checked = false);
+  const chkAll = document.getElementById('chkAllHist');
+  if(chkAll){ chkAll.checked = false; chkAll.indeterminate = false; }
+  const barra = document.getElementById('barraLoteHist');
+  if(barra) barra.style.display = 'none';
+}
+
+async function eliminarHistSeleccionados(){
+  const ids = Array.from(document.querySelectorAll('.chkHist:checked')).map(c => c.value);
+  if(!ids.length) return;
+  const rr = await Ibbs.confirm({title:'¿Eliminar registros de asistencia?', text:`Se eliminarán ${ids.length} registro(s). Esta acción no se puede deshacer.`, confirm:'Sí, eliminar', danger:true});
+  if(!rr.isConfirmed) return;
+  const d = await ajax('asistencia_eliminar_lote', {ids: ids.join(',')});
+  if(d?.ok){ toast(d.msg); loadHistorial(); } else toast(d?.msg||'Error', 'err');
+}
+
+function exportarHistorialCSV(){
+  IbbsExport.rows(
+    ['Fecha','Persona','Cédula','Materia','Estado','Observación'],
+    _hData.map(r => [r.fecha||'', r.persona||'', r.cedula||'', r.materia||'', r.estado||'', r.observacion||'']),
+    'historial-asistencias'
+  );
+}
+
+function exportarHistorialPDF(){
+  const p = new URLSearchParams({
+    tipo: 'asistencias',
+    materia_id: document.getElementById('filtHMateria').value || '',
+    tipo_persona: document.getElementById('filtHTipo').value || '',
+    fecha: document.getElementById('filtHFecha').value || '',
+    estado: document.getElementById('filtHEstado').value || '',
+  });
+  window.open('api/export_lista_pdf.php?' + p.toString(), '_blank');
+}
 
 function abrirEdit(id,estado,obs){
   document.getElementById('eAId').value=id;
@@ -1146,5 +1216,18 @@ async function ocrCargarHojas() {
 }
 
 document.addEventListener('ibbs:ready',()=>{ loadStatChips(); });
+
+// ── Tutorial guiado de esta página ──────────────────────────────
+window.IBBS_TOUR_ASISTENCIAS = {
+  storageKey: 'ibbs_tour_asistencias_v1',
+  steps: [
+    { selector: '[data-tour="asist-tabs"]', title: 'Asistencias', text: '5 formas de registrar asistencia: "Paso de lista" (marcar materia por materia), "Registro por Foto" (subís la foto de la hoja de papel y el sistema la lee sola), "Registro individual" (uno a la vez), "Resumen" (porcentajes) e "Historial" (todos los registros, con exportar y eliminar en lote).' },
+    { selector: '[data-tour="asist-paso-lista"]', title: 'Paso de lista', text: 'Elegí la materia y la fecha — se carga la lista completa de alumnos inscritos, lista para marcar.' },
+    { selector: '[data-tour="asist-marcar-todos"]', title: 'Marcar todos de una', text: '¿Todos presentes o todos ausentes? Un clic marca a todo el curso — después corregís solo las excepciones una por una.' },
+    { selector: '.ibbs-tab[data-tab="historial"]', title: 'Historial', text: 'Acá ves todos los registros. Podés seleccionar varios (o todos con la casilla del encabezado) y eliminarlos de una, o exportar el historial completo filtrado a Excel o a PDF con el membrete institucional.' },
+  ],
+  auto: true,
+};
+document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_ASISTENCIAS));
 </script>
 <?php include __DIR__.'/layout/foot.php'; ?>

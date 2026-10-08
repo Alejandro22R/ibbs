@@ -687,7 +687,9 @@ if($action==='asistencia_register_lote'){
 if($action==='asistencia_list'){
     if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid=(int)($_POST['materia_id']??0); $tipo=trim($_POST['tipo']??''); $fecha=trim($_POST['fecha']??'');
+    $estado=trim($_POST['estado']??'');
     $w=[]; if($mid) $w[]="a.materia_id=$mid"; if($tipo) $w[]="a.tipo='".esc($con,$tipo)."'"; if($fecha) $w[]="a.fecha='".esc($con,$fecha)."'";
+    if($estado && in_array($estado,['presente','ausente','tardanza','justificado'],true)) $w[]="a.estado='".esc($con,$estado)."'";
     $wq=$w?"WHERE ".implode(' AND ',$w):'';
     $r=mysqli_query($con,"SELECT a.*,m.nombre materia,COALESCE(CONCAT(al.nombre,' ',al.apellido),CONCAT(d.nombre,' ',d.apellido)) persona,COALESCE(al.cedula,d.cedula) cedula FROM asistencias a LEFT JOIN materias m ON m.id=a.materia_id LEFT JOIN alumnos al ON al.id=a.alumno_id LEFT JOIN docentes d ON d.id=a.docente_id $wq ORDER BY a.fecha DESC LIMIT 500");
     $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
@@ -1320,6 +1322,20 @@ if($action==='asistencia_editar'){
     mysqli_query($con,"UPDATE asistencias SET estado='$estado', observacion='$obs' WHERE id=$id");
     echo json_encode(['ok'=>true,'msg'=>'Asistencia actualizada.']);
     exit;
+}
+
+// Eliminar uno o varios registros de asistencia a la vez — soporta
+// la casilla "seleccionar todo" del Historial (un solo id también
+// funciona, así no hace falta una acción separada para "de a uno").
+if($action==='asistencia_eliminar_lote'){
+    if(!can('delete_data')){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $ids=array_values(array_unique(array_filter(array_map('intval',explode(',',trim($_POST['ids']??''))))));
+    if(!$ids){echo json_encode(['ok'=>false,'msg'=>'No hay registros seleccionados.']);exit;}
+    $idsq=implode(',',$ids);
+    mysqli_query($con,"DELETE FROM asistencias WHERE id IN ($idsq)");
+    $n=mysqli_affected_rows($con);
+    log_audit($con,$uid,'ASISTENCIA_ELIMINAR_LOTE',"ids=$idsq n=$n");
+    echo json_encode(['ok'=>true,'msg'=>"$n registro(s) eliminado(s).",'eliminados'=>$n]); exit;
 }
 
 // ════ ASISTENCIA RESUMEN ══════════════════════════════════════

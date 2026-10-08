@@ -62,5 +62,23 @@
         if (window.Ibbs && window.Ibbs.success) window.Ibbs.success('Descarga lista.');
     }
 
-    window.IbbsExport = { table: exportTable, csvEscape: csvEscape };
+    /**
+     * Exportar a partir de datos en memoria (headers + array de filas,
+     * cada fila un array de valores) en vez de leer el DOM. Hace falta
+     * para una tabla paginada en pantalla (p. ej. Historial de
+     * asistencias): el <table> visible solo tiene la página actual,
+     * pero esto exporta el set completo ya filtrado.
+     */
+    function exportRows(headers, rows, filename) {
+        if (!rows || !rows.length) {
+            if (window.Ibbs && window.Ibbs.warn) window.Ibbs.warn('No hay datos para exportar todavía.');
+            return;
+        }
+        var out = [headers.map(csvEscape).join(',')];
+        rows.forEach(function (r) { out.push(r.map(csvEscape).join(',')); });
+        download((filename || 'ibbs-export') + '.csv', out.join('\r\n'));
+        if (window.Ibbs && window.Ibbs.success) window.Ibbs.success('Descarga lista.');
+    }
+
+    window.IbbsExport = { table: exportTable, rows: exportRows, csvEscape: csvEscape };
 })(window, document);
