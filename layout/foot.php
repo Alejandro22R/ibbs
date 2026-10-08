@@ -105,7 +105,26 @@ const Ibbs = {
       customClass: { popup:'ibbs-swal', title:'ibbs-swal-title', confirmButton:'ibbs-swal-btn-ok', cancelButton:'ibbs-swal-btn-cancel' },
       buttonsStyling: false,
     });
-  }
+  },
+
+  // Aviso emergente en la esquina para algo que llegó solo (una
+  // notificación en vivo) — no interrumpe lo que el admin está
+  // haciendo, a diferencia de confirm()/error()/success()/warn() que
+  // son un modal centrado que hay que mirar. Antes esto usaba el
+  // toast() plano (una pastillita sin ícono ni animación) — este usa
+  // el mismo SweetAlert2 que ya tenemos en el resto del panel, para
+  // que una notificación nueva se sienta tan cuidada como el resto.
+  toast(msg, icon='ℹ️') {
+    return Swal.mixin({
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 4500,
+      timerProgressBar: true,
+      background: '#f5f0e8', color: '#1a4d2e',
+      customClass: { popup: 'ibbs-swal' },
+    }).fire({ text: icon + '  ' + msg });
+  },
 };
 
 // ── Validación de formularios JS (sin browser popup) ───────
@@ -387,7 +406,7 @@ function _notifRecibida(n) {
   _notifUltimoId = Math.max(_notifUltimoId, parseInt(n.id) || 0);
   _notifSetBadge(_notifUnread + 1);
   const icono = NOTIF_ICONS[n.tipo] || 'ℹ️';
-  toast(icono + ' ' + (n.titulo || 'Nueva notificación'));
+  Ibbs.toast(n.titulo || 'Nueva notificación', icono);
 }
 
 // Si esta página tiene WebSocket configurado (VPS con ws-server/, ver
