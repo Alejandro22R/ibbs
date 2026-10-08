@@ -231,12 +231,21 @@ function filterTable(tblId, q) {
 
 
 // ── MOBILE SIDEBAR ──────────────────────────────────────────
+// Ojo: #sb-overlay está ANTES de #sb en el HTML (layout/head.php), así
+// que el selector CSS "#sb.mobile-open ~ #sb-overlay" nunca podía
+// funcionar (~ solo mira hermanos que vienen DESPUÉS en el documento) —
+// el fondo oscuro detrás del menú nunca se mostraba. Se togglea acá
+// directo por JS en vez de depender del orden en el HTML.
 function toggleMobileSB() {
   const sb = document.getElementById('sb');
-  sb.classList.toggle('mobile-open');
+  const open = sb.classList.toggle('mobile-open');
+  const ov = document.getElementById('sb-overlay');
+  if (ov) ov.classList.toggle('on', open);
 }
 function closeMobileSB() {
   document.getElementById('sb').classList.remove('mobile-open');
+  const ov = document.getElementById('sb-overlay');
+  if (ov) ov.classList.remove('on');
 }
 // Show hamburger on mobile
 function checkMobileBtn() {

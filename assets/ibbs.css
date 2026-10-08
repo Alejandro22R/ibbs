@@ -611,19 +611,17 @@ tr:hover td { background:rgba(46,204,16,.045); }
 
 /* ── Tablet pequeña / móvil grande (≤768px) ── */
 @media(max-width:768px) {
-  /* Sidebar colapsa a iconos */
-  #sb            { width: var(--sb-c) !important; }
-  #sb .sb-lbl,
-  #sb .sb-section,
-  #sb .sb-wordmark small,
-  #sb .sb-wordmark strong { opacity: 0; pointer-events: none; width: 0; overflow: hidden; }
-  #sb .sb-brand  { justify-content: center; padding: 1rem .3rem; }
-  #sb .sb-logo   { margin: 0 auto; }
-  #sb .sb-action span { display: none; }
-  #sb.col        { width: var(--sb-c); }
+  /* El riel de iconos tiene sentido en escritorio, donde sobra
+     ancho — en un teléfono, reservarle 66px fijos de un total de
+     ~360-400px se sentía (con razón) incómodo y apretado. Acá el
+     sidebar vive fuera de pantalla por defecto y entra como un
+     panel completo (con sus etiquetas, no solo iconos) al tocar el
+     botón de menú — el contenido se queda con el 100% del ancho. */
+  #sb            { width: var(--sb-w) !important; transform: translateX(-100%); transition: transform .3s cubic-bezier(.22,1,.36,1); }
+  #sb.mobile-open{ transform: translateX(0); }
   #toggler       { display: none; }
-  #main          { margin-left: var(--sb-c); padding: 1.1rem 1rem 2rem; }
-  #main.exp      { margin-left: var(--sb-c); }
+  #main          { margin-left: 0 !important; padding: 1.1rem 1rem 2rem; }
+  #main.exp      { margin-left: 0 !important; }
 
   /* Topbar compacta */
   .topbar        { margin-bottom: 1.2rem; top: -1.1rem; margin-top: -1.1rem; padding-top: 1.1rem; }
@@ -726,23 +724,15 @@ tr:hover td { background:rgba(46,204,16,.045); }
 /* ── Fix: sidebar overlay en móvil (menú abierto) ── */
 @media(max-width:768px) {
   #sb.mobile-open {
-    width: var(--sb-w) !important;
     z-index: 200;
     box-shadow: 4px 0 40px rgba(0,0,0,.3);
   }
-  #sb.mobile-open .sb-lbl,
-  #sb.mobile-open .sb-section,
-  #sb.mobile-open .sb-wordmark small,
-  #sb.mobile-open .sb-wordmark strong {
-    opacity: 1; pointer-events: auto; width: auto; overflow: visible;
-  }
-  #sb.mobile-open .sb-action span { display: inline; }
   #sb-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,.4); z-index: 199;
     backdrop-filter: blur(2px);
   }
-  #sb.mobile-open ~ #sb-overlay { display: block; }
+  #sb-overlay.on { display: block; }
 }
 
 /* ══════════════════════════════════════════════════════════

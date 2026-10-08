@@ -135,43 +135,6 @@ if(!in_array($_rol,['superadmin','admin'])){
 </div>
 <?php endif; ?>
 
-<!-- ═══════════════════════════════════════════════
-  TABLAS DE LA BASE DE DATOS
-════════════════════════════════════════════════════ -->
-<div class="card" data-tour="bk-tablas">
-  <div class="card-head">
-    <h3 style="display:flex;align-items:center;gap:.5rem;">
-      <i class="bx bx-data" style="font-size:1.1rem;color:var(--ink);"></i>
-      Tablas de la base de datos
-    </h3>
-    <button type="button" class="btn btn-sm btn-secondary" id="btnToggleTablas" onclick="toggleTablasDetalle()">
-      <span id="btnToggleTablasTxt">Ver detalle técnico</span> <i class="bx bx-chevron-down" id="btnToggleTablasIco"></i>
-    </button>
-  </div>
-  <!-- Colapsado por defecto: esta lista es para quien quiera revisar el
-       detalle técnico (tabla por tabla), no algo que alguien necesite ver
-       para exportar/importar/reiniciar — dejarla siempre abierta sumaba
-       una pantalla larga de scroll a una página que para la mayoría es
-       solo "descargar el respaldo y listo". -->
-  <div id="bkTablasBody" class="card-body" style="padding:0;display:none;">
-    <p style="font-size:.78rem;color:var(--muted);padding:.9rem 1.1rem 0;">Qué guarda cada tabla, en palabras simples.</p>
-    <div class="tbl-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th style="text-align:left;">Tabla</th>
-            <th style="text-align:center;">Registros</th>
-            <th style="text-align:left;">Qué guarda</th>
-          </tr>
-        </thead>
-        <tbody id="tbTablas">
-          <tr class="empty-row"><td colspan="3"><span class="spin"></span></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
 <!-- Modal PIN para reset -->
 <div id="resetPinModal" style="display:none;position:fixed;inset:0;z-index:9999;align-items:center;justify-content:center;padding:1rem;">
   <div onclick="document.getElementById('resetPinModal').style.display='none'" style="position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);"></div>
@@ -202,108 +165,27 @@ if(!in_array($_rol,['superadmin','admin'])){
 </div>
 
 <script>
-function toggleTablasDetalle() {
-  const body = document.getElementById('bkTablasBody');
-  const abierto = body.style.display !== 'none';
-  body.style.display = abierto ? 'none' : '';
-  document.getElementById('btnToggleTablasTxt').textContent = abierto ? 'Ver detalle técnico' : 'Ocultar detalle técnico';
-  document.getElementById('btnToggleTablasIco').className = abierto ? 'bx bx-chevron-down' : 'bx bx-chevron-up';
-}
-
-// Nombre amigable + ícono + categoría de cada tabla, para que la
-// lista de abajo tenga sentido para alguien sin conocimientos de
-// informática. Las tablas que no estén acá (ej. una nueva migración)
-// igual aparecen, con una descripción genérica — así la lista nunca
-// se rompe, solo queda menos detallada hasta que se agregue acá.
-const tablaDescriptions = {
-  usuarios:             { l: 'Usuarios',               d: 'Cuentas de acceso al sistema (login y contraseña) de todo el personal y alumnos.', cat: 'Sistema', i: 'bx-user-circle' },
-  alumnos:              { l: 'Alumnos',                d: 'Datos personales de cada alumno inscrito en el instituto.', cat: 'Académico', i: 'bx-group' },
-  docentes:             { l: 'Docentes',                d: 'Datos personales de cada profesor.', cat: 'Académico', i: 'bx-chalkboard' },
-  materias:             { l: 'Materias',                d: 'Los cursos/materias que se dictan, con su horario y estado.', cat: 'Académico', i: 'bx-book-open' },
-  materia_alumno:       { l: 'Inscripciones',           d: 'Qué alumno está inscrito en qué materia, y su nota final.', cat: 'Académico', i: 'bx-user-plus' },
-  materia_docente:      { l: 'Materias por docente',    d: 'Qué profesor dicta cada materia.', cat: 'Académico', i: 'bx-chalkboard' },
-  materia_solicitudes:  { l: 'Solicitudes de inscripción', d: 'Pedidos de alumnos para inscribirse ellos mismos a una materia.', cat: 'Académico', i: 'bx-mail-send' },
-  periodos:             { l: 'Períodos académicos',     d: 'Los lapsos o semestres del calendario académico.', cat: 'Académico', i: 'bx-calendar' },
-  asistencias:          { l: 'Asistencias',             d: 'El registro de quién vino y quién faltó, clase por clase.', cat: 'Académico', i: 'bx-check-square' },
-  asistencia_hojas:     { l: 'Hojas de asistencia (foto)', d: 'Las fotos de hojas de asistencia que se procesan automáticamente.', cat: 'Académico', i: 'bx-camera' },
-  tareas:               { l: 'Tareas',                  d: 'Las tareas y actividades que los profesores le asignan a sus alumnos.', cat: 'Calificaciones', i: 'bx-task' },
-  entregas:             { l: 'Entregas',                d: 'Los archivos y notas de cada tarea que entregó un alumno.', cat: 'Calificaciones', i: 'bx-upload' },
-  notas_envios:         { l: 'Notas enviadas a aprobación', d: 'El plan de notas que un profesor envió, a la espera de que el administrador lo confirme.', cat: 'Calificaciones', i: 'bx-send' },
-  aula_anuncios:        { l: 'Anuncios del Aula Virtual', d: 'Los avisos que un profesor publica en el muro de su materia.', cat: 'Aula Virtual', i: 'bx-bullhorn' },
-  aula_materiales:      { l: 'Materiales del Aula Virtual', d: 'Documentos y guías que los profesores suben para sus alumnos.', cat: 'Aula Virtual', i: 'bx-file' },
-  aula_actividades:     { l: 'Actividades del Aula Virtual', d: 'Actividades rápidas de calificación dentro del Aula Virtual.', cat: 'Aula Virtual', i: 'bx-edit-alt' },
-  aula_calificaciones:  { l: 'Notas de actividades',    d: 'Las notas que el profesor puso a cada actividad del Aula Virtual.', cat: 'Aula Virtual', i: 'bx-star' },
-  clases_vivo:          { l: 'Clases en vivo',          d: 'Las videollamadas programadas por materia.', cat: 'Aula Virtual', i: 'bx-broadcast' },
-  clases_grabadas:      { l: 'Clases grabadas',          d: 'Los videos de clases ya grabadas, para repasar.', cat: 'Aula Virtual', i: 'bx-video' },
-  foro_mensajes:        { l: 'Foro / Chat de clase',    d: 'Los mensajes del foro de cada materia.', cat: 'Comunicación', i: 'bx-chat' },
-  chat_staff:           { l: 'Chat del personal',        d: 'Los mensajes del chat interno entre administración y profesores.', cat: 'Comunicación', i: 'bx-conversation' },
-  notificaciones:       { l: 'Notificaciones',          d: 'Las alertas y avisos que recibe cada usuario dentro del sistema.', cat: 'Comunicación', i: 'bx-bell' },
-  libros:               { l: 'Biblioteca',               d: 'El catálogo de libros disponibles.', cat: 'Biblioteca', i: 'bx-library' },
-  libro_compras:        { l: 'Compras de libros',        d: 'Los pedidos de compra de libros hechos por alumnos.', cat: 'Biblioteca', i: 'bx-cart' },
-  datos_pago:           { l: 'Datos de pago',            d: 'La información bancaria/de pago móvil que ve el alumno al inscribirse.', cat: 'Sistema', i: 'bx-credit-card' },
-  password_resets:      { l: 'Recuperación de contraseña', d: 'Solicitudes de "olvidé mi contraseña" en espera de confirmarse por correo.', cat: 'Sistema', i: 'bx-key' },
-  audit_log:            { l: 'Historial de acciones',    d: 'Un registro técnico de quién hizo qué y cuándo, para auditoría.', cat: 'Sistema', i: 'bx-history' },
-};
-function tablaInfo(nombre) {
-  return tablaDescriptions[nombre] || { l: nombre, d: 'Tabla interna del sistema.', cat: 'Otras', i: 'bx-table' };
-}
-
 document.addEventListener('ibbs:ready', async () => {
-  const [dStats, dTablas] = await Promise.all([
-    ajax('dashboard_stats'),
-    ajax('tablas', {}, 'api/backup.php'),
-  ]);
+  const dStats = await ajax('dashboard_stats');
+  if (!dStats?.ok) return;
+  const dd = dStats.data;
+  const reg = (parseInt(dd.alumnos)||0) + (parseInt(dd.docentes)||0) +
+              (parseInt(dd.materias)||0) + (parseInt(dd.asist)||0);
 
-  if (dStats?.ok) {
-    const dd = dStats.data;
-    const totalTablas = dTablas?.ok ? dTablas.data.length : Object.keys(tablaDescriptions).length;
-    const reg = (parseInt(dd.alumnos)||0) + (parseInt(dd.docentes)||0) +
-                (parseInt(dd.materias)||0) + (parseInt(dd.asist)||0);
-
-    document.getElementById('dbInfoCards').innerHTML = [
-      {l:'Tablas',          v: totalTablas, c:'#334155', bg:'#f1f5f9', i:'bx-data'},
-      {l:'Alumnos',         v: dd.alumnos,  c:'#1d4ed8', bg:'#eff6ff', i:'bx-group'},
-      {l:'Docentes',        v: dd.docentes, c:'#7c3aed', bg:'#f5f3ff', i:'bx-chalkboard'},
-      {l:'Materias',        v: dd.materias, c:'#0f766e', bg:'#f0fdfa', i:'bx-book-open'},
-      {l:'Asistencias',     v: dd.asist,    c:'#15803d', bg:'#f0fdf4', i:'bx-check-square'},
-      {l:'Registros aprox.',v: reg,         c:'#92400e', bg:'#fffbeb', i:'bx-list-ul'},
-    ].map(i=>`
-      <div style="background:${i.bg};border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;display:flex;align-items:center;gap:.7rem;">
-        <i class="bx ${i.i}" style="font-size:1.3rem;color:${i.c};flex-shrink:0;"></i>
-        <div>
-          <div data-countup style="font-size:1.4rem;font-weight:800;color:${i.c};line-height:1;">${i.v}</div>
-          <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-top:3px;">${i.l}</div>
-        </div>
-      </div>`).join('');
-  }
-
-  const tb = document.getElementById('tbTablas');
-  if (!dTablas?.ok || !dTablas.data.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="3">No se pudo cargar la lista de tablas.</td></tr>';
-    return;
-  }
-  // Agrupadas por categoría — más fácil de escanear a medida que el
-  // sistema crece y se agregan más tablas.
-  const porCategoria = {};
-  dTablas.data.forEach(t => {
-    const info = tablaInfo(t.tabla);
-    (porCategoria[info.cat] = porCategoria[info.cat] || []).push({ ...t, info });
-  });
-  const ordenCat = ['Académico', 'Calificaciones', 'Aula Virtual', 'Comunicación', 'Biblioteca', 'Sistema', 'Otras'];
-  let html = '';
-  ordenCat.forEach(cat => {
-    const filas = porCategoria[cat];
-    if (!filas || !filas.length) return;
-    html += `<tr><td colspan="3" style="background:var(--cream);font-weight:800;font-size:.72rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);padding:.5rem .9rem;">${cat}</td></tr>`;
-    filas.sort((a,b) => a.info.l.localeCompare(b.info.l)).forEach(f => {
-      html += `<tr>
-        <td style="text-align:left;"><i class="bx ${f.info.i}" style="color:var(--lime2);margin-right:.5rem;"></i><strong>${f.info.l}</strong> <span style="color:var(--muted);font-size:.72rem;">(${f.tabla})</span></td>
-        <td style="text-align:center;font-weight:700;">${f.registros}</td>
-        <td style="text-align:left;color:var(--muted);font-size:.82rem;">${f.info.d}</td>
-      </tr>`;
-    });
-  });
-  tb.innerHTML = html;
+  document.getElementById('dbInfoCards').innerHTML = [
+    {l:'Alumnos',         v: dd.alumnos,  c:'#1d4ed8', bg:'#eff6ff', i:'bx-group'},
+    {l:'Docentes',        v: dd.docentes, c:'#7c3aed', bg:'#f5f3ff', i:'bx-chalkboard'},
+    {l:'Materias',        v: dd.materias, c:'#0f766e', bg:'#f0fdfa', i:'bx-book-open'},
+    {l:'Asistencias',     v: dd.asist,    c:'#15803d', bg:'#f0fdf4', i:'bx-check-square'},
+    {l:'Registros aprox.',v: reg,         c:'#92400e', bg:'#fffbeb', i:'bx-list-ul'},
+  ].map(i=>`
+    <div style="background:${i.bg};border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;display:flex;align-items:center;gap:.7rem;">
+      <i class="bx ${i.i}" style="font-size:1.3rem;color:${i.c};flex-shrink:0;"></i>
+      <div>
+        <div data-countup style="font-size:1.4rem;font-weight:800;color:${i.c};line-height:1;">${i.v}</div>
+        <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);margin-top:3px;">${i.l}</div>
+      </div>
+    </div>`).join('');
 });
 
 async function importarBD() {
@@ -364,7 +246,7 @@ document.addEventListener('keydown', e => {
 window.IBBS_TOUR_BACKUP = {
   storageKey: 'ibbs_tour_backup_v1',
   steps: [
-    { selector: '[data-tour="bk-resumen"]', title: 'Resumen rápido', text: 'Acá ves de un vistazo cuántas tablas tiene el sistema y cuántos alumnos, docentes y materias hay registrados.' },
+    { selector: '[data-tour="bk-resumen"]', title: 'Resumen rápido', text: 'Acá ves de un vistazo cuántos alumnos, docentes y materias hay registrados.' },
     { selector: '[data-tour="bk-exportar"]', title: 'Exportar (hacer un respaldo)', text: 'Un clic descarga un archivo con TODA la información del sistema. Hacelo seguido, sobre todo antes de cambios importantes, y guardá el archivo en un lugar aparte.' },
     <?php if($_rol==='superadmin'): ?>
     { selector: '[data-tour="bk-importar"]', title: 'Importar (restaurar)', text: 'Si algo sale mal, podés subir un archivo de respaldo acá para volver todo a como estaba. OJO: esto reemplaza los datos actuales — asegurate de tener un respaldo reciente antes de restaurar otro.' },
@@ -372,7 +254,6 @@ window.IBBS_TOUR_BACKUP = {
     <?php if(can('all')): ?>
     { selector: '[data-tour="bk-peligro"]', title: 'Zona de Peligro', text: 'Acá solo hay una acción: borrar todo y empezar de cero. Es irreversible, por eso te pide tu contraseña antes de hacerlo. Usala solo si estás completamente seguro(a).' },
     <?php endif; ?>
-    { selector: '[data-tour="bk-tablas"]', title: 'Qué hay guardado', text: 'Esta lista te explica, en palabras simples, qué guarda cada parte de la base de datos y cuántos registros tiene — útil para entender el tamaño real del sistema sin tecnicismos.' },
   ],
   auto: true,
 };
