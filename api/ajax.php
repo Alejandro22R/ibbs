@@ -106,30 +106,35 @@ if($action==='dashboard_stats'){
 
 // ════ MATERIAS ═════════════════════════════════════════════════
 if($action==='materia_list'){
+    mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS periodo_id INT DEFAULT NULL");
     $r=mysqli_query($con,"
         SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado,m.activo,m.inscripcion_abierta,
+               m.periodo_id,p.nombre periodo_nombre,
                COUNT(DISTINCT md.docente_id) nd,
                COUNT(DISTINCT ma.alumno_id) na,
                SUM(CASE WHEN ma.nota_final IS NOT NULL THEN 1 ELSE 0 END) notas_cargadas
         FROM materias m
         LEFT JOIN materia_docente md ON md.materia_id=m.id
         LEFT JOIN materia_alumno  ma ON ma.materia_id=m.id
+        LEFT JOIN periodos p ON p.id=m.periodo_id
         GROUP BY m.id ORDER BY m.nombre");
     $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
 if($action==='materia_create'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS periodo_id INT DEFAULT NULL");
     $n=trim($_POST['nombre']??''); $c=trim($_POST['codigo']??'');
     $d=trim($_POST['descripcion']??''); $dias=trim($_POST['dias']??'');
     $hi=trim($_POST['hora_inicio']??'')?:null; $hf=trim($_POST['hora_fin']??'')?:null;
+    $pid=(int)($_POST['periodo_id']??0)?:null;
     if(!$n||!$c){echo json_encode(['ok'=>false,'msg'=>'Nombre y código requeridos.']);exit;}
     $st=mysqli_prepare($con,"SELECT id FROM materias WHERE codigo=?");
     mysqli_stmt_bind_param($st,'s',$c); mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
     if(mysqli_stmt_num_rows($st)){echo json_encode(['ok'=>false,'msg'=>'Código ya existe.']);exit;}
     mysqli_stmt_close($st);
-    $st=mysqli_prepare($con,"INSERT INTO materias(nombre,codigo,descripcion,dias,hora_inicio,hora_fin) VALUES(?,?,?,?,?,?)");
-    mysqli_stmt_bind_param($st,'ssssss',$n,$c,$d,$dias,$hi,$hf);
+    $st=mysqli_prepare($con,"INSERT INTO materias(nombre,codigo,descripcion,dias,hora_inicio,hora_fin,periodo_id) VALUES(?,?,?,?,?,?,?)");
+    mysqli_stmt_bind_param($st,'ssssssi',$n,$c,$d,$dias,$hi,$hf,$pid);
     if(mysqli_stmt_execute($st)){
         echo json_encode(['ok'=>true,'msg'=>'Materia creada.','id'=>mysqli_insert_id($con)]);
     } else {
@@ -139,12 +144,14 @@ if($action==='materia_create'){
 }
 if($action==='materia_update'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS periodo_id INT DEFAULT NULL");
     $id=(int)($_POST['id']??0);
     $n=trim($_POST['nombre']??''); $c=trim($_POST['codigo']??'');
     $d=trim($_POST['descripcion']??''); $dias=trim($_POST['dias']??'');
     $hi=trim($_POST['hora_inicio']??'')?:null; $hf=trim($_POST['hora_fin']??'')?:null;
-    $st=mysqli_prepare($con,"UPDATE materias SET nombre=?,codigo=?,descripcion=?,dias=?,hora_inicio=?,hora_fin=? WHERE id=?");
-    mysqli_stmt_bind_param($st,'ssssssi',$n,$c,$d,$dias,$hi,$hf,$id); mysqli_stmt_execute($st);
+    $pid=(int)($_POST['periodo_id']??0)?:null;
+    $st=mysqli_prepare($con,"UPDATE materias SET nombre=?,codigo=?,descripcion=?,dias=?,hora_inicio=?,hora_fin=?,periodo_id=? WHERE id=?");
+    mysqli_stmt_bind_param($st,'ssssssii',$n,$c,$d,$dias,$hi,$hf,$pid,$id); mysqli_stmt_execute($st);
     echo json_encode(['ok'=>true,'msg'=>'Actualizada.']); exit;
 }
 if($action==='materia_set_estado'){
@@ -292,6 +299,69 @@ if($action==='nota_borrar'){
     log_audit($con,$uid,'NOTA_BORRAR',"materia=$mid alumno=$aid");
     echo json_encode(['ok'=>true,'msg'=>'Nota borrada.']); exit;
 }
+if($action==='nota_guardar_lote'){
+    // Carga histórica: un admin digitalizando el récord de UN alumno
+    // carga varias notas de una — se usa desde Cargar Notas > Histórico
+    // por Alumno. Mismo chequeo y upsert que nota_guardar, fila por fila.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $aid=(int)($_POST['alumno_id']??0);
+    $filas=json_decode($_POST['filas']??'[]',true);
+    if(!$aid||!is_array($filas)||!count($filas)){echo json_encode(['ok'=>false,'msg'=>'Nada que guardar.']);exit;}
+    $ok=0; $errores=[];
+    foreach($filas as $fila){
+        $mid=(int)($fila['materia_id']??0);
+        $nota_raw=str_replace(',','.',trim((string)($fila['nota']??'')));
+        if($nota_raw==='') continue; // fila sin nota — se ignora, no es error
+        $cal=is_numeric($nota_raw)?(float)$nota_raw:-1;
+        if(!$mid){$errores[]="Fila sin materia válida."; continue;}
+        if($cal<0||$cal>20){$errores[]="Materia #$mid: nota fuera de rango (recibido '$nota_raw')."; continue;}
+        $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
+        if($ex){
+            mysqli_query($con,"UPDATE materia_alumno SET nota_final=$cal,nota_fecha=CURDATE(),nota_registrada_por=$uid,nota_actualizada_en=NOW() WHERE materia_id=$mid AND alumno_id=$aid");
+        } else {
+            mysqli_query($con,"INSERT INTO materia_alumno(materia_id,alumno_id,nota_final,nota_fecha,nota_registrada_por,nota_actualizada_en) VALUES($mid,$aid,$cal,CURDATE(),$uid,NOW())");
+        }
+        $ok++;
+    }
+    log_audit($con,$uid,'NOTA_GUARDAR_LOTE',"alumno=$aid guardadas=$ok errores=".count($errores));
+    echo json_encode(['ok'=>true,'msg'=>"$ok nota(s) guardada(s)".(count($errores)?', '.count($errores).' con error.':'.'),'guardadas'=>$ok,'errores'=>$errores]); exit;
+}
+if($action==='alumno_materias_para_historico'){
+    // Para la pestaña "Histórico por Alumno": TODAS las materias del
+    // alumno (inscrito actualmente, con o sin nota, de cualquier
+    // período) — a diferencia de inscripcion_alumno_materias que separa
+    // inscritas/disponibles, acá solo interesa "en qué materias tiene
+    // (o puede tener) una nota para cargar".
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $aid=(int)($_POST['alumno_id']??0);
+    if(!$aid){echo json_encode(['ok'=>false,'msg'=>'Alumno requerido.']);exit;}
+    mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS periodo_id INT DEFAULT NULL");
+    $rows=[];
+    $r=mysqli_query($con,"
+        SELECT m.id materia_id,m.nombre,m.codigo,m.estado,ma.nota_final,
+               m.periodo_id,p.nombre periodo_nombre
+        FROM materia_alumno ma
+        JOIN materias m ON m.id=ma.materia_id
+        LEFT JOIN periodos p ON p.id=m.periodo_id
+        WHERE ma.alumno_id=$aid
+        ORDER BY p.anio DESC, p.id DESC, m.nombre");
+    while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
+    echo json_encode(['ok'=>true,'data'=>$rows]); exit;
+}
+if($action==='materia_inscribir_historico'){
+    // Agregar al alumno a una materia YA EXISTENTE desde la pestaña
+    // Histórico por Alumno (para poder cargarle la nota ahí mismo) —
+    // mismo efecto que "Inscribir" en Materias/Inscripciones, solo que
+    // accesible desde el flujo de carga histórica.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $aid=(int)($_POST['alumno_id']??0); $mid=(int)($_POST['materia_id']??0);
+    if(!$aid||!$mid){echo json_encode(['ok'=>false,'msg'=>'Datos incompletos.']);exit;}
+    $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
+    if($ex){echo json_encode(['ok'=>true,'msg'=>'Ya estaba inscrito.']); exit;}
+    mysqli_query($con,"INSERT INTO materia_alumno(materia_id,alumno_id) VALUES($mid,$aid)");
+    log_audit($con,$uid,'MATERIA_INSCRIBIR_HISTORICO',"materia=$mid alumno=$aid");
+    echo json_encode(['ok'=>true,'msg'=>'Inscrito.']); exit;
+}
 if($action==='notas_tabla_materia'){
     $mid=(int)($_POST['materia_id']??0);
     if(!$mid){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
@@ -326,16 +396,19 @@ if($action==='inscripcion_alumno_materias'){
     if(!$al){echo json_encode(['ok'=>false,'msg'=>'Alumno no encontrado.']);exit;}
 
     // Materias en las que YA está inscrito
+    mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS periodo_id INT DEFAULT NULL");
     $inscritas=[];
     $ri=mysqli_query($con,"
         SELECT m.id,m.nombre,m.codigo,m.estado,ma.nota_final,ma.nota_fecha,ma.auto_inscrito,
+               m.periodo_id,p.nombre periodo_nombre,p.anio periodo_anio,
                GROUP_CONCAT(DISTINCT CONCAT(d.nombre,' ',d.apellido) SEPARATOR ', ') docentes
         FROM materias m
         JOIN materia_alumno ma ON ma.materia_id=m.id AND ma.alumno_id=$aid
         LEFT JOIN materia_docente md ON md.materia_id=m.id
         LEFT JOIN docentes d ON d.id=md.docente_id
-        GROUP BY m.id,ma.nota_final,ma.nota_fecha,ma.auto_inscrito
-        ORDER BY m.nombre");
+        LEFT JOIN periodos p ON p.id=m.periodo_id
+        GROUP BY m.id,ma.nota_final,ma.nota_fecha,ma.auto_inscrito,m.periodo_id,p.nombre,p.anio
+        ORDER BY p.anio DESC, p.id DESC, m.nombre");
     while($f=mysqli_fetch_assoc($ri)) $inscritas[]=$f;
 
     // Materias disponibles (no inscrito aún)

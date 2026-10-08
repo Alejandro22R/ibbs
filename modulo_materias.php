@@ -9,12 +9,17 @@ if(!in_array($_rol,['superadmin','admin'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
 ?>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;gap:.6rem;flex-wrap:wrap;">
   <a href="api/export_plantilla.php?tipo=materias" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
-  <button class="btn btn-primary" onclick="openModal('mCreateMateria')">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-    Nueva Materia
-  </button>
+  <div style="display:flex;gap:.6rem;">
+    <button class="btn btn-secondary" onclick="abrirGestorPeriodos()" title="Los años/semestres en los que se dictan las materias — útil para ordenar el historial académico">
+      <i class="bx bx-calendar"></i> Períodos
+    </button>
+    <button class="btn btn-primary" onclick="openModal('mCreateMateria')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Nueva Materia
+    </button>
+  </div>
 </div>
 
 <div class="card">
@@ -29,8 +34,8 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
   <div class="tbl-wrap">
     <table id="tblM">
-      <thead><tr><th>Código</th><th>Materia</th><th>Horario</th><th>Estado</th><th>Inscripción</th><th>Docentes</th><th>Alumnos</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyM"><tr class="empty-row"><td colspan="8"><span class="spin"></span></td></tr></tbody>
+      <thead><tr><th>Código</th><th>Materia</th><th>Período</th><th>Horario</th><th>Estado</th><th>Inscripción</th><th>Docentes</th><th>Alumnos</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyM"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -46,7 +51,17 @@ if(!in_array($_rol,['superadmin','admin'])){
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre *</label><input name="nombre" data-only="letters" placeholder="Matemáticas I" required></div>
           <div class="field"><label>Código *</label><input name="codigo" data-only="code" placeholder="MAT-101" required></div>
-          
+
+          <div class="field field-full">
+            <label>Período (año/semestre en que se dicta)</label>
+            <div style="display:flex;gap:.5rem;">
+              <select name="periodo_id" id="selCreatePeriodo" style="flex:1;">
+                <option value="">— Sin período asignado —</option>
+              </select>
+              <button type="button" class="btn btn-secondary" onclick="abrirGestorPeriodos()" title="Crear un período nuevo">+ Nuevo</button>
+            </div>
+          </div>
+
           <!-- SECTOR AÑADIDO: Asignación de docente desde la creación -->
           <div class="field field-full">
             <label>Docente Asignado</label>
@@ -96,6 +111,15 @@ if(!in_array($_rol,['superadmin','admin'])){
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre</label><input id="eNN"></div>
           <div class="field"><label>Código</label><input id="eNC"></div>
+          <div class="field field-full">
+            <label>Período (año/semestre en que se dicta)</label>
+            <div style="display:flex;gap:.5rem;">
+              <select id="eNPeriodo" style="flex:1;">
+                <option value="">— Sin período asignado —</option>
+              </select>
+              <button type="button" class="btn btn-secondary" onclick="abrirGestorPeriodos()" title="Crear un período nuevo">+ Nuevo</button>
+            </div>
+          </div>
           <div class="field field-full"><label>Descripción</label><textarea id="eND" rows="2"></textarea></div>
           <div class="field field-full"><label>Días</label>
             <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.3rem;">
@@ -162,6 +186,34 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
 </div>
 
+<!-- MODAL: gestionar períodos académicos (años/semestres) — se usa acá
+     para etiquetar cada materia con cuándo se dictó, y después en
+     Cargar Notas > Histórico para ordenar el récord de un alumno por
+     año. -->
+<div class="modal-backdrop" id="mPeriodos">
+  <div class="modal">
+    <div class="modal-head"><h3>Períodos académicos</h3>
+      <button class="modal-close" onclick="closeModal('mPeriodos')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">
+        Un período es un año o semestre (ej. "2025 - I Semestre"). Creá uno por cada año/lapso que quieras poder distinguir en el récord de un alumno — después se lo asignás a cada materia.
+      </p>
+      <form onsubmit="crearPeriodo(event)" style="display:flex;gap:.5rem;margin-bottom:1.2rem;flex-wrap:wrap;align-items:flex-end;">
+        <div class="field" style="flex:1;min-width:160px;margin:0;"><label>Nombre</label><input name="nombre" placeholder="2025 - I Semestre" required></div>
+        <div class="field" style="width:100px;margin:0;"><label>Año</label><input name="anio" type="number" min="1990" max="2100" value="<?=date('Y')?>" required></div>
+        <button type="submit" class="btn btn-primary">Agregar</button>
+      </form>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Período</th><th style="text-align:center;">Año</th><th style="text-align:center;">Estado</th><th style="width:140px;"></th></tr></thead>
+          <tbody id="tbPeriodos"><tr class="empty-row"><td colspan="4"><span class="spin"></span></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: editar nota final de un alumno, desde la pestaña Calificaciones -->
 <div class="modal-backdrop" id="mCalNotaFinal">
   <div class="modal" style="max-width:380px;">
@@ -214,7 +266,53 @@ document.addEventListener('ibbs:ready', async () => {
   if(a?.ok) {
       document.getElementById('selAddA').innerHTML='<option value="">— Seleccionar —</option>'+a.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
   }
+
+  cargarPeriodosEnSelects();
 });
+
+// ── Períodos académicos (años/semestres) ──────────────────────
+async function cargarPeriodosEnSelects(){
+  const p = await ajax('periodo_list');
+  if(!p?.ok) return;
+  const opts = '<option value="">— Sin período asignado —</option>' +
+    p.data.map(x=>`<option value="${x.id}">${x.nombre}${x.activo==0?' (inactivo)':''}</option>`).join('');
+  const selC = document.getElementById('selCreatePeriodo'); if(selC) selC.innerHTML = opts;
+  const selE = document.getElementById('eNPeriodo'); if(selE) selE.innerHTML = opts;
+}
+function abrirGestorPeriodos(){
+  openModal('mPeriodos');
+  loadPeriodosTabla();
+}
+async function loadPeriodosTabla(){
+  const p = await ajax('periodo_list');
+  const tb = document.getElementById('tbPeriodos');
+  if(!p?.ok || !p.data.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="4">Sin períodos todavía.</td></tr>'; return; }
+  tb.innerHTML = p.data.map(x=>`<tr>
+    <td>${x.nombre}</td>
+    <td style="text-align:center;">${x.anio}</td>
+    <td style="text-align:center;"><span class="badge ${x.activo==1?'b-activo':'b-inactivo'}">${x.activo==1?'Activo':'Inactivo'}</span></td>
+    <td class="td-actions" style="justify-content:flex-end;">
+      <button class="btn btn-sm btn-secondary" onclick="togglePeriodo(${x.id})">${x.activo==1?'Desactivar':'Activar'}</button>
+      <button class="btn btn-sm btn-danger" onclick="borrarPeriodo(${x.id},'${x.nombre.replace(/'/g,"\\'")}')">Eliminar</button>
+    </td></tr>`).join('');
+}
+async function crearPeriodo(e){
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const d = await ajax('periodo_create', {nombre: fd.get('nombre'), anio: fd.get('anio')});
+  if(d?.ok){ toast(d.msg); e.target.reset(); loadPeriodosTabla(); cargarPeriodosEnSelects(); }
+  else toast(d?.msg||'Error','err');
+}
+async function togglePeriodo(id){
+  const d = await ajax('periodo_toggle', {id});
+  if(d?.ok){ toast(d.msg); loadPeriodosTabla(); cargarPeriodosEnSelects(); } else toast(d?.msg||'Error','err');
+}
+async function borrarPeriodo(id, nombre){
+  const rr = await Ibbs.confirm({title:'¿Eliminar período?', text:`Las materias que tenían "<b>${nombre}</b>" quedan sin período asignado.`, confirm:'Sí, eliminar', danger:true});
+  if(!rr.isConfirmed) return;
+  const d = await ajax('periodo_delete', {id});
+  if(d?.ok){ toast(d.msg); loadPeriodosTabla(); cargarPeriodosEnSelects(); } else toast(d?.msg||'Error','err');
+}
 
 function estadoBadge(e){ 
     const m={en_curso:'b-tardanza',pendiente:'b-ausente',culminada:'b-presente'}; 
@@ -223,11 +321,12 @@ function estadoBadge(e){
 }
 
 async function loadMaterias(){
-  console.log('[IBBS] Calling materia_list...'); const d=await ajax('materia_list'); console.log('[IBBS] materia_list response:', d); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="8">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  console.log('[IBBS] Calling materia_list...'); const d=await ajax('materia_list'); console.log('[IBBS] materia_list response:', d); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="9">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
   const tb=document.getElementById('tbodyM');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="8">Sin materias.</td></tr>';return;}
+  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="9">Sin materias.</td></tr>';return;}
   tb.innerHTML=d.data.map(m=>`<tr>
     <td><strong>${m.codigo}</strong></td><td>${m.nombre}</td>
+    <td style="font-size:.79rem;color:var(--muted);">${m.periodo_nombre||'—'}</td>
     <td style="font-size:.79rem;color:var(--muted);">${m.dias||'—'} ${m.hora_inicio?m.hora_inicio.substring(0,5):''}${m.hora_fin?'–'+m.hora_fin.substring(0,5):''}</td>
     <td>${estadoBadge(m.estado||'en_curso')}</td>
     <td>
@@ -263,13 +362,14 @@ async function editM(id){
   document.getElementById('eMId').value=id; document.getElementById('editMTitle').textContent='Editar: '+m.nombre;
   document.getElementById('eNN').value=m.nombre; document.getElementById('eNC').value=m.codigo;
   document.getElementById('eND').value=m.descripcion||''; document.getElementById('eNHi').value=m.hora_inicio||''; document.getElementById('eNHf').value=m.hora_fin||'';
+  document.getElementById('eNPeriodo').value=m.periodo_id||'';
   const dias=(m.dias||'').split(','); document.querySelectorAll('.eDia').forEach(c=>c.checked=dias.includes(c.value));
   renderMD(m.docentes); renderMA(m.alumnos);
   switchTab('eM','info'); openModal('mEditMateria');
 }
 
 async function submitEdit(){
-  const d=await ajax('materia_update',{id:_mid,nombre:document.getElementById('eNN').value,codigo:document.getElementById('eNC').value,descripcion:document.getElementById('eND').value,dias:[...document.querySelectorAll('.eDia:checked')].map(c=>c.value).join(','),hora_inicio:document.getElementById('eNHi').value,hora_fin:document.getElementById('eNHf').value});
+  const d=await ajax('materia_update',{id:_mid,nombre:document.getElementById('eNN').value,codigo:document.getElementById('eNC').value,descripcion:document.getElementById('eND').value,dias:[...document.querySelectorAll('.eDia:checked')].map(c=>c.value).join(','),hora_inicio:document.getElementById('eNHi').value,hora_fin:document.getElementById('eNHf').value,periodo_id:document.getElementById('eNPeriodo').value});
   if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
 }
 

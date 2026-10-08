@@ -225,7 +225,7 @@ mysqli_close($con);
             <tr>
               <th>Código</th>
               <th>Materia / Unidad Curricular</th>
-              <th>Horario</th>
+              <th>Período</th>
               <th style="text-align:center;">Estado</th>
               <th style="text-align:center;">Nota Final</th>
               <th style="text-align:center;">Resultado</th>
@@ -268,6 +268,16 @@ mysqli_close($con);
             <div style="font-size:.65rem; color:var(--muted);">Justificados</div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Promedio por período — de un vistazo, cómo le fue cada año -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Promedio por período</h3>
+      </div>
+      <div class="card-body" id="recResumenPeriodo" style="padding:1rem;">
+        <span style="color:var(--muted);font-size:.82rem;">Seleccioná un alumno para ver su promedio por año/semestre.</span>
       </div>
     </div>
   </div>
@@ -482,12 +492,34 @@ async function cargarRecordAlumno(id) {
         <tr>
           <td><strong style="font-size:.78rem; color:var(--muted);">${m.codigo}</strong></td>
           <td><div style="font-weight:700;">${m.nombre}</div></td>
-          <td style="font-size:.8rem; color:var(--muted);">${m.horario || 'Sábado 20:59 - 22:59'}</td>
+          <td style="font-size:.8rem; color:var(--muted);">${m.periodo_nombre || 'Sin período'}</td>
           <td style="text-align:center;">${estadoMat}</td>
           <td style="text-align:center; font-family:'DM Serif Display',serif; font-size:1.1rem; font-weight:bold;">${nv !== null ? nv.toFixed(1) : '—'}</td>
           <td style="text-align:center;"><span class="badge ${clsBadge}" style="font-size:.72rem;">${labelBadge}</span></td>
         </tr>
       `;
+    }).join('');
+  }
+
+  // Promedio por período — para ver de un vistazo cómo le fue al
+  // alumno cada año/semestre, no solo el promedio general.
+  const porPeriodo = {};
+  conNota.forEach(m => {
+    const key = m.periodo_nombre || 'Sin período';
+    (porPeriodo[key] = porPeriodo[key] || []).push(parseFloat(m.nota_final));
+  });
+  const resumenPeriodoEl = document.getElementById('recResumenPeriodo');
+  const claves = Object.keys(porPeriodo);
+  if (!claves.length) {
+    resumenPeriodoEl.innerHTML = '<span style="color:var(--muted);font-size:.82rem;">Todavía no hay notas cargadas para calcular un promedio por período.</span>';
+  } else {
+    resumenPeriodoEl.innerHTML = claves.map(k => {
+      const notas = porPeriodo[k];
+      const prom = (notas.reduce((a,b)=>a+b,0) / notas.length).toFixed(2);
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.5rem .8rem;background:var(--cream);border-radius:8px;margin-bottom:.4rem;">
+        <span style="font-size:.82rem;font-weight:600;">${k}</span>
+        <span style="font-size:.82rem;"><strong>${prom}</strong> <span style="color:var(--muted);">(${notas.length} materia${notas.length===1?'':'s'})</span></span>
+      </div>`;
     }).join('');
   }
 

@@ -8,13 +8,31 @@ if(!in_array($_rol,['superadmin','admin','profesor'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
 
+$esAdmin = in_array($_rol,['superadmin','admin']);
 $con = db();
 // Admin/superadmin ven todas las materias; un profesor solo las suyas
 // (materias_asignadas ya centraliza esta regla — ver config/materia_permisos.php).
 $materias = materias_asignadas($con, $_uid, $_rol);
+$alumnos_list = [];
+if($esAdmin){
+    $ra = mysqli_query($con, "SELECT id,nombre,apellido,cedula FROM alumnos WHERE activo=1 ORDER BY apellido,nombre");
+    while($f = mysqli_fetch_assoc($ra)) $alumnos_list[] = $f;
+}
 mysqli_close($con);
 ?>
 
+<?php if($esAdmin): ?>
+<!-- Un profesor solo necesita "Por Materia" (ve sus propias materias
+     asignadas) — la carga histórica y la importación son trabajo
+     administrativo de migración, no algo que un profesor haga. -->
+<div class="tabs-nav" data-tour="notas-tabs">
+  <button class="tab-btn active" data-tab-group="notas" data-tab="materia" onclick="switchTab('notas','materia')">Por Materia</button>
+  <button class="tab-btn" data-tab-group="notas" data-tab="alumno" onclick="switchTab('notas','alumno')">Histórico por Alumno</button>
+  <button class="tab-btn" data-tab-group="notas" data-tab="excel" onclick="switchTab('notas','excel')">Importar desde Excel/CSV</button>
+</div>
+<?php endif; ?>
+
+<div class="tab-pane active" data-pane-group="notas" data-pane="materia">
 <!-- Selector de materia -->
 <div class="card" style="margin-bottom:1.4rem;">
   <div class="card-body">
@@ -79,6 +97,111 @@ mysqli_close($con);
   <p style="font-family:'DM Serif Display',serif;font-size:1.3rem;margin-bottom:.4rem;">Selecciona una materia</p>
   <p style="font-size:.84rem;">Elige una materia para ver y cargar las calificaciones finales.</p>
 </div>
+</div><!-- /pane materia -->
+
+<?php if($esAdmin): ?>
+<!-- ═══════════════════════════════════════════════
+  HISTÓRICO POR ALUMNO — cargar de una vez todas las notas de un
+  alumno (materias en las que ya está, + agregar una histórica que
+  todavía no tenga), para digitalizar récords en papel sin tener que
+  ir materia por materia.
+════════════════════════════════════════════════════ -->
+<div class="tab-pane" data-pane-group="notas" data-pane="alumno">
+  <div class="card" style="margin-bottom:1.4rem;">
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>Seleccionar Alumno</label>
+          <select id="selAlumnoHist" onchange="cargarHistoricoAlumno()">
+            <option value="">— Elige un alumno —</option>
+            <?php foreach($alumnos_list as $al): ?>
+            <option value="<?=$al['id']?>"><?=htmlspecialchars($al['apellido'].', '.$al['nombre'].' — CI: '.$al['cedula'])?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="histEmpty" style="text-align:center;padding:4rem 1rem;color:var(--muted);">
+    <p style="font-family:'DM Serif Display',serif;font-size:1.3rem;margin-bottom:.4rem;">Selecciona un alumno</p>
+    <p style="font-size:.84rem;">Vas a poder ver y cargar de una vez todas sus notas, materia por materia.</p>
+  </div>
+
+  <div id="histArea" style="display:none;">
+    <div class="card" style="margin-bottom:1.1rem;">
+      <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
+        <h3>Agregar una materia histórica</h3>
+        <span style="font-size:.78rem;color:var(--muted);">Si el alumno cursó algo que no aparece abajo, agregalo acá primero</span>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end;">
+          <div class="field" style="flex:1;min-width:220px;margin:0;">
+            <label>Materia</label>
+            <select id="selAgregarMateriaHist"><option value="">— Seleccionar —</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="agregarMateriaHistorico()">+ Agregar al récord</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3 id="histTitulo">Materias del alumno</h3>
+        <button class="btn btn-primary" id="btnGuardarHist" onclick="guardarHistoricoLote()">Guardar todas las notas</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Código</th><th style="text-align:left;">Materia</th><th>Período</th><th style="text-align:center;">Nota (0-20)</th></tr></thead>
+          <tbody id="tbHistorico"><tr class="empty-row"><td colspan="4">Elegí un alumno arriba.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div><!-- /pane alumno -->
+
+<!-- ═══════════════════════════════════════════════
+  IMPORTAR DESDE EXCEL/CSV — para digitalizar muchos alumnos de una,
+  en vez de uno por uno. Ver api/notas_importar.php.
+════════════════════════════════════════════════════ -->
+<div class="tab-pane" data-pane-group="notas" data-pane="excel">
+  <div class="card" style="margin-bottom:1.2rem;background:linear-gradient(135deg,var(--lime2) 0%,#15803d 100%);border:none;">
+    <div class="card-body" style="padding:1.2rem 1.4rem;">
+      <div style="font-weight:800;color:#fff;font-size:.95rem;margin-bottom:.3rem;">¿Cómo funciona?</div>
+      <ol style="font-size:.82rem;color:rgba(255,255,255,.92);line-height:1.7;margin:0;padding-left:1.2rem;">
+        <li>Descargá la plantilla y llenala: <b>cédula</b> del alumno, <b>materia</b>, <b>período</b> (tiene que existir ya — creálo en Materias › Períodos) y <b>nota</b> (0-20).</li>
+        <li>Subila acá y revisá la vista previa — te dice qué pasaría con cada fila antes de guardar nada.</li>
+        <li>Si todo se ve bien, confirmá. Si una materia histórica no existe todavía, se crea sola; el alumno tiene que existir de antes.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.2rem;">
+    <div class="card-body" style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:center;">
+      <a class="btn btn-secondary" href="api/notas_importar.php?action=plantilla">
+        <i class="bx bx-download"></i> Descargar plantilla .csv
+      </a>
+      <input type="file" id="csvFile" accept=".csv" style="padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.82rem;background:var(--cream);">
+      <button class="btn btn-primary" onclick="previsualizarCSV()">Ver vista previa</button>
+    </div>
+  </div>
+
+  <div id="csvPreviewArea" style="display:none;">
+    <div class="card">
+      <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
+        <h3 id="csvResumenTitulo">Vista previa</h3>
+        <button class="btn btn-primary" id="btnConfirmarCSV" onclick="confirmarCSV()">Confirmar e importar</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Fila</th><th>Cédula</th><th>Alumno</th><th>Materia</th><th>Período</th><th style="text-align:center;">Nota</th><th>Qué pasaría</th></tr></thead>
+          <tbody id="tbCsvPreview"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div><!-- /pane excel -->
+<?php endif; ?>
 
 <!-- MODAL INGRESAR NOTA -->
 <div class="modal-backdrop" id="mNota">
@@ -322,5 +445,145 @@ function filtrarTablaNotas() {
 }
 
 function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+
+<?php if($esAdmin): ?>
+// ═══════════════════════════════════════════════════════════════
+// HISTÓRICO POR ALUMNO
+// ═══════════════════════════════════════════════════════════════
+let _histAlumnoId = null;
+let _histMaterias = []; // lo que ya se está mostrando en la tabla
+
+async function cargarHistoricoAlumno() {
+  _histAlumnoId = document.getElementById('selAlumnoHist').value;
+  const empty = document.getElementById('histEmpty');
+  const area  = document.getElementById('histArea');
+  if (!_histAlumnoId) { empty.style.display = 'block'; area.style.display = 'none'; return; }
+  empty.style.display = 'none';
+  area.style.display  = 'block';
+  document.getElementById('tbHistorico').innerHTML = '<tr class="empty-row"><td colspan="4"><span class="spin"></span></td></tr>';
+
+  const [d, todas] = await Promise.all([
+    ajax('alumno_materias_para_historico', {alumno_id: _histAlumnoId}),
+    ajax('materia_list'),
+  ]);
+  if (!d?.ok) { toast(d?.msg || 'Error', 'err'); return; }
+  _histMaterias = d.data;
+  renderTablaHistorico();
+
+  // Select de "agregar materia histórica" — solo las que el alumno
+  // todavía NO tiene en su récord.
+  if (todas?.ok) {
+    const yaIds = new Set(_histMaterias.map(m => String(m.materia_id)));
+    const sel = document.getElementById('selAgregarMateriaHist');
+    sel.innerHTML = '<option value="">— Seleccionar —</option>' +
+      todas.data.filter(m => !yaIds.has(String(m.id)))
+        .map(m => `<option value="${m.id}">${h(m.codigo)} · ${h(m.nombre)}${m.periodo_nombre ? ' ('+h(m.periodo_nombre)+')' : ''}</option>`).join('');
+  }
+}
+
+function renderTablaHistorico() {
+  const al = document.getElementById('selAlumnoHist');
+  document.getElementById('histTitulo').textContent = 'Materias de ' + (al.options[al.selectedIndex]?.textContent || '');
+  const tb = document.getElementById('tbHistorico');
+  if (!_histMaterias.length) {
+    tb.innerHTML = '<tr class="empty-row"><td colspan="4">Este alumno todavía no tiene materias — agregá una arriba.</td></tr>';
+    return;
+  }
+  tb.innerHTML = _histMaterias.map(m => `
+    <tr>
+      <td style="font-size:.8rem;color:var(--muted);">${h(m.codigo)}</td>
+      <td style="text-align:left;"><strong>${h(m.nombre)}</strong></td>
+      <td style="font-size:.82rem;color:var(--muted);">${h(m.periodo_nombre || 'Sin período')}</td>
+      <td style="text-align:center;">
+        <input type="number" class="hist-nota-input" data-materia-id="${m.materia_id}" min="0" max="20" step="0.1"
+          value="${m.nota_final !== null ? parseFloat(m.nota_final) : ''}" placeholder="—"
+          style="width:80px;text-align:center;padding:.4rem;">
+      </td>
+    </tr>`).join('');
+}
+
+async function agregarMateriaHistorico() {
+  const mid = document.getElementById('selAgregarMateriaHist').value;
+  if (!mid) { toast('Elegí una materia primero.', 'err'); return; }
+  const d = await ajax('materia_inscribir_historico', {alumno_id: _histAlumnoId, materia_id: mid});
+  if (d?.ok) { toast(d.msg); cargarHistoricoAlumno(); }
+  else toast(d?.msg || 'Error', 'err');
+}
+
+async function guardarHistoricoLote() {
+  const filas = [...document.querySelectorAll('.hist-nota-input')]
+    .map(inp => ({materia_id: inp.dataset.materiaId, nota: inp.value}))
+    .filter(f => f.nota !== '');
+  if (!filas.length) { toast('No hay notas para guardar.', 'err'); return; }
+  const btn = document.getElementById('btnGuardarHist');
+  btn.disabled = true;
+  const d = await ajax('nota_guardar_lote', {alumno_id: _histAlumnoId, filas: JSON.stringify(filas)});
+  btn.disabled = false;
+  if (d?.ok) {
+    if (d.errores && d.errores.length) Ibbs.warn(d.msg + '<br><br>' + d.errores.join('<br>'));
+    else toast(d.msg);
+    cargarHistoricoAlumno();
+  } else toast(d?.msg || 'Error', 'err');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// IMPORTAR DESDE EXCEL/CSV
+// ═══════════════════════════════════════════════════════════════
+function filaCsvHtml(f) {
+  const colorMap = {ok: 'var(--muted)', error: '#dc2626'};
+  const estadoTxt = f.estado === 'error'
+    ? `<span style="color:#dc2626;">⚠ ${h(f.mensaje)}</span>`
+    : `<span style="color:#16a34a;">✓ ${h(f.mensaje)}</span>`;
+  return `<tr style="${f.estado==='error' ? 'background:rgba(220,38,38,.05);' : ''}">
+    <td>${f.fila}</td>
+    <td>${h(f.cedula)}</td>
+    <td>${h(f.alumno_nombre || '—')}</td>
+    <td>${h(f.materia)}${f.materia_nueva ? ' <span class="badge b-tardanza" style="font-size:.62rem;">nueva</span>' : ''}</td>
+    <td>${h(f.periodo)}</td>
+    <td style="text-align:center;">${h(f.nota)}</td>
+    <td style="font-size:.8rem;">${estadoTxt}</td>
+  </tr>`;
+}
+
+async function previsualizarCSV() {
+  const file = document.getElementById('csvFile').files[0];
+  if (!file) { toast('Elegí un archivo .csv primero.', 'err'); return; }
+  const fd = new FormData();
+  fd.append('action', 'preview');
+  fd.append('csvfile', file);
+  const _csrf = document.querySelector('meta[name="csrf-token"]');
+  fd.append('csrf_token', _csrf ? _csrf.content : '');
+  toast('Leyendo archivo…');
+  const r = await fetch('api/notas_importar.php', {method: 'POST', body: fd});
+  const d = await r.json();
+  if (!d.ok) { toast(d.msg || 'Error al leer el archivo.', 'err'); return; }
+  document.getElementById('csvPreviewArea').style.display = 'block';
+  document.getElementById('csvResumenTitulo').textContent =
+    `Vista previa — ${d.resumen.ok} fila(s) OK, ${d.resumen.error} con error, de ${d.resumen.total} total`;
+  document.getElementById('tbCsvPreview').innerHTML = d.data.map(filaCsvHtml).join('');
+  document.getElementById('btnConfirmarCSV').disabled = d.resumen.ok === 0;
+}
+
+async function confirmarCSV() {
+  const file = document.getElementById('csvFile').files[0];
+  if (!file) { toast('Volvé a elegir el archivo.', 'err'); return; }
+  const rr = await Ibbs.confirm({title:'¿Confirmar importación?', text:'Esto va a crear materias históricas, inscribir alumnos y guardar notas según lo que viste en la vista previa. No se puede deshacer de una — revisá bien antes.', confirm:'Sí, importar'});
+  if (!rr.isConfirmed) return;
+  const fd = new FormData();
+  fd.append('action', 'confirmar');
+  fd.append('csvfile', file);
+  const _csrf = document.querySelector('meta[name="csrf-token"]');
+  fd.append('csrf_token', _csrf ? _csrf.content : '');
+  toast('Importando…');
+  const r = await fetch('api/notas_importar.php', {method: 'POST', body: fd});
+  const d = await r.json();
+  if (!d.ok) { toast(d.msg || 'Error al importar.', 'err'); return; }
+  document.getElementById('tbCsvPreview').innerHTML = d.data.map(filaCsvHtml).join('');
+  document.getElementById('csvResumenTitulo').textContent =
+    `Importación terminada — ${d.resumen.ok} fila(s) cargada(s), ${d.resumen.error} con error`;
+  document.getElementById('btnConfirmarCSV').disabled = true;
+  Ibbs.success(`${d.resumen.ok} nota(s) importada(s) correctamente.`);
+}
+<?php endif; ?>
 </script>
 <?php include __DIR__.'/layout/foot.php'; ?>
