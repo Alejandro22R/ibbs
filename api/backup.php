@@ -86,6 +86,17 @@ if ($action === 'import' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     ob_clean();
     header('Content-Type: application/json; charset=utf-8');
 
+    // Ejecutar un .sql arbitrario contra la base de datos es
+    // equivalente a tener control total — un admin (no superadmin)
+    // podía subir un archivo con un simple
+    // "UPDATE usuarios SET rol='superadmin' WHERE id=..." y
+    // auto-ascenderse, algo que reset_bd y usuario_set_rol ya
+    // restringen explícitamente a superadmin. "tablas"/"export" siguen
+    // disponibles para admin (son de solo lectura).
+    if ($rol !== 'superadmin') {
+        echo json_encode(['ok'=>false,'msg'=>'Solo el Superadmin puede importar un respaldo.']); exit;
+    }
+
     if (!isset($_FILES['sqlfile']) || $_FILES['sqlfile']['error'] !== UPLOAD_ERR_OK) {
         echo json_encode(['ok'=>false,'msg'=>'No se recibió el archivo. Error: '.($_FILES['sqlfile']['error']??'desconocido')]);
         exit;

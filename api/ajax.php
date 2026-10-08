@@ -106,6 +106,13 @@ if($action==='dashboard_stats'){
 
 // ════ MATERIAS ═════════════════════════════════════════════════
 if($action==='materia_list'){
+    // Sin chequeo de rol, cualquier alumno logueado podía pedir esto
+    // directo — incluye "notas_cargadas" por materia, progreso de
+    // calificación que no es asunto de un alumno. Los únicos que lo
+    // usan son modulo_materias.php (admin) y modulo_notas.php
+    // (admin/profesor); el catálogo que ve un alumno para
+    // autoinscribirse usa otra acción, no esta.
+    if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS periodo_id INT DEFAULT NULL");
     $r=mysqli_query($con,"
         SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado,m.activo,m.inscripcion_abierta,
@@ -525,6 +532,11 @@ if($action==='docente_get'){
     echo json_encode(['ok'=>true,'data'=>$f]); exit;
 }
 if($action==='docente_all_simple'){
+    // Faltaba este chequeo — su hermana alumno_all_simple (más abajo)
+    // sí lo tiene, y ambas solo se usan desde modulo_materias.php
+    // (admin-only). Sin esto, cualquier alumno o profesor logueado
+    // podía pedir la cédula de todos los docentes.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $r=mysqli_query($con,"SELECT id,nombre,apellido,cedula FROM docentes WHERE activo=1 ORDER BY apellido,nombre");
     $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
@@ -745,6 +757,13 @@ if($action==='asistencia_list'){
     if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $mid=(int)($_POST['materia_id']??0); $tipo=trim($_POST['tipo']??''); $fecha=trim($_POST['fecha']??'');
     $estado=trim($_POST['estado']??'');
+    // Un profesor solo puede ver asistencia de SUS materias — antes
+    // podía pedir cualquier materia_id (o ninguno, y traerse TODA la
+    // asistencia de la institución con cédulas incluidas) sin que
+    // nada lo verificara.
+    if($_rol==='profesor' && (!$mid || !materia_puede_gestionar($con,$uid,$_rol,$mid))){
+        echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']); exit;
+    }
     $w=[]; if($mid) $w[]="a.materia_id=$mid"; if($tipo) $w[]="a.tipo='".esc($con,$tipo)."'"; if($fecha) $w[]="a.fecha='".esc($con,$fecha)."'";
     if($estado && in_array($estado,['presente','ausente','tardanza','justificado'],true)) $w[]="a.estado='".esc($con,$estado)."'";
     $wq=$w?"WHERE ".implode(' AND ',$w):'';
@@ -1027,7 +1046,11 @@ if($action==='notif_borrar'){
     mysqli_query($con,"CREATE TABLE IF NOT EXISTS notificaciones (id INT AUTO_INCREMENT PRIMARY KEY,tipo ENUM('reprobado','asistencia','sistema','info') DEFAULT 'info',titulo VARCHAR(200) NOT NULL,mensaje TEXT,para_rol VARCHAR(20) DEFAULT 'admin',usuario_id INT DEFAULT NULL,leida TINYINT(1) DEFAULT 0,creado_en DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");
     $id=(int)($_POST['id']??0);
     if(!can('edit')){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
-    if($id) mysqli_query($con,"DELETE FROM notificaciones WHERE id=$id");
+    // Igual que notif_leer/notif_archivar: solo se puede borrar lo que
+    // es propio (o una notificación general sin dueño) — antes
+    // cualquiera con permiso 'edit' (incluye profesor) podía borrar
+    // CUALQUIER notificación de CUALQUIER usuario con solo saber el id.
+    if($id) mysqli_query($con,"DELETE FROM notificaciones WHERE id=$id AND (usuario_id=$uid OR usuario_id IS NULL)");
     echo json_encode(['ok'=>true]); exit;
 }
 
@@ -1070,7 +1093,10 @@ if($action==='calendario_mes'){
 
 // ════ IMPORTAR ALUMNOS EXCEL ════════════════════════════════
 if($action==='importar_alumnos'){
-    if(!can('edit')){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    // alumno_create y alumno_lote exigen admin/superadmin — can('edit')
+    // también se lo da a un profesor, que no debería poder crear
+    // cuentas de alumno en lote.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $data=json_decode($_POST['data']??'[]',true);
     if(!$data||!is_array($data)){echo json_encode(['ok'=>false,'msg'=>'Sin datos.']);exit;}
     $ok=0;$skip=0;$err=[];
@@ -1311,7 +1337,14 @@ if($action==='usuario_set_rol'){
 if($action==='historial_actividad'){
     if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $tipo  = trim($_POST['tipo']??'');
-    $fecha = trim($_POST['fecha']??'');
+    // $fecha se empalma directo en varios WHERE más abajo — a
+    // diferencia de $tipo (ya validado contra una lista fija), esto
+    // viajaba sin escapar ni validar: cualquier texto llegaba tal
+    // cual al SQL. Se valida el formato en vez de solo escapar, así
+    // una fecha mal formada simplemente se ignora en vez de romper
+    // la consulta.
+    $fechaRaw = trim($_POST['fecha']??'');
+    $fecha = preg_match('/^\d{4}-\d{2}-\d{2}$/',$fechaRaw) ? $fechaRaw : '';
     $data  = [];
     $resumen = ['notas'=>0,'inscripciones'=>0,'asistencias'=>0,'usuarios'=>0];
 
@@ -1401,6 +1434,16 @@ if($action==='asistencia_editar'){
     $obs    = esc($con,$_POST['observacion']??'');
     $valid  = ['presente','ausente','tardanza','justificado'];
     if(!in_array($estado,$valid)){echo json_encode(['ok'=>false,'msg'=>'Estado inválido.']);exit;}
+    // can('edit') por sí solo no distingue de quién es la materia — un
+    // profesor podía editar cualquier registro de asistencia del
+    // sistema con solo adivinar/probar el id. asistencia_register ya
+    // hacía este chequeo; acá faltaba.
+    if($_rol==='profesor'){
+        $am=mysqli_fetch_assoc(mysqli_query($con,"SELECT materia_id FROM asistencias WHERE id=$id LIMIT 1"));
+        if(!$am || !materia_puede_gestionar($con,$uid,$_rol,(int)$am['materia_id'])){
+            echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']); exit;
+        }
+    }
     mysqli_query($con,"UPDATE asistencias SET estado='$estado', observacion='$obs' WHERE id=$id");
     echo json_encode(['ok'=>true,'msg'=>'Asistencia actualizada.']);
     exit;

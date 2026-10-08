@@ -5,6 +5,13 @@
  */
 require_once __DIR__.'/../config/bootstrap.php';
 if(empty($_SESSION['loggedin'])){ header('Location: ../login.php'); exit; }
+// Este reporte expone cédula/correo/ciudad de TODOS los alumnos o
+// docentes, o la planilla de asistencia completa — antes solo
+// pedía estar logueado, así que cualquier alumno podía generarlo
+// directo por URL. Las páginas que lo enlazan (Alumnos, Docentes,
+// Materias) ya son admin/superadmin-only; el backend tiene que
+// exigir lo mismo.
+if(!in_array($_SESSION['rol']??'', ['superadmin','admin'])){ die('No tenés permiso para generar este reporte.'); }
 function esc($c,$v){return mysqli_real_escape_string($c,$v);}
 
 $con     = db();

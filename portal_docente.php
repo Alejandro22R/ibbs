@@ -24,7 +24,10 @@ $foto_perfil = !empty($usuario_db['foto']) ? $usuario_db['foto'] : null;
 $alumnos_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM alumnos WHERE activo=1"))[0] ?? 0;
 $docentes_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM docentes WHERE activo=1"))[0] ?? 0;
 $materias_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM materias WHERE activo=1"))[0] ?? 0;
-$asistencias_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM asistencias"))[0] ?? 0;
+// $asistencias_totales ya no hace su propio COUNT(*) — era un segundo
+// escaneo completo de la tabla asistencias en cada carga del portal,
+// redundante con el GROUP BY de abajo que ya cuenta lo mismo por
+// estado (la suma de los 4 estados es el total).
 
 $res_cal = mysqli_query($con, "SELECT
     SUM(CASE WHEN nota_final >= 15 THEN 1 ELSE 0 END) as aprobados,
@@ -43,6 +46,7 @@ if($res_mat) { while($row = mysqli_fetch_assoc($res_mat)) { $estado_materias[$ro
 $res_asi = mysqli_query($con, "SELECT estado, COUNT(*) as total FROM asistencias GROUP BY estado");
 $estado_asistencias = ['presente' => 0, 'ausente' => 0, 'tardanza' => 0, 'justificado' => 0];
 if($res_asi) { while($row = mysqli_fetch_assoc($res_asi)) { $estado_asistencias[$row['estado']] = $row['total']; } }
+$asistencias_totales = array_sum($estado_asistencias);
 
 $docente_id = 0;
 $stmt_doc = mysqli_prepare($con, "SELECT id FROM docentes WHERE cedula = ? OR usuario_id = ? LIMIT 1");

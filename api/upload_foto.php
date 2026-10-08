@@ -9,10 +9,14 @@ $uid  = (int)($_SESSION['user_id']??0);
 $tipo = trim($_POST['tipo']??'usuario'); // usuario | docente | alumno
 $rid  = (int)($_POST['id']??$uid);
 
-// Validar permisos: solo superadmin/admin pueden cambiar foto de otros
+// Validar permisos: solo superadmin/admin pueden cambiar foto de otros.
+// Antes esto solo se chequeaba para tipo=docente/alumno — con
+// tipo=usuario (el valor por defecto) cualquier usuario logueado
+// podía mandar el id de cualquier otra cuenta (incluida la de un
+// superadmin) y pisarle la foto de perfil.
 $rol = $_SESSION['rol']??'alumno';
-if ($tipo!=='usuario' && !in_array($rol,['superadmin','admin'])) {
-    if ($rid != $uid) { echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']); exit; }
+if ($rid != $uid && !in_array($rol,['superadmin','admin'])) {
+    echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']); exit;
 }
 
 if (!isset($_FILES['foto']) || $_FILES['foto']['error']!==UPLOAD_ERR_OK) {
