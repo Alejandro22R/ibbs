@@ -118,6 +118,9 @@ if ($action === 'pago_resumen') {
 if ($action === 'pago_marcar_pagado') {
     if (!in_array($rol, ['superadmin','admin'])) json_fail_pg('Sin permiso.');
     $id = (int)($_POST['id'] ?? 0);
+    $p = mysqli_fetch_assoc(mysqli_query($con, "SELECT estado FROM pagos WHERE id=$id LIMIT 1"));
+    if (!$p) json_fail_pg('Pago no encontrado.');
+    if ($p['estado'] !== 'pendiente') json_fail_pg('Este cobro ya no está pendiente.');
     mysqli_query($con, "UPDATE pagos SET estado='pagado',revisado_por=$uid,revisado_en=NOW() WHERE id=$id");
     log_audit($con, $uid, 'PAGO_MARCAR_PAGADO', "id=$id");
     echo json_encode(['ok'=>true,'msg'=>'Marcado como pagado.']); exit;
@@ -128,9 +131,10 @@ if ($action === 'pago_aprobar' || $action === 'pago_rechazar') {
     if (!in_array($rol, ['superadmin','admin'])) json_fail_pg('Sin permiso.');
     $id = (int)($_POST['id'] ?? 0);
     $nuevoEstado = $action === 'pago_aprobar' ? 'pagado' : 'rechazado';
-    $r = mysqli_query($con, "SELECT alumno_id,concepto FROM pagos WHERE id=$id LIMIT 1");
+    $r = mysqli_query($con, "SELECT alumno_id,concepto,estado FROM pagos WHERE id=$id LIMIT 1");
     $p = mysqli_fetch_assoc($r);
     if (!$p) json_fail_pg('Pago no encontrado.');
+    if ($p['estado'] !== 'en_revision') json_fail_pg('Este cobro ya no está en revisión.');
     mysqli_query($con, "UPDATE pagos SET estado='$nuevoEstado',revisado_por=$uid,revisado_en=NOW() WHERE id=$id");
     log_audit($con, $uid, strtoupper($action), "id=$id");
     $stN = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,usuario_id,referencia_id) SELECT 'pago_revisado',?,?,usuario_id,? FROM alumnos WHERE id=?");
@@ -177,6 +181,7 @@ if ($action === 'pago_lote') {
             mysqli_stmt_execute($stN);
             $ok++;
         } elseif ($sub === 'eliminar') {
+            if ($p['estado'] === 'pagado') { $omitidos++; continue; }
             if ($p['comprobante'] && file_exists(__DIR__.'/../'.$p['comprobante'])) @unlink(__DIR__.'/../'.$p['comprobante']);
             mysqli_query($con, "DELETE FROM pagos WHERE id=$id");
             log_audit($con, $uid, 'PAGO_ELIMINAR', "id=$id (lote)");
@@ -191,7 +196,9 @@ if ($action === 'pago_lote') {
 if ($action === 'pago_eliminar') {
     if (!in_array($rol, ['superadmin','admin'])) json_fail_pg('Sin permiso.');
     $id = (int)($_POST['id'] ?? 0);
-    $p = mysqli_fetch_assoc(mysqli_query($con, "SELECT comprobante FROM pagos WHERE id=$id LIMIT 1"));
+    $p = mysqli_fetch_assoc(mysqli_query($con, "SELECT comprobante,estado FROM pagos WHERE id=$id LIMIT 1"));
+    if (!$p) json_fail_pg('Pago no encontrado.');
+    if ($p['estado'] === 'pagado') json_fail_pg('No se puede eliminar un cobro ya pagado.');
     mysqli_query($con, "DELETE FROM pagos WHERE id=$id");
     if ($p && $p['comprobante'] && file_exists(__DIR__.'/../'.$p['comprobante'])) @unlink(__DIR__.'/../'.$p['comprobante']);
     log_audit($con, $uid, 'PAGO_ELIMINAR', "id=$id");
@@ -237,6 +244,12 @@ if ($action === 'pago_subir_comprobante') {
     $st = mysqli_prepare($con, "UPDATE pagos SET comprobante=?,estado='en_revision' WHERE id=?");
     mysqli_stmt_bind_param($st, 'si', $ruta, $id);
     if (!mysqli_stmt_execute($st)) { @unlink($dir.$fname); json_fail_pg('No se pudo registrar el comprobante.'); }
+    // Si ya había un comprobante anterior (ej. volvió a subir tras un rechazo),
+    // se borra ahora que el nuevo ya quedó guardado — si no, el archivo viejo
+    // queda huérfano en disco para siempre.
+    if ($pago['comprobante'] && $pago['comprobante'] !== $ruta && file_exists(__DIR__.'/../'.$pago['comprobante'])) {
+        @unlink(__DIR__.'/../'.$pago['comprobante']);
+    }
     log_audit($con, $uid, 'PAGO_SUBIR_COMPROBANTE', "id=$id");
 
     $stN = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,para_rol,referencia_id) VALUES('pago_pendiente_revision',?,?,'admin',?)");
