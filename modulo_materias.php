@@ -326,7 +326,7 @@ function estadoBadge(e){
 }
 
 async function loadMaterias(){
-  console.log('[IBBS] Calling materia_list...'); const d=await ajax('materia_list'); console.log('[IBBS] materia_list response:', d); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="9">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  const d=await ajax('materia_list'); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="9">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
   const tb=document.getElementById('tbodyM');
   if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="9">Sin materias.</td></tr>';return;}
   tb.innerHTML=d.data.map(m=>`<tr>
@@ -356,9 +356,14 @@ async function submitCreate(e){
   const fd=new FormData(e.target); fd.append('action','materia_create');
   fd.set('dias',[...document.querySelectorAll('.cDia:checked')].map(c=>c.value).join(','));
   const _csrf=document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token',_csrf?_csrf.content:'');
-  const r=await fetch('api/ajax.php',{method:'POST',body:fd}); const d=await r.json();
-  if(d.ok){toast(d.msg);closeModal('mCreateMateria');e.target.reset();document.querySelectorAll('.cDia').forEach(c=>c.checked=false);loadMaterias();}
-  else toast(d.msg,'err');
+  const btn = e.target.querySelector('button[type="submit"]'); const btnTxt = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const r=await fetch('api/ajax.php',{method:'POST',body:fd}); const d=await r.json();
+    if(d.ok){toast(d.msg);closeModal('mCreateMateria');e.target.reset();document.querySelectorAll('.cDia').forEach(c=>c.checked=false);loadMaterias();}
+    else toast(d.msg,'err');
+  } catch(err) { toast('Error de conexión.', 'err'); }
+  btn.disabled = false; btn.textContent = btnTxt;
 }
 
 async function editM(id){

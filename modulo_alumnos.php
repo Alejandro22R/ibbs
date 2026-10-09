@@ -127,7 +127,7 @@ function hAttr(s){ return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace
 document.addEventListener('ibbs:ready', () => loadAlumnos());
 async function loadAlumnos(){
   const ciudad=document.getElementById('filtCiudad').value.trim();
-  console.log('[IBBS] Calling alumno_list...'); const d=await ajax('alumno_list',{ciudad}); console.log('[IBBS] alumno_list response:', d);
+  const d=await ajax('alumno_list',{ciudad});
   limpiarSeleccionAlumnos();
   if(!d?.ok){ document.getElementById('tbodyA').innerHTML='<tr class="empty-row"><td colspan="10">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
   const tb=document.getElementById('tbodyA');
@@ -180,8 +180,13 @@ async function rechazarAlumno(id,n){
 async function createAlumno(e){
   e.preventDefault(); const fd=new FormData(e.target); fd.append('action','alumno_create');
   const _csrf=document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token',_csrf?_csrf.content:'');
-  const r=await fetch('api/ajax.php',{method:'POST',body:fd}); const d=await r.json();
-  if(d.ok){toast(d.msg);closeModal('mCA');e.target.reset();loadAlumnos();}else Ibbs.error(d.msg);
+  const btn = e.target.querySelector('button[type="submit"]'); const btnTxt = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const r=await fetch('api/ajax.php',{method:'POST',body:fd}); const d=await r.json();
+    if(d.ok){toast(d.msg);closeModal('mCA');e.target.reset();loadAlumnos();}else Ibbs.error(d.msg);
+  } catch(err) { Ibbs.error('Error de conexión.'); }
+  btn.disabled = false; btn.textContent = btnTxt;
 }
 async function editA(id){
   const d=await ajax('alumno_get',{id}); if(!d?.ok){toast(d?.msg,'err');return;}

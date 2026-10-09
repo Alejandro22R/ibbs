@@ -930,7 +930,7 @@ async function guardarTarea(e) {
     const d = JSON.parse(text);
     if (d.ok) { toast(d.msg); closeModal('mTarea'); loadTareas(); }
     else Ibbs.error(d.msg);
-  } catch(err) { console.log(err); Ibbs.error('Error al guardar la tarea. Revisa tu api/tareas.php'); }
+  } catch(err) { Ibbs.error('Error al guardar la tarea. Intentá de nuevo.'); }
   btn.disabled = false; btn.textContent = 'Publicar Tarea';
 }
 
@@ -1019,7 +1019,9 @@ async function abrirVerEntregas(tarea_id, titulo) {
         <td>${e.entrega_id ? `<button class="btn btn-sm btn-success" onclick="calificarEntrega(${e.entrega_id})">Guardar</button>` : ''}</td>
       </tr>`;
     }).join('');
-  } catch(err) { console.log(err); }
+  } catch(err) {
+    tb.innerHTML = `<tr><td colspan="6" style="color:#dc2626;padding:1rem;">No se pudo cargar las entregas. Revisá tu conexión e intentá de nuevo.</td></tr>`;
+  }
 }
 
 async function calificarEntrega(entrega_id) {
@@ -1178,11 +1180,11 @@ document.getElementById('chat-form').addEventListener('submit', async (e) => {
     try {
         const result = JSON.parse(text);
         if(result.success) loadForo();
-        else console.error("Error del servidor:", result.error);
+        else Ibbs.error(result.error || 'No se pudo enviar el mensaje.');
     } catch(err) {
-        console.error("El servidor devolvió HTML en vez de JSON al enviar:", text);
+        Ibbs.error('No se pudo enviar el mensaje. Intentá de nuevo.');
     }
-  } catch (error) { console.error("Error enviando:", error); }
+  } catch (error) { Ibbs.error('No se pudo enviar el mensaje. Revisá tu conexión.'); }
 });
 
 document.getElementById('mensaje-input').addEventListener('keydown', function(e) {

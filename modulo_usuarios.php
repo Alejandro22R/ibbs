@@ -236,10 +236,15 @@ async function crearUsuario(e) {
   ])) return;
   const fd = new FormData(e.target); fd.append('action','usuario_create');
   const _csrf = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', _csrf?_csrf.content:'');
-  const r = await fetch('api/ajax.php', {method:'POST', body:fd});
-  const d = await r.json();
-  if (d.ok) { toast(d.msg); closeModal('mCU'); e.target.reset(); loadUsuarios(); }
-  else toast(d.msg, 'err');
+  const btn = e.target.querySelector('button[type="submit"]'); const btnTxt = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const r = await fetch('api/ajax.php', {method:'POST', body:fd});
+    const d = await r.json();
+    if (d.ok) { toast(d.msg); closeModal('mCU'); e.target.reset(); loadUsuarios(); }
+    else toast(d.msg, 'err');
+  } catch(err) { toast('Error de conexión.', 'err'); }
+  btn.disabled = false; btn.textContent = btnTxt;
 }
 
 function editarUsuario(id, usr, mail, rol, activo) {

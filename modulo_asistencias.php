@@ -1204,8 +1204,14 @@ async function ocrGuardar() {
 async function ocrCargarHojas() {
   const el = document.getElementById('ocrHojasList');
   const mid = document.getElementById('ocrMateria').value || 0;
-  const r = await fetch('api/asistencia_ocr.php', {method:'POST', body:(()=>{const fd=new FormData();fd.append('action','hoja_list');fd.append('materia_id',mid);const m=document.querySelector('meta[name="csrf-token"]');fd.append('csrf_token',m?m.content:'');return fd;})()});
-  const d = await r.json();
+  let d;
+  try {
+    const r = await fetch('api/asistencia_ocr.php', {method:'POST', body:(()=>{const fd=new FormData();fd.append('action','hoja_list');fd.append('materia_id',mid);const m=document.querySelector('meta[name="csrf-token"]');fd.append('csrf_token',m?m.content:'');return fd;})()});
+    d = await r.json();
+  } catch(err) {
+    el.innerHTML = '<div style="text-align:center;color:#dc2626;font-size:.82rem;padding:.5rem;">No se pudo cargar las hojas. Revisá tu conexión e intentá de nuevo.</div>';
+    return;
+  }
   if (!d.ok || !d.data.length) { el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.82rem;padding:.5rem;">Todavía no se cargó ninguna hoja.</div>'; return; }
   el.innerHTML = d.data.map(h => `
     <div class="ocr-hoja-card">

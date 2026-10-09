@@ -171,10 +171,8 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
 document.addEventListener('ibbs:ready', () => loadDocentes());
 
 async function loadDocentes(){
-  console.log('[IBBS] Calling docente_list...'); 
-  const d = await ajax('docente_list'); 
-  console.log('[IBBS] docente_list response:', d); 
-  
+  const d = await ajax('docente_list');
+
   limpiarSeleccionDocentes();
   if(!d?.ok){
       document.getElementById('tbodyD').innerHTML='<tr class="empty-row"><td colspan="9">'+( d?.msg||'Error al conectar')+'</td></tr>';
@@ -230,25 +228,30 @@ async function createDoc(e){
   fd.append('action','docente_create');
   const _csrf = document.querySelector('meta[name="csrf-token"]');
   fd.append('csrf_token', _csrf ? _csrf.content : '');
-  const r = await fetch('api/ajax.php',{method:'POST',body:fd});
-  const d = await r.json();
+  const btn = e.target.querySelector('button[type="submit"]'); const btnTxt = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const r = await fetch('api/ajax.php',{method:'POST',body:fd});
+    const d = await r.json();
 
-  if(d.ok){
-      closeModal('mCD');
-      const nombreCompleto = e.target.querySelector('[name="nombre"]').value+' '+e.target.querySelector('[name="apellido"]').value;
-      await Ibbs.confirm({
-        title:'Docente creado',
-        text:`Pasale estos datos a <b>${h(nombreCompleto)}</b> para que pueda ingresar:<br><br>
-              Usuario: <code>${h(usuarioLogin)}</code><br>
-              Contraseña: <code>${h(pwdInicial)}</code><br><br>
-              Puede cambiarla luego desde su perfil.`,
-        confirm:'Listo',
-      });
-      e.target.reset();
-      loadDocentes();
-  } else {
-      Ibbs.error(d.msg);
-  }
+    if(d.ok){
+        closeModal('mCD');
+        const nombreCompleto = e.target.querySelector('[name="nombre"]').value+' '+e.target.querySelector('[name="apellido"]').value;
+        await Ibbs.confirm({
+          title:'Docente creado',
+          text:`Pasale estos datos a <b>${h(nombreCompleto)}</b> para que pueda ingresar:<br><br>
+                Usuario: <code>${h(usuarioLogin)}</code><br>
+                Contraseña: <code>${h(pwdInicial)}</code><br><br>
+                Puede cambiarla luego desde su perfil.`,
+          confirm:'Listo',
+        });
+        e.target.reset();
+        loadDocentes();
+    } else {
+        Ibbs.error(d.msg);
+    }
+  } catch(err) { Ibbs.error('Error de conexión.'); }
+  btn.disabled = false; btn.textContent = btnTxt;
 }
 
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
