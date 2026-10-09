@@ -185,6 +185,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
 
     // ── RECUPERAR PASO 1: verificar cédula ───────────────────
     if ($action==='rec_cedula') {
+        if (rec_cedula_throttle_blocked()) {
+            echo json_encode(['ok'=>false,'msg'=>'Demasiados intentos. Esperá unos minutos e intentá de nuevo.']); exit;
+        }
+        rec_cedula_throttle_hit();
         $con = db();
         $ced = trim($_POST['cedula']??'');
         $st = mysqli_prepare($con,"SELECT id,usuario,preg1,preg2 FROM usuarios WHERE cedula=? AND activo=1 LIMIT 1");
@@ -200,15 +204,20 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     if ($action==='rec_verificar') {
         $con = db();
         $uid = (int)($_POST['uid']??0);
+        if (!$uid || rec_verificar_throttle_blocked($uid)) {
+            echo json_encode(['ok'=>false,'msg'=>'Demasiados intentos. Esperá unos minutos e intentá de nuevo.']); exit;
+        }
         $r1  = strtolower(trim($_POST['resp1']??''));
         $r2  = strtolower(trim($_POST['resp2']??''));
         $st = mysqli_prepare($con,"SELECT resp1_hash,resp2_hash FROM usuarios WHERE id=? LIMIT 1");
         mysqli_stmt_bind_param($st,'i',$uid); mysqli_stmt_execute($st);
         $res = mysqli_stmt_get_result($st); $row = mysqli_fetch_assoc($res);
-        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'Usuario no encontrado.']); exit; }
+        if (!$row) { rec_verificar_throttle_fail($uid); echo json_encode(['ok'=>false,'msg'=>'Usuario no encontrado.']); exit; }
         if (!password_verify($r1,$row['resp1_hash']) || !password_verify($r2,$row['resp2_hash'])) {
+            rec_verificar_throttle_fail($uid);
             echo json_encode(['ok'=>false,'msg'=>'Una o más respuestas son incorrectas.']); exit;
         }
+        rec_verificar_throttle_reset($uid);
         $_SESSION['rec_uid'] = $uid;
         echo json_encode(['ok'=>true]); exit;
     }

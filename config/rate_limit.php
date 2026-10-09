@@ -118,3 +118,87 @@ function reset_email_throttle_hit() {
     }
     _ibbs_reset_throttle_save($data);
 }
+
+/**
+ * Freno a la recuperación por preguntas de seguridad (login.php
+ * rec_cedula/rec_verificar). A diferencia del login normal, acá no había
+ * ningún límite: se podía probar cédula tras cédula (rec_cedula revela
+ * las preguntas de seguridad de cualquier cédula válida) y, peor,
+ * adivinar las dos respuestas de un usuario concreto sin límite de
+ * intentos — el único freno era la lentitud de password_verify().
+ *
+ * rec_cedula se frena por IP (evita barrer cédulas). rec_verificar se
+ * frena por usuario (uid) además de por IP, porque lo que importa
+ * proteger es la cuenta objetivo, sin importar desde cuántas IPs
+ * distintas venga el ataque.
+ */
+define('IBBS_REC_THROTTLE_MAX', 8);
+define('IBBS_REC_THROTTLE_WINDOW', 900); // 15 minutos
+
+function _ibbs_rec_throttle_file() {
+    $dir = __DIR__ . '/../storage';
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    return $dir . '/rec_throttle.json';
+}
+function _ibbs_rec_throttle_load() {
+    $file = _ibbs_rec_throttle_file();
+    if (!is_file($file)) return [];
+    $raw = @file_get_contents($file);
+    $data = $raw ? json_decode($raw, true) : null;
+    return is_array($data) ? $data : [];
+}
+function _ibbs_rec_throttle_save($data) {
+    @file_put_contents(_ibbs_rec_throttle_file(), json_encode($data), LOCK_EX);
+}
+function _ibbs_rec_throttle_blocked($key, $max) {
+    $data = _ibbs_rec_throttle_load();
+    $now  = time();
+    $entry = $data[$key] ?? null;
+    if (!$entry) return false;
+    if ($now - $entry['first'] > IBBS_REC_THROTTLE_WINDOW) return false;
+    return $entry['count'] >= $max;
+}
+function _ibbs_rec_throttle_hit($key) {
+    $data = _ibbs_rec_throttle_load();
+    $now  = time();
+    $entry = $data[$key] ?? null;
+    if (!$entry || $now - $entry['first'] > IBBS_REC_THROTTLE_WINDOW) {
+        $entry = ['count' => 0, 'first' => $now];
+    }
+    $entry['count']++;
+    $data[$key] = $entry;
+    foreach ($data as $k => $v) {
+        if ($now - $v['first'] > IBBS_REC_THROTTLE_WINDOW) unset($data[$k]);
+    }
+    _ibbs_rec_throttle_save($data);
+}
+function _ibbs_rec_throttle_reset($key) {
+    $data = _ibbs_rec_throttle_load();
+    unset($data[$key]);
+    _ibbs_rec_throttle_save($data);
+}
+
+/** true si esta IP ya pidió demasiadas cédulas (rec_cedula) */
+function rec_cedula_throttle_blocked() {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    return _ibbs_rec_throttle_blocked('ced|'.$ip, IBBS_REC_THROTTLE_MAX);
+}
+function rec_cedula_throttle_hit() {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    _ibbs_rec_throttle_hit('ced|'.$ip);
+}
+
+/** true si ya se agotaron los intentos de respuesta para este usuario o IP */
+function rec_verificar_throttle_blocked($uid) {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    return _ibbs_rec_throttle_blocked('uid|'.$uid, IBBS_THROTTLE_MAX)
+        || _ibbs_rec_throttle_blocked('ip|'.$ip, IBBS_REC_THROTTLE_MAX);
+}
+function rec_verificar_throttle_fail($uid) {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    _ibbs_rec_throttle_hit('uid|'.$uid);
+    _ibbs_rec_throttle_hit('ip|'.$ip);
+}
+function rec_verificar_throttle_reset($uid) {
+    _ibbs_rec_throttle_reset('uid|'.$uid);
+}
