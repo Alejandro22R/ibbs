@@ -97,9 +97,21 @@ if ($action === 'pago_list') {
     $r = mysqli_query($con, "SELECT p.*, a.nombre alumno_nombre, a.apellido alumno_apellido, a.cedula alumno_cedula
         FROM pagos p JOIN alumnos a ON a.id=p.alumno_id
         WHERE ".implode(' AND ',$where)."
-        ORDER BY FIELD(p.estado,'en_revision','pendiente','rechazado','pagado'), p.creado_en DESC");
+        ORDER BY FIELD(p.estado,'en_revision','pendiente','rechazado','pagado'), p.creado_en DESC
+        LIMIT 500");
     $rows = []; while ($f = mysqli_fetch_assoc($r)) $rows[] = $f;
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
+}
+
+/* ════ ADMIN: resumen (tarjetas de totales) sin traer toda la tabla ═══ */
+if ($action === 'pago_resumen') {
+    if (!in_array($rol, ['superadmin','admin'])) json_fail_pg('Sin permiso.');
+    $r = mysqli_query($con, "SELECT estado, COUNT(*) cnt, COALESCE(SUM(monto),0) total FROM pagos GROUP BY estado");
+    $res = ['pendiente'=>['cnt'=>0,'total'=>0], 'en_revision'=>['cnt'=>0,'total'=>0], 'pagado'=>['cnt'=>0,'total'=>0], 'rechazado'=>['cnt'=>0,'total'=>0]];
+    while ($f = mysqli_fetch_assoc($r)) {
+        if (isset($res[$f['estado']])) $res[$f['estado']] = ['cnt'=>(int)$f['cnt'], 'total'=>(float)$f['total']];
+    }
+    echo json_encode(['ok'=>true,'data'=>$res]); exit;
 }
 
 /* ════ ADMIN: marcar pagado directo (efectivo, etc.) ════════════════ */

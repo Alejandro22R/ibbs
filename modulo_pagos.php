@@ -137,13 +137,13 @@ mysqli_close($con);
 document.addEventListener('ibbs:ready', () => { loadPagos(); loadPagosResumen(); });
 
 async function loadPagosResumen(){
-  const d = await ajax('pago_list', {}, 'api/pagos.php');
+  const d = await ajax('pago_resumen', {}, 'api/pagos.php');
   if(!d?.ok) return;
-  const rows = d.data;
-  const pendientes = rows.filter(p=>p.estado==='pendiente'||p.estado==='en_revision').length;
-  const pagados = rows.filter(p=>p.estado==='pagado').length;
-  const totalPendiente = rows.filter(p=>p.estado==='pendiente'||p.estado==='en_revision').reduce((s,p)=>s+parseFloat(p.monto),0);
-  const totalCobrado = rows.filter(p=>p.estado==='pagado').reduce((s,p)=>s+parseFloat(p.monto),0);
+  const r = d.data;
+  const pendientes = r.pendiente.cnt + r.en_revision.cnt;
+  const pagados = r.pagado.cnt;
+  const totalPendiente = r.pendiente.total + r.en_revision.total;
+  const totalCobrado = r.pagado.total;
   document.getElementById('pagosInfoCards').innerHTML = [
     {l:'Cobros pendientes', v: pendientes, c:'#d97706', bg:'#fffbeb', i:'bx-time-five'},
     {l:'Cobros pagados', v: pagados, c:'#16a34a', bg:'#f0fdf4', i:'bx-check-circle'},
