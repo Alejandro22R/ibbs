@@ -1760,6 +1760,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         let chatInterval = null;
         const MI_USUARIO_ID = <?= (int)$user_id ?>;
         function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+        function hAttrChat(s) { return hChat(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
         function prepararRespuesta(nombreUsuario, idMensaje) {
             document.getElementById('chat-reply-to-id').value = idMensaje;
@@ -1843,7 +1844,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: .4rem; font-size: .65rem;">
                                     <span style="color: var(--muted);">${hora}</span>
                                     <span>
-                                        <button type="button" onclick="prepararRespuesta('${hChat(msg.usuario_nombre)}', ${msg.id})" style="background: none; border: none; color: var(--ink); font-weight: 700; cursor: pointer; text-decoration: underline;">Responder</button>${delBtn}
+                                        <button type="button" onclick="prepararRespuesta('${hAttrChat(msg.usuario_nombre)}', ${msg.id})" style="background: none; border: none; color: var(--ink); font-weight: 700; cursor: pointer; text-decoration: underline;">Responder</button>${delBtn}
                                     </span>
                                 </div>
                             </div>
@@ -1910,6 +1911,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         let lastCountStaffChat = -1;
 
         function hStaffChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+        function hAttrStaffChat(s) { return hStaffChat(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
         function roleBadgeStaffChat(rol) {
             if (rol === 'profesor') return '<span style="font-size:.65rem;margin-left:.4rem;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:10px;font-weight:700;">Profesor</span>';
@@ -1955,7 +1957,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const isMe = msg.usuario_id === <?= (int)$user_id ?>;
             const bg = isMe ? 'background:var(--bubble-mine-bg);border:1px solid var(--bubble-mine-border);' : 'background:var(--paper);border:1px solid var(--border);';
             const dateStr = new Date(msg.fecha).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-            const replyBtn = !isReply ? `<button type="button" onclick="setReplyStaffChat(${msg.id}, '${hStaffChat(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--ink);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;text-decoration:underline;">Responder</button>` : '';
+            const replyBtn = !isReply ? `<button type="button" onclick="setReplyStaffChat(${msg.id}, '${hAttrStaffChat(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--ink);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;text-decoration:underline;">Responder</button>` : '';
             const delBtn = msg.puede_borrar ? `<button type="button" onclick="borrarMensajeStaffChat(${msg.id})" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:.8rem;margin-top:.4rem;margin-left:.8rem;padding:0;text-decoration:underline;">Borrar</button>` : '';
             return `
                 <div style="padding:.8rem 1rem;border-radius:8px;${bg}">

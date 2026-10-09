@@ -38,6 +38,7 @@ let lastCountStaff = -1;
 let staffChatInterval = null;
 
 function hStaff(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
+function hAttrStaff(s){ return hStaff(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
 async function loadChatStaff() {
   try {
@@ -85,7 +86,7 @@ function crearMensajeStaffHTML(msg, isReply) {
   const isMe = msg.usuario_id === MI_USUARIO_ID_STAFF;
   const bg = isMe ? 'background:var(--bubble-mine-bg);border:1px solid var(--bubble-mine-border);' : 'background:var(--paper);border:1px solid var(--border);';
   const dateStr = new Date(msg.fecha).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-  const replyBtn = !isReply ? `<button type="button" onclick="setReplyStaff(${msg.id}, '${hStaff(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;">Responder</button>` : '';
+  const replyBtn = !isReply ? `<button type="button" onclick="setReplyStaff(${msg.id}, '${hAttrStaff(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;">Responder</button>` : '';
   const delBtn = msg.puede_borrar ? `<button type="button" onclick="borrarMensajeStaff(${msg.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;margin-top:.4rem;margin-left:.8rem;padding:0;">Borrar</button>` : '';
 
   return `

@@ -1290,6 +1290,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         let chatInterval = null;
         const MI_USUARIO_ID = <?= (int)$user_id ?>;
         function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+        function hAttrChat(s) { return hChat(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
         function seleccionarMateriaAutoInsc(materiaId, cardEl) {
             document.getElementById('selAutoInsc').value = materiaId;
@@ -1650,7 +1651,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                 <div class="flex justify-between items-center mt-1.5 gap-4">
                                     <span class="text-[9px] text-ibbs-muted">${hora}</span>
                                     <span>
-                                        <button type="button" onclick="prepararRespuesta('${hChat(msg.usuario_nombre)}', ${msg.id})" class="text-[10px] text-ibbs-ink font-bold hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button type="button" onclick="prepararRespuesta('${hAttrChat(msg.usuario_nombre)}', ${msg.id})" class="text-[10px] text-ibbs-ink font-bold hover:underline opacity-0 group-hover:opacity-100 transition-opacity">
                                             Responder
                                         </button>${delBtn}
                                     </span>

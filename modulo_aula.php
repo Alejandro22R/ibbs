@@ -420,6 +420,7 @@ let ACTIVIDADES = [];
 let SECCIONES_COLAPSADAS = {}; // { seccion_key: true } — solo en memoria de esta sesión de página
 
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
+function hAttr(s){ return h(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function fmtBytes(n){
   n = parseInt(n)||0;
   if (n < 1024) return n+' B';
@@ -1105,7 +1106,7 @@ function createMessageHTML(msg, isReply) {
   }
 
   const dateStr = new Date(msg.fecha).toLocaleString([], {month:'short', day:'numeric', hour: '2-digit', minute:'2-digit'});
-  const replyBtn = !isReply ? `<button type="button" onclick="setReply(${msg.id}, '${h(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;">Responder</button>` : '';
+  const replyBtn = !isReply ? `<button type="button" onclick="setReply(${msg.id}, '${hAttr(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;">Responder</button>` : '';
   const delBtn = msg.puede_borrar ? `<button type="button" onclick="borrarMensajeForo(${msg.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;margin-left:.8rem;">Borrar</button>` : '';
 
   return `
