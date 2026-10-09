@@ -295,6 +295,7 @@ mysqli_close($con);
 <?php endif; ?>
 
 <script>
+function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
 // ── TAB SWITCHING ────────────────────────────────────────────
 function switchTool(id) {
   document.querySelectorAll('.tool-tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===id));
@@ -680,7 +681,7 @@ async function previewCert(id){
       </div>
       <p style="font-size:.8rem;line-height:1.7;text-align:justify;color:#111;text-indent:15pt;">
         El <strong>Instituto Bíblico Bautista del Sur</strong> hace constar que el ciudadano(a) 
-        <strong>${alumno.nombre.toUpperCase()} ${alumno.apellido.toUpperCase()}</strong>, titular de la C.I. N° <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>,
+        <strong>${h(alumno.nombre.toUpperCase())} ${h(alumno.apellido.toUpperCase())}</strong>, titular de la C.I. N° <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>,
         ${document.getElementById('certTipo').value==='estudio'
           ? `es estudiante activo(a) de esta institución en el período de formación teológica actual. Se expide a solicitud de la parte interesada.`
           : `presenta el siguiente récord oficial de calificaciones acreditadas en su expediente:`}
@@ -750,8 +751,8 @@ async function generarCert() {
   
   // Párrafo introductorio oficial con jerga jurídica
   const cuerpoTexto=tipo==='estudio'
-    ? `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style="text-transform: uppercase;">${alumno.apellido}, ${alumno.nombre}</strong>, titular de la cédula de identidad N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes.`
-    : `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style="text-transform: uppercase;">${alumno.apellido}, ${alumno.nombre}</strong>, titular de la cédula de identidad N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:`;
+    ? `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la cédula de identidad N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes.`
+    : `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la cédula de identidad N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:`;
 
   const html=`<!DOCTYPE html>
   <html>
@@ -940,7 +941,7 @@ async function generarCert() {
           <td style="width:60%; border:none; padding:2pt 0; vertical-align:top;">
             1.- La escala de calificaciones aplicable es del uno (1) al veinte (20).<br>
             2.- La calificación mínima aprobatoria requerida es de Quince (15) puntos.<br>
-            3.- Procedencia del estudiante: <span style="text-transform:uppercase; font-weight:bold;">${alumno.ciudad.toUpperCase()}</span>
+            3.- Procedencia del estudiante: <span style="text-transform:uppercase; font-weight:bold;">${h(alumno.ciudad.toUpperCase())}</span>
           </td>
           <td style="width:40%; border:none; padding:2pt 0; vertical-align:top; border-left:1px solid #000000; padding-left:10pt;">
             <strong>Índice de Rendimiento Académico:</strong> <span style="font-weight:bold;">${promedio}</span><br>
