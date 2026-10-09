@@ -1760,7 +1760,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         let chatInterval = null;
         const MI_USUARIO_ID = <?= (int)$user_id ?>;
         function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
-        function hAttrChat(s) { return hChat(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+        function hAttrChat(s) { return hChat(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
         function prepararRespuesta(nombreUsuario, idMensaje) {
             document.getElementById('chat-reply-to-id').value = idMensaje;
@@ -1911,7 +1911,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         let lastCountStaffChat = -1;
 
         function hStaffChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
-        function hAttrStaffChat(s) { return hStaffChat(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+        function hAttrStaffChat(s) { return hStaffChat(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
         function roleBadgeStaffChat(rol) {
             if (rol === 'profesor') return '<span style="font-size:.65rem;margin-left:.4rem;background:#dbeafe;color:#1d4ed8;padding:1px 6px;border-radius:10px;font-weight:700;">Profesor</span>';

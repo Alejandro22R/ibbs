@@ -420,7 +420,7 @@ let ACTIVIDADES = [];
 let SECCIONES_COLAPSADAS = {}; // { seccion_key: true } — solo en memoria de esta sesión de página
 
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
-function hAttr(s){ return h(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function hAttr(s){ return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 function fmtBytes(n){
   n = parseInt(n)||0;
   if (n < 1024) return n+' B';

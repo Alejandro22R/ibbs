@@ -1290,7 +1290,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         let chatInterval = null;
         const MI_USUARIO_ID = <?= (int)$user_id ?>;
         function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
-        function hAttrChat(s) { return hChat(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+        function hAttrChat(s) { return hChat(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
         function seleccionarMateriaAutoInsc(materiaId, cardEl) {
             document.getElementById('selAutoInsc').value = materiaId;

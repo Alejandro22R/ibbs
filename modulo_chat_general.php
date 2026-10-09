@@ -38,7 +38,7 @@ let lastCountStaff = -1;
 let staffChatInterval = null;
 
 function hStaff(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
-function hAttrStaff(s){ return hStaff(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function hAttrStaff(s){ return hStaff(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
 async function loadChatStaff() {
   try {
