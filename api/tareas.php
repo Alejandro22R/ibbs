@@ -233,6 +233,7 @@ if ($action === 'calificar') {
 
     $notaRaw = $_POST['nota'] ?? '';
     $nota = $notaRaw === '' ? null : (float)$notaRaw;
+    if ($nota !== null && ($nota < 0 || $nota > 20)) json_fail('La nota debe estar entre 0 y 20.');
     $obs  = mb_substr(trim($_POST['observacion'] ?? ''), 0, 255);
 
     $st2 = mysqli_prepare($con, "UPDATE entregas SET nota=?, observacion_docente=? WHERE id=?");

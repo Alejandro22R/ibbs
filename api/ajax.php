@@ -894,7 +894,9 @@ if($action==='usuario_toggle'){
     if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0);
     if($id===$uid){echo json_encode(['ok'=>false,'msg'=>'No puedes desactivar tu propia cuenta.']);exit;}
-    $cur=(int)mysqli_fetch_assoc(mysqli_query($con,"SELECT activo FROM usuarios WHERE id=$id"))['activo'];
+    $row=mysqli_fetch_assoc(mysqli_query($con,"SELECT activo FROM usuarios WHERE id=$id"));
+    if(!$row){echo json_encode(['ok'=>false,'msg'=>'Usuario no encontrado.']);exit;}
+    $cur=(int)$row['activo'];
     $nuevo=$cur?0:1;
     mysqli_query($con,"UPDATE usuarios SET activo=$nuevo WHERE id=$id");
     echo json_encode(['ok'=>true,'msg'=>$nuevo?'Activado.':'Desactivado.','activo'=>$nuevo]); exit;

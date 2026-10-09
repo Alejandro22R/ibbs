@@ -3,9 +3,21 @@ if(!isset($page_title)) $page_title='IBBS';
 if(!isset($active_link)) $active_link='';
 require_once __DIR__.'/../config/bootstrap.php';
 if(empty($_SESSION['loggedin'])){header('Location: login.php');exit;}
+$_uid = (int)($_SESSION['user_id']??0);
+// La cuenta pudo haber sido eliminada o desactivada mientras la sesión
+// seguía abierta en otra pestaña/dispositivo — sin este chequeo, cada
+// página seguía confiando en los datos cacheados de la sesión y las
+// consultas que dependen de la fila de usuarios terminaban con warnings
+// (acceso a índices de null) en vez de mandar a la persona a login.
+$_sesionCon = db();
+$_usuarioVivo = $_sesionCon ? mysqli_fetch_assoc(mysqli_query($_sesionCon, "SELECT activo FROM usuarios WHERE id=$_uid LIMIT 1")) : null;
+if (!$_usuarioVivo || (int)$_usuarioVivo['activo'] !== 1) {
+    session_destroy();
+    header('Location: login.php');
+    exit;
+}
 $_u   = $_SESSION['usuario']??'Usuario';
 $_rol = $_SESSION['rol']??'profesor';
-$_uid = (int)($_SESSION['user_id']??0);
 $_ini = strtoupper(mb_substr($_u,0,1));
 $_foto= $_SESSION['foto']??null;
 

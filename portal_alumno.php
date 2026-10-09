@@ -8,6 +8,15 @@ if (empty($_SESSION['loggedin']) || $_SESSION['rol'] !== 'alumno') {
 $con = db();
 $user_id = $_SESSION['user_id'];
 
+// Cuenta eliminada/desactivada mientras la sesión seguía abierta en otro
+// lado — cortamos acá en vez de seguir con datos de sesión obsoletos.
+$usuario_vivo = mysqli_fetch_assoc(mysqli_query($con, "SELECT activo FROM usuarios WHERE id=$user_id LIMIT 1"));
+if (!$usuario_vivo || (int)$usuario_vivo['activo'] !== 1) {
+    session_destroy();
+    header('Location: login.php');
+    exit;
+}
+
 // Obtener ID y datos del alumno (Cambiado a SELECT * para traer foto, email, etc)
 $stmt = mysqli_prepare($con, "SELECT * FROM alumnos WHERE usuario_id = ? LIMIT 1");
 mysqli_stmt_bind_param($stmt, "i", $user_id);

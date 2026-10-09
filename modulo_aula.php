@@ -1014,7 +1014,7 @@ async function abrirVerEntregas(tarea_id, titulo) {
         <td style="text-align:left;font-weight:bold;">${h(e.apellido)}, ${h(e.nombre)}<br><span style="font-size:.7rem;font-weight:normal;color:var(--muted);">${e.cedula}</span></td>
         <td>${estado}</td>
         <td style="text-align:left;max-width:200px;">${contenidoHtml}</td>
-        <td><input type="number" id="n_${e.entrega_id}" value="${e.nota!==null?e.nota:''}" style="width:60px;text-align:center;padding:4px;border:1px solid #ccc;border-radius:4px;" ${!e.entrega_id?'disabled':''}></td>
+        <td><input type="number" id="n_${e.entrega_id}" min="0" max="20" step="0.1" value="${e.nota!==null?e.nota:''}" style="width:60px;text-align:center;padding:4px;border:1px solid #ccc;border-radius:4px;" ${!e.entrega_id?'disabled':''}></td>
         <td><input type="text" id="o_${e.entrega_id}" value="${h(e.observacion_docente)}" placeholder="Opcional" style="width:100%;padding:4px;border:1px solid #ccc;border-radius:4px;" ${!e.entrega_id?'disabled':''}></td>
         <td>${e.entrega_id ? `<button class="btn btn-sm btn-success" onclick="calificarEntrega(${e.entrega_id})">Guardar</button>` : ''}</td>
       </tr>`;

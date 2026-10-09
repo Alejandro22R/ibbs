@@ -16,6 +16,11 @@ $stmt = mysqli_prepare($con, "SELECT * FROM usuarios WHERE id = ? LIMIT 1");
 mysqli_stmt_bind_param($stmt, "i", $user_id);
 mysqli_stmt_execute($stmt);
 $usuario_db = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
+if (!$usuario_db || (int)$usuario_db['activo'] !== 1) {
+    session_destroy();
+    header('Location: login.php');
+    exit;
+}
 
 $nombre_docente = $usuario_db['usuario'];
 $inicial = strtoupper(substr($nombre_docente, 0, 1));
