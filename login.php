@@ -464,8 +464,8 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       <h2>Bienvenido</h2>
       <p class="sub">Inicia sesión en tu cuenta</p>
       <div id="errLogin" class="err"></div>
-      <div class="field"><label>Usuario, correo o cédula</label>
-        <input id="lUser" type="text" autocomplete="username" placeholder="tu usuario o cédula"></div>
+      <div class="field"><label>Usuario</label>
+        <input id="lUser" type="text" autocomplete="username" placeholder="usuario, correo o cédula"></div>
       <div class="field"><label>Contraseña</label>
         <input id="lPwd" type="password" autocomplete="current-password" placeholder="••••••••"></div>
       <button class="btn btn-primary" id="btnLogin" onclick="doLogin()">Iniciar sesión</button>

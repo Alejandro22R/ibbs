@@ -318,7 +318,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button type="button" data-tour="nav-replay" data-palette-skip="1" onclick="IbbsTour.replay(window.IBBS_TOUR_DOCENTE)" class="ibbstour-replay sb-link">
                 <i class="fas fa-circle-question"></i> <span class="sb-lbl">Ver Tutorial</span>
             </button>
-            <button data-tour="nav-perfil" onclick="switchView('perfil', this)" class="sb-link">
+            <button id="navBtnPerfil" data-tour="nav-perfil" onclick="switchView('perfil', this)" class="sb-link">
                 <i class="fas fa-user-circle"></i> <span class="sb-lbl">Mi Perfil</span>
             </button>
             <a href="cerrar_sesion.php" class="sb-link">
@@ -356,7 +356,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         <div id="notifDropList" style="padding:.4rem;"></div>
                     </div>
                 </div>
-                <div class="user-pill">
+                <button type="button" class="user-pill" style="font:inherit;text-align:left;cursor:pointer;" title="Mi Perfil" onclick="switchView('perfil', document.getElementById('navBtnPerfil'))">
                     <div class="user-ava">
                         <?php if($foto_perfil): ?>
                             <img src="<?= htmlspecialchars($foto_perfil) ?>" alt="Foto">
@@ -366,7 +366,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     </div>
                     <span class="user-name"><?= htmlspecialchars($nombre_docente) ?></span>
                     <span class="user-rol <?= $rol_class ?>"><?= $rol_badge ?></span>
-                </div>
+                </button>
             </div>
         </div>
 

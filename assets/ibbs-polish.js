@@ -51,18 +51,35 @@
   // animación anterior todavía está en marcha, la vieja se cancela a
   // sí misma en su próximo frame en vez de pisar el valor real que
   // acaba de llegar — si no, el contador podía quedarse trabado en 0.
+  // Antes esto re-escribía el texto en CADA frame (hasta 42 repintados
+  // en 700ms). En monitores/placas de video más modestas eso provoca
+  // que el navegador no termine de limpiar el dígito anterior antes de
+  // pintar el siguiente, y a simple vista (no en una captura de
+  // pantalla, que solo congela UN frame) se ve como un número superpuesto
+  // sobre otro — reportado por un usuario real, no se reproducía en
+  // capturas. Se baja la frecuencia de repintado a ~12 pasos en vez de
+  // uno por frame, que al ojo sigue pareciendo un conteo fluido pero
+  // sin el repintado agresivo que causaba el artefacto visual.
+  var prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   function animateCount(el, startVal, target) {
-    if (startVal === target) { el.textContent = String(target); return; }
+    if (startVal === target || prefersReducedMotion) { el.textContent = String(target); return; }
     var gen = (parseInt(el.dataset.cuGen || '0', 10) + 1);
     el.dataset.cuGen = String(gen);
     var startTime = null;
-    var dur = 700;
+    var dur = 500;
+    var steps = 12;
+    var lastStepDrawn = -1;
     function step(ts) {
       if (el.dataset.cuGen !== String(gen)) return; // una animación más nueva tomó el control
       if (!startTime) startTime = ts;
       var p = Math.min((ts - startTime) / dur, 1);
-      var eased = 1 - Math.pow(1 - p, 3);
-      el.textContent = String(Math.round(startVal + (target - startVal) * eased));
+      var stepIdx = Math.floor(p * steps);
+      if (stepIdx !== lastStepDrawn) {
+        lastStepDrawn = stepIdx;
+        var eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = String(Math.round(startVal + (target - startVal) * eased));
+      }
       if (p < 1) requestAnimationFrame(step);
       else el.textContent = String(target);
     }

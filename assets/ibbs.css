@@ -201,7 +201,9 @@ html[data-theme="dark"] body {
   background:var(--grad-paper); border:1.5px solid var(--border);
   border-radius:40px; padding:.3rem .85rem .3rem .35rem;
   box-shadow: var(--shadow-sm);
+  transition: box-shadow .15s, transform .15s;
 }
+.user-pill:hover, .user-pill:focus-visible { box-shadow: var(--shadow-md, 0 4px 14px rgba(0,0,0,.1)); transform: translateY(-1px); }
 .user-ava { width:28px; height:28px; background:var(--grad-ink); border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif; font-size:.85rem; color:var(--lime); box-shadow:inset 0 1px 0 rgba(255,255,255,.15); }
 .user-name { font-size:.82rem; font-weight:700; }
 .user-rol { font-size:.62rem; background:rgba(26,77,46,.07); padding:2px 7px; border-radius:20px; text-transform:uppercase; letter-spacing:1px; font-weight:700; }

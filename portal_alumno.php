@@ -284,7 +284,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         </div>
         
         <!-- Perfil Usuario -->
-        <div class="p-6 border-b border-white/10 relative z-10">
+        <button type="button" class="p-6 border-b border-white/10 relative z-10 w-full text-left" style="background:none;cursor:pointer;" title="Mi Perfil" onclick="switchView('perfil', document.getElementById('navBtnPerfil'))">
             <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl bg-ibbs-lime text-ibbs-ink flex items-center justify-center text-xl font-serif font-bold shadow-[0_0_15px_rgba(57,255,20,0.25)] overflow-hidden">
                     <?php if(!empty($alumno['foto'])): ?>
@@ -298,8 +298,8 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     <p class="text-[10px] uppercase tracking-wider text-ibbs-lime2 font-semibold mt-0.5 bg-ibbs-lime2/10 inline-block px-2 py-0.5 rounded-full">Estudiante</p>
                 </div>
             </div>
-        </div>
-        
+        </button>
+
         <!-- Navegación -->
         <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto relative z-10">
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mb-3 px-3">Menú Principal</p>

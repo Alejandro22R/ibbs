@@ -211,7 +211,7 @@ function can($perm){
       <?php endif; ?>
     </div>
   </div>
-  <div class="user-pill">
+  <a href="modulo_perfil.php" class="user-pill" style="text-decoration:none;color:inherit;cursor:pointer;" title="Mi Perfil">
     <?php if($_foto): ?>
       <img src="<?=htmlspecialchars($_foto)?>" style="width:30px;height:30px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
       <div class="user-ava" style="display:none;"><?=$_ini?></div>
@@ -220,5 +220,5 @@ function can($perm){
     <?php endif; ?>
     <span class="user-name"><?=htmlspecialchars($_u)?></span>
     <span class="user-rol <?=$_rol?>"><?=ucfirst($_rol)?></span>
-  </div>
+  </a>
 </div>
