@@ -180,9 +180,9 @@ async function loadUsuarios() {
       <td style="text-align:center;">${actBadge}</td>
       <td style="text-align:center;font-size:.78rem;color:var(--muted);">${fecha}</td>
       <td class="td-actions">
-        <button class="btn btn-sm btn-primary" onclick="editarUsuario(${u.id},'${h(u.usuario)}','${h(u.correo)}','${u.rol}',${u.activo})">Editar</button>
+        <button class="btn btn-sm btn-primary" onclick="editarUsuario(${u.id},'${hAttr(u.usuario)}','${hAttr(u.correo)}','${u.rol}',${u.activo})">Editar</button>
         <button class="btn btn-sm ${u.activo=='1'?'btn-secondary':'btn-success'}" onclick="toggleUsuario(${u.id},this)">${u.activo=='1'?'Desactivar':'Activar'}</button>
-        <button class="btn btn-sm btn-danger" onclick="eliminarUsuario(${u.id},'${h(u.usuario)}')" ${IS_SUPER?'':'disabled title="Solo superadmin"'}>Eliminar</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarUsuario(${u.id},'${hAttr(u.usuario)}')" ${IS_SUPER?'':'disabled title="Solo superadmin"'}>Eliminar</button>
       </td>
     </tr>`;
   }).join('');
@@ -294,6 +294,7 @@ async function eliminarUsuario(id, nombre) {
 }
 
 function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
 function filtrarUsuarios() {
   const qN = (document.getElementById('fUsuNombre')?.value||'').toLowerCase();

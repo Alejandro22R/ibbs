@@ -569,6 +569,8 @@ mysqli_close($con);
 </style>
 
 <script>
+function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 // ════════════════════════════════════════════════════════
 // TABS
 // ════════════════════════════════════════════════════════
@@ -875,13 +877,13 @@ function renderHist() {
     <tr>
       <td style="text-align:center;"><input type="checkbox" class="chkHist" value="${r.id}" onchange="actualizarBarraLoteHist()"></td>
       <td style="white-space:nowrap;font-size:.82rem;">${r.fecha||'—'}</td>
-      <td><strong style="font-size:.84rem;">${r.persona||'—'}</strong></td>
-      <td style="font-size:.78rem;color:var(--muted);">${r.cedula||'—'}</td>
-      <td style="font-size:.8rem;">${r.materia||'—'}</td>
-      <td style="text-align:center;"><span class="badge ${bMap[r.estado]||''}">${r.estado}</span></td>
-      <td style="font-size:.78rem;color:var(--muted);">${r.observacion||'—'}</td>
+      <td><strong style="font-size:.84rem;">${h(r.persona)||'—'}</strong></td>
+      <td style="font-size:.78rem;color:var(--muted);">${h(r.cedula)||'—'}</td>
+      <td style="font-size:.8rem;">${h(r.materia)||'—'}</td>
+      <td style="text-align:center;"><span class="badge ${bMap[r.estado]||''}">${h(r.estado)}</span></td>
+      <td style="font-size:.78rem;color:var(--muted);">${h(r.observacion)||'—'}</td>
       <td style="text-align:center;">
-        <button class="btn btn-sm btn-secondary" onclick="abrirEdit(${r.id},'${r.estado}','${(r.observacion||'').replace(/'/g,'\\\'')}')">
+        <button class="btn btn-sm btn-secondary" onclick="abrirEdit(${r.id},'${hAttr(r.estado)}','${hAttr(r.observacion||'')}')">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
       </td>

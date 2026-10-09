@@ -334,7 +334,7 @@ async function loadTabla() {
         </td>
         <td style="text-align:left;font-size:.8rem;color:var(--muted);">${h(al.cedula)}</td>
         <td style="text-align:center;">
-          <button onclick="openNota(${al.id},${_mid},'${h(al.nombre+' '+al.apellido)}',${nv !== null ? nv : 'null'})"
+          <button onclick="openNota(${al.id},${_mid},'${hAttr(al.nombre+' '+al.apellido)}',${nv !== null ? nv : 'null'})"
             style="background:none;border:1.5px ${nv !== null ? 'solid' : 'dashed'} ${nv !== null ? (ok ? '#bbf7d0' : '#fecaca') : 'var(--border)'};
                    border-radius:8px;padding:6px 16px;cursor:pointer;font-family:'DM Serif Display',serif;
                    font-size:1.3rem;line-height:1;${cls};min-width:70px;"
@@ -450,6 +450,7 @@ function filtrarTablaNotas() {
 }
 
 function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
 <?php if($esAdmin): ?>
 // ═══════════════════════════════════════════════════════════════

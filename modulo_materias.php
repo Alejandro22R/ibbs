@@ -241,6 +241,8 @@ if(!in_array($_rol,['superadmin','admin'])){
 </div>
 
 <script>
+function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
+function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 let _mid=null;
 const MI_ROL='<?=$_rol?>';
 document.addEventListener('ibbs:ready', () => loadMaterias());
@@ -253,7 +255,7 @@ document.addEventListener('ibbs:ready', async () => {
   // Cargar docentes para el modal de Crear y el de Editar
   const d=await ajax('docente_all_simple');
   if(d?.ok) {
-    const opts = '<option value="">— Seleccionar —</option>'+d.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
+    const opts = '<option value="">— Seleccionar —</option>'+d.data.map(x=>`<option value="${x.id}">${h(x.apellido)}, ${h(x.nombre)} (${h(x.cedula)})</option>`).join('');
 
     // Para el modal de Editar
     const selAddD = document.getElementById('selAddD');
@@ -261,13 +263,13 @@ document.addEventListener('ibbs:ready', async () => {
 
     // Para el modal de Crear Materia (recién incorporado)
     const selCreateD = document.getElementById('selCreateD');
-    if(selCreateD) selCreateD.innerHTML = '<option value="">— Sin asignar —</option>'+d.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
+    if(selCreateD) selCreateD.innerHTML = '<option value="">— Sin asignar —</option>'+d.data.map(x=>`<option value="${x.id}">${h(x.apellido)}, ${h(x.nombre)} (${h(x.cedula)})</option>`).join('');
   }
 
   // Cargar alumnos para el modal de Editar
   const a=await ajax('alumno_all_simple');
   if(a?.ok) {
-      document.getElementById('selAddA').innerHTML='<option value="">— Seleccionar —</option>'+a.data.map(x=>`<option value="${x.id}">${x.apellido}, ${x.nombre} (${x.cedula})</option>`).join('');
+      document.getElementById('selAddA').innerHTML='<option value="">— Seleccionar —</option>'+a.data.map(x=>`<option value="${x.id}">${h(x.apellido)}, ${h(x.nombre)} (${h(x.cedula)})</option>`).join('');
   }
 
   cargarPeriodosEnSelects();
@@ -328,7 +330,7 @@ async function loadMaterias(){
   const tb=document.getElementById('tbodyM');
   if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="9">Sin materias.</td></tr>';return;}
   tb.innerHTML=d.data.map(m=>`<tr>
-    <td><strong>${m.codigo}</strong></td><td>${m.nombre}</td>
+    <td><strong>${h(m.codigo)}</strong></td><td>${h(m.nombre)}</td>
     <td style="font-size:.79rem;color:var(--muted);">${m.periodo_nombre||'—'}</td>
     <td style="font-size:.79rem;color:var(--muted);">${m.dias||'—'} ${m.hora_inicio?m.hora_inicio.substring(0,5):''}${m.hora_fin?'–'+m.hora_fin.substring(0,5):''}</td>
     <td>${estadoBadge(m.estado||'en_curso')}</td>
@@ -345,7 +347,7 @@ async function loadMaterias(){
       <a class="btn btn-sm btn-secondary" href="modulo_vivo.php?materia_id=${m.id}" title="Clases en Vivo">🔴 En Vivo</a>
       <button class="btn btn-sm btn-success" onclick="toggleEstado(${m.id},'${m.estado||'en_curso'}')" style="font-size:.72rem;">${m.estado==='culminada'?'↺ Reabrir':'✓ Culminar'}</button>
       <button class="btn btn-sm btn-primary" onclick="editM(${m.id})">Editar</button>
-      <button class="btn btn-sm btn-danger" onclick="delM(${m.id},'${m.nombre.replace(/'/g,"\\'")}')">Eliminar</button>
+      <button class="btn btn-sm btn-danger" onclick="delM(${m.id},'${hAttr(m.nombre)}')">Eliminar</button>
     </td></tr>`).join('');
 }
 
@@ -395,7 +397,7 @@ async function toggleInscripcion(id){
 // ----------------------------------------------------
 function renderMD(list){
   document.getElementById('tbMD').innerHTML=list.length
-    ? list.map(d=>`<tr><td>${d.apellido||''} ${d.nombre}</td><td class="td-actions" style="justify-content:flex-end;"><button class="btn btn-sm btn-danger" onclick="rmDoc(${d.id},this)">Quitar</button></td></tr>`).join('')
+    ? list.map(d=>`<tr><td>${h(d.apellido||'')} ${h(d.nombre)}</td><td class="td-actions" style="justify-content:flex-end;"><button class="btn btn-sm btn-danger" onclick="rmDoc(${d.id},this)">Quitar</button></td></tr>`).join('')
     : '<tr class="empty-row"><td colspan="2">Sin docentes</td></tr>';
 }
 
@@ -407,7 +409,7 @@ function renderMA(list){
         const accion = puedeQuitar
           ? `<button class="btn btn-sm btn-danger" onclick="rmAlu(${a.id},this)">Quitar</button>`
           : `<span title="Auto-inscripción: solo un superadmin puede quitarla" style="color:var(--muted);font-size:.85rem;">🔒</span>`;
-        return `<tr><td>${a.apellido||''} ${a.nombre}${auto?' <span class="badge b-alumno" style="font-size:.6rem;vertical-align:middle;">Auto-inscrito</span>':''}</td><td class="td-actions" style="justify-content:flex-end;">${accion}</td></tr>`;
+        return `<tr><td>${h(a.apellido||'')} ${h(a.nombre)}${auto?' <span class="badge b-alumno" style="font-size:.6rem;vertical-align:middle;">Auto-inscrito</span>':''}</td><td class="td-actions" style="justify-content:flex-end;">${accion}</td></tr>`;
       }).join('')
     : '<tr class="empty-row"><td colspan="2">Sin alumnos</td></tr>';
 }
