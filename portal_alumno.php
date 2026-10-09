@@ -375,13 +375,17 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
              de notificaciones — el resto del portal no tiene topbar
              propio como sí tiene portal_docente.php. -->
         <header class="h-16 bg-ibbs-paper border-b border-ibbs-border flex items-center justify-between px-4 z-10">
-            <div class="flex items-center gap-2">
+            <!-- Este logo solo hace falta en mobile: en md+ el sidebar ya
+                 muestra "IBBS / Portal Alumno" permanentemente, y
+                 repetirlo acá se veía como dos logos apilados (reportado
+                 por un usuario real probando en tablet). -->
+            <div class="flex items-center gap-2 md:hidden">
                 <div class="w-8 h-8 rounded-lg bg-ibbs-lime flex items-center justify-center shadow-sm">
                     <i class="fas fa-graduation-cap text-ibbs-ink text-sm"></i>
                 </div>
                 <h1 class="font-serif font-bold text-lg text-ibbs-ink tracking-wide">IBBS</h1>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 ml-auto">
                 <div style="position: relative;">
                     <button id="notifBell" onclick="toggleNotifDrop()" title="Notificaciones" class="text-ibbs-muted hover:text-ibbs-ink focus:outline-none p-2 rounded-lg bg-ibbs-cream border border-ibbs-border" style="position:relative;">
                         <i class="fas fa-bell"></i>
