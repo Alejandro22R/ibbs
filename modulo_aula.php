@@ -421,6 +421,12 @@ let SECCIONES_COLAPSADAS = {}; // { seccion_key: true } — solo en memoria de e
 
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
 function hAttr(s){ return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+// Para volcar un objeto entero con JSON.stringify() dentro de un atributo
+// onclick='...' (delimitado con comilla simple): JSON.stringify nunca
+// escapa una comilla simple que venga en los datos (title/contenido del
+// usuario), así que sin esto una comilla simple en el texto cierra el
+// atributo antes de tiempo e inyecta HTML/JS nuevo.
+function hJsonAttr(json){ return json.replace(/&/g,'&amp;').replace(/'/g,'&#39;'); }
 function fmtBytes(n){
   n = parseInt(n)||0;
   if (n < 1024) return n+' B';
@@ -555,7 +561,7 @@ function renderSeccionCard(seccion, items) {
   const oculta = seccion.id && !seccion.visible;
   const acciones = (CAN_MANAGE && seccion.id) ? `
     <div class="aula-section-actions" onclick="event.stopPropagation()">
-      <button title="Editar sección" onclick='editarSeccion(${JSON.stringify(seccion)})'>✏️</button>
+      <button title="Editar sección" onclick='editarSeccion(${hJsonAttr(JSON.stringify(seccion))})'>✏️</button>
       <button title="Eliminar sección" onclick="eliminarSeccion(${seccion.id})">🗑️</button>
     </div>` : '';
 
@@ -599,7 +605,7 @@ function renderItemAnuncio(a) {
       <div class="ci-actions">
         ${mover}
         ${CAN_MANAGE ? `
-          <button class="btn btn-sm btn-secondary" onclick='editarAnuncio(${JSON.stringify(a)})'>Editar</button>
+          <button class="btn btn-sm btn-secondary" onclick='editarAnuncio(${hJsonAttr(JSON.stringify(a))})'>Editar</button>
           <button class="btn btn-sm btn-danger" onclick="eliminarAnuncio(${a.id})">Eliminar</button>` : ''}
       </div>
     </div>`;
@@ -637,7 +643,7 @@ function renderItemActividad(a) {
         ${mover}
         ${CAN_MANAGE ? `
           <button class="btn btn-sm btn-success" onclick="abrirCalificar(${a.id},'${h(a.titulo).replace(/'/g,"\\'")}',${a.nota_max})">Calificar</button>
-          <button class="btn btn-sm btn-secondary" onclick='editarActividad(${JSON.stringify(a)})'>Editar</button>
+          <button class="btn btn-sm btn-secondary" onclick='editarActividad(${hJsonAttr(JSON.stringify(a))})'>Editar</button>
           <button class="btn btn-sm btn-danger" onclick="eliminarActividad(${a.id})">Eliminar</button>` : ''}
       </div>
     </div>`;

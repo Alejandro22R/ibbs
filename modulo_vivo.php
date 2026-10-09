@@ -142,6 +142,7 @@ let CAN_MANAGE = false;
 let EDITANDO = false;
 
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
+function hJsonAttr(json){ return json.replace(/&/g,'&amp;').replace(/'/g,'&#39;'); }
 function vivoAjax(action, data={}) { return ajax(action, {...data, materia_id: MATERIA_ID}, 'api/clases_vivo.php'); }
 
 const PLATAFORMA_LBL = {jitsi:'Jitsi Meet', meet:'Google Meet', zoom:'Zoom', otro:'Otro'};
@@ -196,14 +197,14 @@ async function loadVivo() {
     const grabacionBtn = v.grabacion_clase_id
       ? `<a class="btn btn-sm btn-secondary" href="modulo_grabaciones.php?materia_id=${MATERIA_ID}" title="Ver en el repositorio de Clases Grabadas">🎥 Ver grabación</a>`
       : (CAN_MANAGE && v.estado !== 'cancelada'
-          ? `<button class="btn btn-sm btn-secondary" onclick='abrirModalGrabacion(${JSON.stringify(v)})' title="Guardá el link del video ya grabado para que quede en el repositorio de la materia">🎥 Guardar grabación</button>`
+          ? `<button class="btn btn-sm btn-secondary" onclick='abrirModalGrabacion(${hJsonAttr(JSON.stringify(v))})' title="Guardá el link del video ya grabado para que quede en el repositorio de la materia">🎥 Guardar grabación</button>`
           : '');
 
     const accionesGestion = CAN_MANAGE ? `
       <select onchange="cambiarEstado(${v.id}, this.value)" style="width:auto;font-size:.76rem;padding:.35rem .5rem;">
         ${Object.keys(ESTADO_LBL).map(k => `<option value="${k}" ${k===v.estado?'selected':''}>${ESTADO_LBL[k]}</option>`).join('')}
       </select>
-      <button class="btn btn-sm btn-secondary" onclick='editarVivo(${JSON.stringify(v)})'>Editar</button>
+      <button class="btn btn-sm btn-secondary" onclick='editarVivo(${hJsonAttr(JSON.stringify(v))})'>Editar</button>
       <button class="btn btn-sm btn-danger" onclick="eliminarVivo(${v.id})">Eliminar</button>
     ` : '';
 

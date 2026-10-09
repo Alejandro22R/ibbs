@@ -101,6 +101,7 @@ const MATERIA_ID = <?=$materia_id?>;
 let CAN_MANAGE = false;
 
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
+function hJsonAttr(json){ return json.replace(/&/g,'&amp;').replace(/'/g,'&#39;'); }
 function grabAjax(action, data={}) { return ajax(action, {...data, materia_id: MATERIA_ID}, 'api/clases_grabadas.php'); }
 
 const PLATAFORMA_LBL = {youtube:'YouTube', drive:'Google Drive', vimeo:'Vimeo', otro:'Enlace externo'};
@@ -163,7 +164,7 @@ async function loadClases() {
         </div>
         ${CAN_MANAGE ? `
         <div class="td-actions" style="margin-top:.7rem;">
-          <button class="btn btn-sm btn-secondary" onclick='editarClase(${JSON.stringify(c)})'>Editar</button>
+          <button class="btn btn-sm btn-secondary" onclick='editarClase(${hJsonAttr(JSON.stringify(c))})'>Editar</button>
           <button class="btn btn-sm btn-danger" onclick="eliminarClase(${c.id})">Eliminar</button>
         </div>` : ''}
       </div>
