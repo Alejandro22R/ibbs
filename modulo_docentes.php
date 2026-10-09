@@ -189,19 +189,19 @@ async function loadDocentes(){
 
   tb.innerHTML = d.data.map(r => `<tr>
     <td style="text-align:center;"><input type="checkbox" class="chkDoc" value="${r.id}" onchange="actualizarBarraLoteDocentes()"></td>
-    <td><strong>${r.cedula}</strong></td>
-    <td>${r.apellido}, ${r.nombre}</td>
-    <td style="font-size:.82rem;">${r.correo}</td>
-    <td style="font-size:.82rem;">${r.ciudad||'—'}</td>
-    <td style="font-size:.82rem;color:var(--muted);">${r.especialidad||'—'}</td>
+    <td><strong>${h(r.cedula)}</strong></td>
+    <td>${h(r.apellido)}, ${h(r.nombre)}</td>
+    <td style="font-size:.82rem;">${h(r.correo)}</td>
+    <td style="font-size:.82rem;">${h(r.ciudad)||'—'}</td>
+    <td style="font-size:.82rem;color:var(--muted);">${h(r.especialidad)||'—'}</td>
     <td><span class="badge b-profesor">${r.nm}</span></td>
     <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
     <td class="td-actions">
-      <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignar(${r.id}, '${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" style="background:var(--ink);color:var(--lime);">Asignar</button>
+      <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignar(${r.id}, '${hAttr(r.nombre+' '+r.apellido)}')" style="background:var(--ink);color:var(--lime);">Asignar</button>
       <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
       <button class="btn btn-sm btn-primary" onclick="editDoc(${r.id})">Editar</button>
       <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=trabajo&docente_id=${r.id}" target="_blank" title="Constancia de Trabajo">📄 Trabajo</a>
-      <button class="btn btn-sm btn-danger" onclick="delDoc(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')">Eliminar</button>
+      <button class="btn btn-sm btn-danger" onclick="delDoc(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')">Eliminar</button>
     </td></tr>`).join('');
 }
 
@@ -252,6 +252,7 @@ async function createDoc(e){
 }
 
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
+function hAttr(s){ return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
 async function editDoc(id){
   const d = await ajax('docente_get',{id}); 
@@ -294,20 +295,20 @@ async function verPerfil(id){
   const d = await ajax('docente_get',{id}); 
   if(!d?.ok){toast(d?.msg,'err');return;}
   const r = d.data; 
-  const ini = (r.nombre||'?')[0].toUpperCase();
-  const asist = r.asistencias||{}; 
+  const ini = h((r.nombre||'?')[0].toUpperCase());
+  const asist = r.asistencias||{};
   const tot = Object.values(asist).reduce((a,b)=>a+b,0);
-  
+
   document.getElementById('perfilD').innerHTML=`
     <div class="profile-card">
       <div class="profile-ava">${ini}</div>
-      <div class="profile-name">${r.nombre} ${r.apellido}</div>
-      <div class="profile-meta">Cédula: ${r.cedula} · ${r.correo}</div>
-      ${r.telefono?`<div class="profile-meta">Tel: ${r.telefono}</div>`:''}
-      ${r.ciudad?`<div class="profile-meta">Ciudad: ${r.ciudad}</div>`:''}
+      <div class="profile-name">${h(r.nombre)} ${h(r.apellido)}</div>
+      <div class="profile-meta">Cédula: ${h(r.cedula)} · ${h(r.correo)}</div>
+      ${r.telefono?`<div class="profile-meta">Tel: ${h(r.telefono)}</div>`:''}
+      ${r.ciudad?`<div class="profile-meta">Ciudad: ${h(r.ciudad)}</div>`:''}
       <div class="profile-chips" style="margin-top:.8rem;">
         <span class="profile-chip lime">Docente</span>
-        ${r.especialidad?`<span class="profile-chip">${r.especialidad}</span>`:''}
+        ${r.especialidad?`<span class="profile-chip">${h(r.especialidad)}</span>`:''}
         <span class="profile-chip ${r.activo?'lime':''}">${r.activo?'Activo':'Inactivo'}</span>
       </div>
     </div>

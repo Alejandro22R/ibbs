@@ -126,7 +126,7 @@ async function cargarAlumno(id) {
           </td>
           <td style="text-align:center;">
             ${puedeQuitar
-              ? `<button class="btn btn-sm btn-danger" onclick="desinscribir(${m.id},'${h(m.nombre)}')" style="font-size:.65rem;padding:3px 8px;">✕</button>`
+              ? `<button class="btn btn-sm btn-danger" onclick="desinscribir(${m.id},'${hAttr(m.nombre)}')" style="font-size:.65rem;padding:3px 8px;">✕</button>`
               : `<span title="Auto-inscripción: solo un superadmin puede quitarla" style="color:var(--muted);font-size:.9rem;">🔒</span>`}
           </td>
         </tr>`;
@@ -142,6 +142,7 @@ async function desinscribir(mid, nombre) {
 }
 
 function h(s) { const d = document.createElement('div'); d.textContent = String(s??''); return d.innerHTML; }
+function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
 // ── Tutorial guiado de esta página ──────────────────────────────
 window.IBBS_TOUR_INSCRIPCIONES = {

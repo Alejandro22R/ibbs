@@ -152,10 +152,11 @@ async function loadLibros(){
       <button class="btn btn-sm btn-secondary" onclick="verComoDescarga(${r.id})">👁 Vista previa</button>
       <button class="btn btn-sm btn-primary" onclick="editarLibro(${r.id})">Editar</button>
       <button class="btn btn-sm btn-secondary" onclick="toggleLibro(${r.id})">${r.activo=='1'?'Ocultar':'Mostrar'}</button>
-      <button class="btn btn-sm btn-danger" onclick="eliminarLibro(${r.id},'${h(r.titulo).replace(/'/g,"\\'")}')">Eliminar</button>
+      <button class="btn btn-sm btn-danger" onclick="eliminarLibro(${r.id},'${hAttr(r.titulo)}')">Eliminar</button>
     </td></tr>`).join('');
 }
 function h(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
+function hAttr(s){ return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
 function abrirNuevoLibro(){
   document.getElementById('fLibro').reset();

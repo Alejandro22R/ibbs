@@ -642,7 +642,7 @@ function renderItemActividad(a) {
       <div class="ci-actions">
         ${mover}
         ${CAN_MANAGE ? `
-          <button class="btn btn-sm btn-success" onclick="abrirCalificar(${a.id},'${h(a.titulo).replace(/'/g,"\\'")}',${a.nota_max})">Calificar</button>
+          <button class="btn btn-sm btn-success" onclick="abrirCalificar(${a.id},'${hAttr(a.titulo)}',${a.nota_max})">Calificar</button>
           <button class="btn btn-sm btn-secondary" onclick='editarActividad(${hJsonAttr(JSON.stringify(a))})'>Editar</button>
           <button class="btn btn-sm btn-danger" onclick="eliminarActividad(${a.id})">Eliminar</button>` : ''}
       </div>
@@ -871,7 +871,7 @@ async function loadTareas() {
       let actionHtml = '';
       if (CAN_MANAGE) {
         actionHtml = `<div style="display:flex;gap:.5rem;">
-                        <button class="btn btn-sm btn-primary" onclick="abrirVerEntregas(${t.id}, '${h(t.titulo).replace(/'/g,"\\'")}')">🔍 Ver y Calificar Entregas</button>
+                        <button class="btn btn-sm btn-primary" onclick="abrirVerEntregas(${t.id}, '${hAttr(t.titulo)}')">🔍 Ver y Calificar Entregas</button>
                         <button class="btn btn-sm btn-danger" onclick="eliminarTarea(${t.id})">Eliminar</button>
                       </div>`;
       } else {
@@ -879,10 +879,10 @@ async function loadTareas() {
           const notaText = t.nota !== null ? `<span style="color:#059669;font-weight:bold;">Calificada: ${t.nota}/${t.nota_maxima}</span>` : '<span style="color:#d97706;font-weight:bold;">Entregado - Esperando nota</span>';
           actionHtml = `<div style="display:flex;align-items:center;gap:1rem;">
                           <span style="font-size:.85rem;">${notaText}</span>
-                          <button class="btn btn-sm btn-secondary" onclick="abrirSubirEntrega(${t.id}, '${h(t.titulo).replace(/'/g,"\\'")}')">🔄 Actualizar Entrega</button>
+                          <button class="btn btn-sm btn-secondary" onclick="abrirSubirEntrega(${t.id}, '${hAttr(t.titulo)}')">🔄 Actualizar Entrega</button>
                         </div>`;
         } else {
-          actionHtml = `<button class="btn btn-sm btn-primary" onclick="abrirSubirEntrega(${t.id}, '${h(t.titulo).replace(/'/g,"\\'")}')">📤 Entregar Tarea</button>`;
+          actionHtml = `<button class="btn btn-sm btn-primary" onclick="abrirSubirEntrega(${t.id}, '${hAttr(t.titulo)}')">📤 Entregar Tarea</button>`;
         }
       }
 

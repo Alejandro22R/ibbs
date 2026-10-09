@@ -86,6 +86,7 @@ async function buscarPersonas(q) {
 }
 
 function h(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
 let _personaActual = null;
 
@@ -162,7 +163,7 @@ async function verPersona(id, tipo) {
             <td><span class="badge ${m.estado==='en_curso'?'b-presente':m.estado==='culminada'?'b-alumno':'b-tardanza'}">${h(m.estado||'—')}</span></td>
             <td style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:${tieneNota ? (aprobada?'#16a34a':'#dc2626') : 'var(--muted)'};">${tieneNota ? parseFloat(m.nota_final).toFixed(1) : '—'}</td>
             <td><span class="badge ${!tieneNota ? '' : (aprobada?'b-presente':'b-ausente')}">${!tieneNota ? 'Sin nota' : (aprobada?'Aprobado':'Reprobado')}</span></td>
-            <td><button class="btn btn-secondary btn-sm" onclick="verPlanAlumnoMateria(${m.id},'${h(m.nombre).replace(/'/g,"\\'")}')"><i class="bx bx-list-check"></i> Plan de Notas</button></td>
+            <td><button class="btn btn-secondary btn-sm" onclick="verPlanAlumnoMateria(${m.id},'${hAttr(m.nombre)}')"><i class="bx bx-list-check"></i> Plan de Notas</button></td>
           </tr>`;
         }).join('') : '<tr class="empty-row"><td colspan="6">Sin materias inscritas.</td></tr>'}</tbody>
       </table></div>
