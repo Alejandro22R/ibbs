@@ -62,7 +62,7 @@ if ($action === 'crear') {
 
     $dir = __DIR__.'/../uploads/comprobantes/';
     if (!is_dir($dir)) mkdir($dir, 0755, true);
-    $fname = 'comp_'.$aid.'_'.$mid.'_'.time().'_'.random_int(1000,9999).'.'.$ext;
+    $fname = 'comp_'.$aid.'_'.$mid.'_'.time().'_'.bin2hex(random_bytes(8)).'.'.$ext;
     if (!move_uploaded_file($file['tmp_name'], $dir.$fname)) {
         echo json_encode(['ok'=>false,'msg'=>'Error al guardar el comprobante.']); exit;
     }

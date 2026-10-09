@@ -218,7 +218,7 @@ if ($action === 'pago_subir_comprobante') {
 
     $dir = __DIR__.'/../uploads/comprobantes/';
     if (!is_dir($dir)) mkdir($dir, 0755, true);
-    $fname = 'pago_'.$aid.'_'.$id.'_'.time().'_'.random_int(1000,9999).'.'.$ext;
+    $fname = 'pago_'.$aid.'_'.$id.'_'.time().'_'.bin2hex(random_bytes(8)).'.'.$ext;
     if (!move_uploaded_file($file['tmp_name'], $dir.$fname)) json_fail_pg('No se pudo guardar el comprobante.');
     $ruta = 'uploads/comprobantes/'.$fname;
 

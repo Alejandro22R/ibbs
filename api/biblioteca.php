@@ -309,7 +309,7 @@ if ($action === 'compra_crear') {
 
     $dir = __DIR__.'/../uploads/comprobantes/';
     if (!is_dir($dir)) mkdir($dir, 0755, true);
-    $fname = 'libro_'.$aid.'_'.$lid.'_'.time().'_'.random_int(1000,9999).'.'.$ext;
+    $fname = 'libro_'.$aid.'_'.$lid.'_'.time().'_'.bin2hex(random_bytes(8)).'.'.$ext;
     if (!move_uploaded_file($file['tmp_name'], $dir.$fname)) json_fail('No se pudo guardar el comprobante.');
     $ruta = 'uploads/comprobantes/'.$fname;
 
