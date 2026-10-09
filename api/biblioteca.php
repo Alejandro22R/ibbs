@@ -54,7 +54,7 @@ if ($isDownload) {
     } elseif ($rol === 'profesor' && (int)$libro['creado_por'] === $uid) {
         $puedeDescargar = true;
     } elseif ($rol === 'alumno') {
-        if ((float)$libro['precio'] <= 0) {
+        if ((float)$libro['precio'] <= 0 && (int)$libro['activo'] === 1) {
             $puedeDescargar = true;
         } else {
             $al = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE usuario_id=$uid LIMIT 1"));

@@ -2029,6 +2029,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         // en otra pestaña con el tema de administración, perdiendo el
         // estilo propio del portal del docente) ──────────────────────
         function hLibD(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+        function hAttrLibD(s) { return hLibD(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
         async function cargarMisLibrosDocente() {
             const grid = document.getElementById('libDocenteGrid');
@@ -2062,7 +2063,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         </div>
                         <div style="margin-top:.4rem;display:flex;gap:.4rem;">
                             <button onclick="toggleLibroDocente(${r.id})" class="btn btn-secondary" style="flex:1;font-size:.76rem;">${r.activo=='1'?'Ocultar':'Mostrar'}</button>
-                            <button onclick="eliminarLibroDocente(${r.id},'${hLibD(r.titulo).replace(/'/g,"\\'")}')" class="btn" style="flex:1;font-size:.76rem;background:#fee2e2;color:var(--red);">Eliminar</button>
+                            <button onclick="eliminarLibroDocente(${r.id},'${hAttrLibD(r.titulo)}')" class="btn" style="flex:1;font-size:.76rem;background:#fee2e2;color:var(--red);">Eliminar</button>
                         </div>
                     </div>
                 </div>`).join('');
