@@ -122,6 +122,8 @@ if(!in_array($_rol,['superadmin','admin'])){
 </div>
 
 <script>
+function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
+function hAttr(s){ return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 document.addEventListener('ibbs:ready', () => loadAlumnos());
 async function loadAlumnos(){
   const ciudad=document.getElementById('filtCiudad').value.trim();
@@ -132,29 +134,29 @@ async function loadAlumnos(){
   if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="10">Sin alumnos.</td></tr>';return;}
   tb.innerHTML=d.data.map(r=>`<tr>
     <td style="text-align:center;"><input type="checkbox" class="chkAlum" value="${r.id}" onchange="actualizarBarraLoteAlumnos()"></td>
-    <td><strong>${r.cedula}</strong></td>
+    <td><strong>${h(r.cedula)}</strong></td>
     <td>
       <div style="display:flex;align-items:center;gap:.6rem;">
-        <div style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.9rem;">${(r.nombre||'?').charAt(0).toUpperCase()}</div>
-        <span>${r.apellido}, ${r.nombre}</span>
+        <div style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.9rem;">${h((r.nombre||'?').charAt(0).toUpperCase())}</div>
+        <span>${h(r.apellido)}, ${h(r.nombre)}</span>
       </div>
     </td>
-    <td style="font-size:.82rem;">${r.correo}</td>
-    <td style="font-size:.82rem;">${r.ciudad||'—'}</td>
+    <td style="font-size:.82rem;">${h(r.correo)}</td>
+    <td style="font-size:.82rem;">${h(r.ciudad)||'—'}</td>
     <td><span class="badge b-alumno">${r.nm}</span></td>
     <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
     <td>${r.regular=='1'?'<span class="badge b-presente" title="Puede autoinscribirse en materias">Sí</span>':'<span style="color:var(--muted);font-size:.78rem;">No</span>'}</td>
     <td>${estadoSolicitud(r)}</td>
     <td class="td-actions">
       ${r.aprobado!==null && r.aprobado=='0' ? `
-        <button class="btn btn-sm btn-success" onclick="aprobarAlumno(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" title="Aceptar solicitud de ingreso">✓ Aceptar</button>
-        <button class="btn btn-sm btn-danger" onclick="rechazarAlumno(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')" title="Rechazar solicitud de ingreso">✕ Rechazar</button>
+        <button class="btn btn-sm btn-success" onclick="aprobarAlumno(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')" title="Aceptar solicitud de ingreso">✓ Aceptar</button>
+        <button class="btn btn-sm btn-danger" onclick="rechazarAlumno(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')" title="Rechazar solicitud de ingreso">✕ Rechazar</button>
       ` : ''}
       <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
       <button class="btn btn-sm btn-primary" onclick="editA(${r.id})">Editar</button>
       <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=estudio&alumno_id=${r.id}" target="_blank" title="Constancia de Estudio">📄 Estudio</a>
       <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=notas&alumno_id=${r.id}" target="_blank" title="Constancia de Notas">📄 Notas</a>
-      <button class="btn btn-sm btn-danger" onclick="delA(${r.id},'${(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')">Eliminar</button>
+      <button class="btn btn-sm btn-danger" onclick="delA(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')">Eliminar</button>
     </td></tr>`).join('');
 }
 function estadoSolicitud(r){
@@ -202,17 +204,17 @@ async function saveEditA(){
 }
 async function verPerfil(id){
   const d=await ajax('alumno_get',{id}); if(!d?.ok){toast(d?.msg,'err');return;}
-  const r=d.data; const ini=(r.nombre||'?')[0].toUpperCase();
+  const r=d.data; const ini=h((r.nombre||'?')[0].toUpperCase());
   const asist=r.asistencias||{}; const tot=Object.values(asist).reduce((a,b)=>a+b,0);
   const notas=r.notas||[];
   const prom=notas.length?(notas.reduce((a,n)=>a+parseFloat(n.calificacion),0)/notas.length).toFixed(1):'—';
   document.getElementById('perfilA').innerHTML=`
     <div class="profile-card">
       <div class="profile-ava">${ini}</div>
-      <div class="profile-name">${r.nombre} ${r.apellido}</div>
-      <div class="profile-meta">Cédula: ${r.cedula} · ${r.correo}</div>
-      ${r.telefono?`<div class="profile-meta">Tel: ${r.telefono}</div>`:''}
-      ${r.ciudad?`<div class="profile-meta">📍 ${r.ciudad}</div>`:''}
+      <div class="profile-name">${h(r.nombre)} ${h(r.apellido)}</div>
+      <div class="profile-meta">Cédula: ${h(r.cedula)} · ${h(r.correo)}</div>
+      ${r.telefono?`<div class="profile-meta">Tel: ${h(r.telefono)}</div>`:''}
+      ${r.ciudad?`<div class="profile-meta">📍 ${h(r.ciudad)}</div>`:''}
       <div class="profile-chips" style="margin-top:.8rem;"><span class="profile-chip lime">Alumno</span><span class="profile-chip ${r.activo?'lime':''}">${r.activo?'Activo':'Inactivo'}</span></div>
     </div>
     <div class="stats" style="margin-bottom:1.5rem;">
@@ -221,7 +223,7 @@ async function verPerfil(id){
       <div class="scard c2"><div class="scard-ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="scard-val" data-countup>${prom}</div><div class="scard-key">Promedio</div></div></div>
     </div>
     <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.6rem;">Materias</p>
-    ${r.materias.length?r.materias.map(m=>`<span class="badge b-alumno" style="margin:.2rem;">${m.codigo} · ${m.nombre}</span>`).join(''):'<em style="color:var(--muted);font-size:.82rem;">Sin materias.</em>'}
+    ${r.materias.length?r.materias.map(m=>`<span class="badge b-alumno" style="margin:.2rem;">${h(m.codigo)} · ${h(m.nombre)}</span>`).join(''):'<em style="color:var(--muted);font-size:.82rem;">Sin materias.</em>'}
     <hr class="divider">
     <p style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:.6rem;">Asistencias</p>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">${Object.entries({presente:'b-presente',ausente:'b-ausente',tardanza:'b-tardanza',justificado:'b-justificado'}).map(([k,c])=>`<span class="badge ${c}">${k}: ${asist[k]||0}</span>`).join('')}</div>`;
