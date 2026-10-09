@@ -152,6 +152,16 @@ if ($action === 'ver_entregas') {
     if (!materia_puede_gestionar($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
     $tareaId = (int)($_GET['tarea_id'] ?? 0);
 
+    // tarea_id tiene que ser realmente de ESTA materia — sin este
+    // chequeo, un profesor que gestiona la materia A podía pasar el
+    // tarea_id de una tarea de la materia B (adivinando/probando ids)
+    // y ver las entregas, notas y observaciones de alumnos en una
+    // materia que no dicta.
+    $stT = mysqli_prepare($con, "SELECT id FROM tareas WHERE id=? AND materia_id=? LIMIT 1");
+    mysqli_stmt_bind_param($stT, 'ii', $tareaId, $mid);
+    mysqli_stmt_execute($stT);
+    if (!mysqli_fetch_assoc(mysqli_stmt_get_result($stT))) json_fail('Tarea no encontrada en esta materia.');
+
     $st = mysqli_prepare($con, "SELECT a.id alumno_id,a.nombre,a.apellido,a.cedula,
                                         e.id entrega_id,e.texto_respuesta,e.archivo,e.fecha_entrega,e.nota,e.observacion_docente
                                  FROM materia_alumno ma
