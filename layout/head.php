@@ -116,7 +116,6 @@ function can($perm){
     <li><a href="modulo_vivo.php" class="sb-link <?=$active_link==='vivo'?'act':''?>"><i class="bx bx-broadcast"></i><span class="sb-lbl">Clases en Vivo</span></a></li>
     <?php endif; ?>
     <?php if(in_array($_rol,['superadmin','admin'])): ?>
-    <li><a href="modulo_record.php" class="sb-link <?=$active_link==='record'?'act':''?>"><i class="bx bx-bar-chart-alt-2"></i><span class="sb-lbl">Record Académico</span></a></li>
     <?php endif; ?>
     <?php if(in_array($_rol,['superadmin','admin','profesor'])): ?>
     <li><a href="modulo_biblioteca.php" class="sb-link <?=$active_link==='biblioteca'?'act':''?>"><i class="bx bx-library"></i><span class="sb-lbl">Biblioteca</span></a></li>
@@ -195,20 +194,21 @@ function can($perm){
     </button>
     <!-- Notification bell -->
     <div style="position:relative;">
-      <button id="notifBell" data-tour="top-notif" onclick="<?= in_array($_rol,['superadmin','admin']) ? "window.location='modulo_herramientas.php'" : 'toggleNotifDrop()' ?>" title="Notificaciones"
+      <button id="notifBell" data-tour="top-notif" onclick="toggleNotifDrop()" title="Notificaciones"
         style="position:relative;background:none;border:1.5px solid var(--border);border-radius:9px;padding:.45rem .6rem;cursor:pointer;display:flex;align-items:center;color:var(--ink);">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span id="notifCount" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border-radius:50%;width:17px;height:17px;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;"></span>
       </button>
-      <?php if(!in_array($_rol,['superadmin','admin'])): ?>
       <div id="notifDrop" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;max-height:420px;overflow-y:auto;background:var(--paper);border:1.5px solid var(--border);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.14);z-index:200;">
         <div style="padding:.7rem .9rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
           <strong style="font-size:.85rem;">Notificaciones</strong>
           <button onclick="marcarTodasLeidasDrop()" style="background:none;border:none;color:var(--lime,#059669);font-size:.72rem;cursor:pointer;">Marcar todas leídas</button>
         </div>
         <div id="notifDropList" style="padding:.4rem;"></div>
+        <?php if(in_array($_rol,['superadmin','admin'])): ?>
+        <a href="modulo_herramientas.php" style="display:block;text-align:center;padding:.6rem;border-top:1px solid var(--border);font-size:.78rem;color:var(--ink);text-decoration:none;">Ver todo en Herramientas &rarr;</a>
+        <?php endif; ?>
       </div>
-      <?php endif; ?>
     </div>
   </div>
   <a href="modulo_perfil.php" class="user-pill" style="text-decoration:none;color:inherit;cursor:pointer;" title="Mi Perfil">

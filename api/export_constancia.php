@@ -10,16 +10,25 @@
  * alumno_id. Queda un registro en la auditoría de quién la emitió y
  * para quién.
  *
- * La Constancia de Notas solo incluye una materia en la tabla de
- * calificaciones si las tres condiciones del flujo de aprobación se
- * cumplieron: (1) el administrador ya marcó la materia "culminada"
- * (materia_set_estado, exclusivo de admin/superadmin), (2) existe un
- * envío de notas (api/notas_envio.php) de esa materia con estado
- * "aprobado" — es decir, el profesor las cargó y el administrador las
- * revisó y confirmó — y (3) ningún alumno de la materia quedó con
- * nota_final en NULL. Una materia en curso, sin notas aprobadas, o con
- * notas incompletas, nunca aparece — evita que el récord oficial
- * muestre una nota a medias o sin confirmar.
+ * La Constancia de Notas incluye una materia en la tabla de
+ * calificaciones por una de dos vías:
+ *   (a) Flujo normal (materia en curso): las tres condiciones del
+ *       flujo de aprobación se cumplieron: el administrador ya marcó
+ *       la materia "culminada" (materia_set_estado, exclusivo de
+ *       admin/superadmin), existe un envío de notas
+ *       (api/notas_envio.php) de esa materia con estado "aprobado" —
+ *       es decir, el profesor las cargó y el administrador las
+ *       revisó y confirmó — y ningún alumno de la materia quedó con
+ *       nota_final en NULL. Una materia en curso, sin notas
+ *       aprobadas, o con notas incompletas, nunca aparece por esta
+ *       vía — evita que el récord oficial muestre una nota a medias
+ *       o sin confirmar.
+ *   (b) Histórico (materia_alumno.origen='historico'): notas de años
+ *       anteriores digitalizadas a mano por el superadmin desde
+ *       Calificaciones > Histórico por Alumno / Importar Excel-CSV
+ *       (ver api/notas_importar.php) — ya pasaron por la revisión del
+ *       superadmin al cargarlas, así que no dependen del flujo de
+ *       notas_envios ni de que la materia esté "culminada".
  *
  * tipo=trabajo es distinto: la genera el propio docente para sí mismo
  * (constancia de que presta servicios en la institución) — admin/
@@ -70,16 +79,23 @@ if ($tipo === 'trabajo') {
     // pendiente) — ver la nota al principio del archivo.
     $materias = [];
     if ($tipo === 'notas') {
+        mysqli_query($con, "ALTER TABLE materia_alumno ADD COLUMN IF NOT EXISTS origen ENUM('cursado','historico') DEFAULT 'cursado'");
         $r = mysqli_query($con, "SELECT ma.nota_final,m.nombre mn,m.codigo mc
                                   FROM materia_alumno ma JOIN materias m ON m.id=ma.materia_id
-                                  WHERE ma.alumno_id=$aid AND m.estado='culminada'
-                                    AND EXISTS (
-                                        SELECT 1 FROM notas_envios ne
-                                        WHERE ne.materia_id=ma.materia_id AND ne.estado='aprobado'
-                                    )
-                                    AND NOT EXISTS (
-                                        SELECT 1 FROM materia_alumno ma2
-                                        WHERE ma2.materia_id=ma.materia_id AND ma2.nota_final IS NULL
+                                  WHERE ma.alumno_id=$aid
+                                    AND (
+                                        (ma.origen='historico' AND ma.nota_final IS NOT NULL)
+                                        OR (
+                                            m.estado='culminada'
+                                            AND EXISTS (
+                                                SELECT 1 FROM notas_envios ne
+                                                WHERE ne.materia_id=ma.materia_id AND ne.estado='aprobado'
+                                            )
+                                            AND NOT EXISTS (
+                                                SELECT 1 FROM materia_alumno ma2
+                                                WHERE ma2.materia_id=ma.materia_id AND ma2.nota_final IS NULL
+                                            )
+                                        )
                                     )
                                   ORDER BY m.nombre");
         while ($f = mysqli_fetch_assoc($r)) $materias[] = $f;

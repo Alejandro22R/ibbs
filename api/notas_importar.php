@@ -54,6 +54,7 @@ if (!csrf_verify($_POST['csrf_token'] ?? '')) { echo json_encode(['ok'=>false,'m
 $con = db();
 if (!$con) { echo json_encode(['ok'=>false,'msg'=>'Error de conexión a la base de datos.']); exit; }
 mysqli_query($con, "ALTER TABLE materias ADD COLUMN IF NOT EXISTS periodo_id INT DEFAULT NULL");
+mysqli_query($con, "ALTER TABLE materia_alumno ADD COLUMN IF NOT EXISTS origen ENUM('cursado','historico') DEFAULT 'cursado'");
 
 function parse_csv_rows($con) {
     if (empty($_FILES['csvfile']['tmp_name']) || !is_uploaded_file($_FILES['csvfile']['tmp_name'])) {
@@ -153,10 +154,10 @@ function resolver_fila($con, $uid, $fila, $crear, &$cacheMaterias) {
     if ($crear && $out['materia_id']) {
         $ex = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materia_alumno WHERE materia_id={$out['materia_id']} AND alumno_id={$out['alumno_id']} LIMIT 1"));
         if ($ex) {
-            $res = mysqli_query($con, "UPDATE materia_alumno SET nota_final=$cal,nota_fecha=CURDATE(),nota_registrada_por=$uid,nota_actualizada_en=NOW() WHERE id=".$ex['id']);
+            $res = mysqli_query($con, "UPDATE materia_alumno SET nota_final=$cal,nota_fecha=CURDATE(),nota_registrada_por=$uid,nota_actualizada_en=NOW(),origen='historico' WHERE id=".$ex['id']);
             $out['mensaje'] = 'Nota actualizada.';
         } else {
-            $res = mysqli_query($con, "INSERT INTO materia_alumno(materia_id,alumno_id,nota_final,nota_fecha,nota_registrada_por,nota_actualizada_en) VALUES({$out['materia_id']},{$out['alumno_id']},$cal,CURDATE(),$uid,NOW())");
+            $res = mysqli_query($con, "INSERT INTO materia_alumno(materia_id,alumno_id,nota_final,nota_fecha,nota_registrada_por,nota_actualizada_en,origen) VALUES({$out['materia_id']},{$out['alumno_id']},$cal,CURDATE(),$uid,NOW(),'historico')");
             $out['mensaje'] = 'Alumno inscrito y nota cargada.';
         }
         if (!$res) {
@@ -193,6 +194,88 @@ if ($action === 'preview' || $action === 'confirmar') {
     if ($crear) {
         log_audit($con, $uid, 'NOTAS_IMPORTAR_CSV', "filas_ok=$okCount filas_error=$errCount");
     }
+    echo json_encode(['ok'=>true, 'data'=>$resultado, 'resumen'=>['ok'=>$okCount,'error'=>$errCount,'total'=>count($resultado)]]);
+    exit;
+}
+
+if ($action === 'matriz_confirmar') {
+    // Importación masiva desde la "sábana" (matriz Excel: alumnos en
+    // filas, materias en columnas, tal como ya la llevan en papel/
+    // Excel) — a diferencia de "confirmar" (CSV, una fila por nota),
+    // acá el navegador ya leyó el .xlsx con SheetJS y emparejó cada
+    // fila de la planilla con un alumno existente (ver modulo_notas.php
+    // > Importar desde Excel/CSV > Sábana Excel); esta acción solo
+    // recibe {alumno_id, materia_nombre, nota} ya resueltos y hace el
+    // mismo upsert histórico que nota_guardar_lote/resolver_fila,
+    // reusando el mismo criterio de dedupe de materia por
+    // (nombre+período). Solo superadmin, igual que "confirmar".
+    if ($rol !== 'superadmin') { echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede confirmar la importación.']); exit; }
+    mysqli_query($con, "ALTER TABLE materia_alumno ADD COLUMN IF NOT EXISTS origen ENUM('cursado','historico') DEFAULT 'cursado'");
+
+    $periodoId = (int)($_POST['periodo_id'] ?? 0);
+    $per = $periodoId ? mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM periodos WHERE id=$periodoId LIMIT 1")) : null;
+    if (!$per) { echo json_encode(['ok'=>false,'msg'=>'Período inválido.']); exit; }
+
+    $filas = json_decode($_POST['filas'] ?? '[]', true);
+    if (!is_array($filas) || !count($filas)) { echo json_encode(['ok'=>false,'msg'=>'Nada que importar.']); exit; }
+
+    $cacheMaterias = [];
+    $okCount = 0; $errCount = 0; $resultado = [];
+    foreach ($filas as $fila) {
+        $aid = (int)($fila['alumno_id'] ?? 0);
+        $materiaNombre = trim((string)($fila['materia_nombre'] ?? ''));
+        $notaRaw = str_replace(',', '.', trim((string)($fila['nota'] ?? '')));
+        $out = ['alumno_id'=>$aid, 'materia_nombre'=>$materiaNombre, 'estado'=>'ok', 'mensaje'=>''];
+
+        if (!$aid || $materiaNombre === '' || $notaRaw === '') {
+            $out['estado']='error'; $out['mensaje']='Fila incompleta.'; $resultado[]=$out; $errCount++; continue;
+        }
+        $al = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE id=$aid LIMIT 1"));
+        if (!$al) {
+            $out['estado']='error'; $out['mensaje']='Alumno no encontrado.'; $resultado[]=$out; $errCount++; continue;
+        }
+        $cal = is_numeric($notaRaw) ? (float)$notaRaw : null;
+        if ($cal === null || $cal < 0 || $cal > 20) {
+            $out['estado']='error'; $out['mensaje']="Nota inválida: '$notaRaw' (debe ser 0-20)."; $resultado[]=$out; $errCount++; continue;
+        }
+
+        $cacheKey = strtolower($materiaNombre).'|'.$periodoId;
+        if (isset($cacheMaterias[$cacheKey])) {
+            $mid = $cacheMaterias[$cacheKey];
+        } else {
+            $mat = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materias WHERE LOWER(nombre)=LOWER('".esc_ni($con,$materiaNombre)."') AND periodo_id=$periodoId LIMIT 1"));
+            if ($mat) {
+                $mid = (int)$mat['id'];
+            } else {
+                $codigo = 'H'.$periodoId.'-'.substr(md5($cacheKey),0,8);
+                $st = mysqli_prepare($con, "INSERT INTO materias(nombre,codigo,descripcion,estado,activo,periodo_id) VALUES(?,?,?,'culminada',1,?)");
+                $desc = 'Materia creada automáticamente al importar la sábana de notas históricas.';
+                mysqli_stmt_bind_param($st, 'sssi', $materiaNombre, $codigo, $desc, $periodoId);
+                if (!mysqli_stmt_execute($st)) {
+                    $out['estado']='error'; $out['mensaje']='No se pudo crear la materia: '.mysqli_stmt_error($st);
+                    $resultado[]=$out; $errCount++; continue;
+                }
+                $mid = mysqli_insert_id($con);
+            }
+            $cacheMaterias[$cacheKey] = $mid;
+        }
+
+        $ex = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
+        if ($ex) {
+            $res = mysqli_query($con, "UPDATE materia_alumno SET nota_final=$cal,nota_fecha=CURDATE(),nota_registrada_por=$uid,nota_actualizada_en=NOW(),origen='historico' WHERE id=".$ex['id']);
+            $out['mensaje'] = 'Nota actualizada.';
+        } else {
+            $res = mysqli_query($con, "INSERT INTO materia_alumno(materia_id,alumno_id,nota_final,nota_fecha,nota_registrada_por,nota_actualizada_en,origen) VALUES($mid,$aid,$cal,CURDATE(),$uid,NOW(),'historico')");
+            $out['mensaje'] = 'Alumno inscrito y nota cargada.';
+        }
+        if (!$res) {
+            $out['estado']='error'; $out['mensaje']='No se pudo guardar la nota: '.mysqli_error($con);
+            $resultado[]=$out; $errCount++; continue;
+        }
+        $resultado[] = $out; $okCount++;
+    }
+
+    log_audit($con, $uid, 'NOTAS_IMPORTAR_MATRIZ', "periodo=$periodoId filas_ok=$okCount filas_error=$errCount");
     echo json_encode(['ok'=>true, 'data'=>$resultado, 'resumen'=>['ok'=>$okCount,'error'=>$errCount,'total'=>count($resultado)]]);
     exit;
 }

@@ -168,8 +168,8 @@ mysqli_close($con);
       <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
         <h3 id="histTitulo">Materias del alumno</h3>
         <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
-          <a class="btn btn-secondary" id="btnVerRecordHist" href="#" target="_blank" title="Ver el récord completo y descargarlo como PDF">
-            <i class="bx bx-file-blank"></i> Ver Récord / Exportar PDF
+          <a class="btn btn-secondary" id="btnVerRecordHist" href="#" target="_blank" title="Ver la Constancia de Calificaciones y descargarla como PDF">
+            <i class="bx bx-file-blank"></i> Ver Constancia / Exportar PDF
           </a>
           <?php if ($esSuperadmin): ?>
           <button class="btn btn-primary" id="btnGuardarHist" onclick="guardarHistoricoLote()">Guardar todas las notas</button>
@@ -191,6 +191,12 @@ mysqli_close($con);
   en vez de uno por uno. Ver api/notas_importar.php.
 ════════════════════════════════════════════════════ -->
 <div class="tab-pane" data-pane-group="notas" data-pane="excel">
+  <div style="display:flex;gap:.5rem;margin-bottom:1.2rem;flex-wrap:wrap;">
+    <button type="button" class="tab-btn active" id="btnModoCsv" onclick="switchImportMode('csv')">Planilla CSV (fila por nota)</button>
+    <button type="button" class="tab-btn" id="btnModoMatriz" onclick="switchImportMode('matriz')" data-tour="notas-modo-matriz">Sábana Excel (como ya la llevás)</button>
+  </div>
+
+  <div id="modoCsv">
   <div class="card" style="margin-bottom:1.2rem;background:linear-gradient(135deg,var(--lime2) 0%,#15803d 100%);border:none;">
     <div class="card-body" style="padding:1.2rem 1.4rem;">
       <div style="font-weight:800;color:#fff;font-size:.95rem;margin-bottom:.3rem;">¿Cómo funciona?</div>
@@ -232,6 +238,83 @@ mysqli_close($con);
       </div>
     </div>
   </div>
+  </div><!-- /modoCsv -->
+
+  <div id="modoMatriz" style="display:none;">
+  <div class="card" style="margin-bottom:1.2rem;background:linear-gradient(135deg,var(--lime2) 0%,#15803d 100%);border:none;">
+    <div class="card-body" style="padding:1.2rem 1.4rem;">
+      <div style="font-weight:800;color:#fff;font-size:.95rem;margin-bottom:.3rem;">¿Cómo funciona?</div>
+      <ol style="font-size:.82rem;color:rgba(255,255,255,.92);line-height:1.7;margin:0;padding-left:1.2rem;">
+        <li>Subí el Excel tal cual ya lo llevás: alumnos en filas, materias en columnas (como una sábana de notas).</li>
+        <li>Elegí el período al que pertenece esa planilla, y marcá en qué fila están los nombres de las materias y en qué fila/columna empiezan los alumnos — te mostramos la planilla con números de fila/columna para que sea fácil ubicarlos.</li>
+        <li>Revisá la vista previa: cada alumno de la planilla se empareja con un alumno ya existente en el sistema (si no lo encuentra, elegilo vos a mano o marcá "omitir"). Podés corregir cualquier nota antes de guardar.</li>
+        <li>Confirmá — las materias que no existan se crean solas, igual que con la planilla CSV.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.2rem;">
+    <div class="card-body">
+      <div class="form-grid" style="margin-bottom:.8rem;">
+        <div class="field">
+          <label>Período de esta planilla</label>
+          <select id="selPeriodoMatriz"><option value="">— Elegí el período —</option></select>
+        </div>
+        <div class="field">
+          <label>Archivo .xlsx</label>
+          <input type="file" id="xlsxFile" accept=".xlsx">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="leerPlanillaMatriz()">Leer archivo</button>
+    </div>
+  </div>
+
+  <div id="matrizConfigArea" style="display:none;">
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="card-head"><h3>Vista cruda de la planilla</h3></div>
+      <div class="card-body">
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:.8rem;">Mirá los números de fila (izquierda) y de columna (arriba) para completar la configuración de abajo.</p>
+        <div id="matrizRawPreview"></div>
+        <div class="form-grid" style="margin-top:1rem;">
+          <div class="field">
+            <label>Fila de los nombres de materias</label>
+            <input type="number" id="inpFilaMaterias" value="1" min="1" style="padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:8px;width:100%;">
+          </div>
+          <div class="field">
+            <label>Fila donde empiezan los alumnos</label>
+            <input type="number" id="inpFilaAlumnosInicio" value="2" min="1" style="padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:8px;width:100%;">
+          </div>
+          <div class="field">
+            <label>Columna del nombre del alumno</label>
+            <input type="number" id="inpColNombre" value="2" min="1" style="padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:8px;width:100%;">
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:1rem;" onclick="procesarMatriz()">Procesar planilla</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="matrizReviewArea" style="display:none;">
+    <div class="card">
+      <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
+        <h3 id="matrizResumenTitulo">Vista previa</h3>
+        <?php if ($esSuperadmin): ?>
+        <button class="btn btn-primary" id="btnConfirmarMatriz" onclick="confirmarMatriz()">Confirmar e importar</button>
+        <?php else: ?>
+        <span style="font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;">
+          <i class="bx bx-lock-alt"></i> Solo el superadmin puede confirmar la importación.
+        </span>
+        <?php endif; ?>
+      </div>
+      <div class="tbl-wrap" style="max-height:60vh;">
+        <table style="font-size:.8rem;">
+          <thead><tr id="matrizReviewTheadRow"><th></th><th>Nombre en la planilla</th><th>Alumno en el sistema</th></tr></thead>
+          <tbody id="tbMatrizReview"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  </div><!-- /modoMatriz -->
 </div><!-- /pane excel -->
 <?php endif; ?>
 
@@ -494,7 +577,7 @@ async function cargarHistoricoAlumno() {
   if (!_histAlumnoId) { empty.style.display = 'block'; area.style.display = 'none'; return; }
   empty.style.display = 'none';
   area.style.display  = 'block';
-  document.getElementById('btnVerRecordHist').href = 'modulo_record.php?alumno_id=' + encodeURIComponent(_histAlumnoId);
+  document.getElementById('btnVerRecordHist').href = 'api/export_constancia.php?tipo=notas&alumno_id=' + encodeURIComponent(_histAlumnoId);
   document.getElementById('tbHistorico').innerHTML = '<tr class="empty-row"><td colspan="4"><span class="spin"></span></td></tr>';
 
   const [d, todas] = await Promise.all([
@@ -578,6 +661,247 @@ function filaCsvHtml(f) {
     <td style="text-align:center;">${h(f.nota)}</td>
     <td style="font-size:.8rem;">${estadoTxt}</td>
   </tr>`;
+}
+
+// ── Sábana Excel (matriz: alumnos en filas, materias en columnas) ──
+function switchImportMode(mode) {
+  document.getElementById('btnModoCsv').classList.toggle('active', mode === 'csv');
+  document.getElementById('btnModoMatriz').classList.toggle('active', mode === 'matriz');
+  document.getElementById('modoCsv').style.display = mode === 'csv' ? 'block' : 'none';
+  document.getElementById('modoMatriz').style.display = mode === 'matriz' ? 'block' : 'none';
+  if (mode === 'matriz') {
+    _loadXlsxLib().catch(() => toast('No se pudo cargar el lector de Excel.', 'err'));
+    cargarPeriodosMatriz();
+  }
+}
+
+function _loadXlsxLib() {
+  if (window.XLSX) return Promise.resolve();
+  if (window._xlsxLoadPromise) return window._xlsxLoadPromise;
+  window._xlsxLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'assets/libs/xlsx/xlsx.full.min.js';
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+  return window._xlsxLoadPromise;
+}
+
+async function cargarPeriodosMatriz() {
+  const sel = document.getElementById('selPeriodoMatriz');
+  if (sel.dataset.loaded) return;
+  const d = await ajax('periodo_list');
+  if (d?.ok) {
+    sel.innerHTML = '<option value="">— Elegí el período —</option>' +
+      d.data.map(p => `<option value="${p.id}">${h(p.nombre)}</option>`).join('');
+    sel.dataset.loaded = '1';
+  }
+}
+
+function normalizarTextoMatriz(s) {
+  return (s ?? '').toString().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toUpperCase().replace(/\s+/g, ' ').trim();
+}
+
+function colLetraMatriz(i) {
+  let s = ''; i++;
+  while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); }
+  return s;
+}
+
+let _matrizSheetAOA = null;
+let _matrizMateriasList = null;
+let _matrizAlumnosList = null;
+let _matrizFilas = [];
+let _matrizColumnas = [];
+
+async function leerPlanillaMatriz() {
+  const file = document.getElementById('xlsxFile').files[0];
+  if (!file) { toast('Elegí un archivo .xlsx primero.', 'err'); return; }
+  toast('Leyendo archivo…');
+  await _loadXlsxLib();
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  _matrizSheetAOA = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null });
+  document.getElementById('matrizReviewArea').style.display = 'none';
+  renderRawPreviewMatriz();
+  document.getElementById('matrizConfigArea').style.display = 'block';
+}
+
+function renderRawPreviewMatriz() {
+  const rows = _matrizSheetAOA.slice(0, 12);
+  const maxCols = Math.min(20, Math.max(0, ...rows.map(r => r.length)));
+  let html = '<div class="tbl-wrap" style="max-height:320px;"><table style="font-size:.7rem;"><thead><tr><th></th>';
+  for (let c = 0; c < maxCols; c++) html += `<th>${colLetraMatriz(c)}</th>`;
+  html += '</tr></thead><tbody>';
+  rows.forEach((r, ri) => {
+    html += `<tr><td style="font-weight:700;background:var(--cream);">${ri + 1}</td>`;
+    for (let c = 0; c < maxCols; c++) {
+      const v = (r && r[c] != null) ? String(r[c]) : '';
+      html += `<td style="white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;" title="${h(v)}">${h(v)}</td>`;
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('matrizRawPreview').innerHTML = html;
+}
+
+function procesarMatriz() {
+  if (!_matrizSheetAOA) { toast('Primero leé el archivo.', 'err'); return; }
+  const periodoId = document.getElementById('selPeriodoMatriz').value;
+  if (!periodoId) { toast('Elegí el período primero.', 'err'); return; }
+  const filaMateriasIdx = (parseInt(document.getElementById('inpFilaMaterias').value, 10) || 1) - 1;
+  const filaAlumnosIdx = (parseInt(document.getElementById('inpFilaAlumnosInicio').value, 10) || 2) - 1;
+  const colNombreIdx = (parseInt(document.getElementById('inpColNombre').value, 10) || 2) - 1;
+
+  const filaMaterias = _matrizSheetAOA[filaMateriasIdx] || [];
+  const SKIP = new Set(['', 'ITEM', 'NOMBRE Y APELLIDO', 'PROMEDIO', 'NOMBRE', 'APELLIDO', 'NOMBRES Y APELLIDOS']);
+  _matrizColumnas = [];
+  filaMaterias.forEach((val, idx) => {
+    if (idx === colNombreIdx) return;
+    const norm = normalizarTextoMatriz(val);
+    if (!norm || SKIP.has(norm)) return;
+    _matrizColumnas.push({ colIndex: idx, nombre: String(val).trim() });
+  });
+  if (!_matrizColumnas.length) { toast('No se detectaron materias en esa fila. Revisá el número de fila.', 'err'); return; }
+
+  const filas = [];
+  for (let r = filaAlumnosIdx; r < _matrizSheetAOA.length; r++) {
+    const row = _matrizSheetAOA[r];
+    if (!row) continue;
+    const nombreCrudo = (row[colNombreIdx] ?? '').toString().trim();
+    if (!nombreCrudo) continue;
+    const notas = _matrizColumnas
+      .map(c => ({ colIndex: c.colIndex, materiaNombre: c.nombre, valor: row[c.colIndex] }))
+      .filter(n => n.valor !== null && n.valor !== undefined && String(n.valor).trim() !== '' && !isNaN(parseFloat(n.valor)));
+    if (!notas.length) continue; // fila sin ninguna nota numérica — no aporta nada, se ignora
+    filas.push({ rowIndex: r, nombreCrudo, notas, alumnoId: null, omitir: false });
+  }
+  if (!filas.length) { toast('No se detectaron alumnos con notas. Revisá los números de fila/columna.', 'err'); return; }
+
+  resolverAlumnosYMostrarMatriz(filas);
+}
+
+async function resolverAlumnosYMostrarMatriz(filas) {
+  toast('Emparejando con el sistema…');
+  if (!_matrizAlumnosList) {
+    const d = await ajax('alumno_list');
+    _matrizAlumnosList = d?.ok ? d.data : [];
+  }
+  if (!_matrizMateriasList) {
+    const d2 = await ajax('materia_list');
+    _matrizMateriasList = d2?.ok ? d2.data : [];
+  }
+  const materiaNombresNorm = new Set(_matrizMateriasList.map(m => normalizarTextoMatriz(m.nombre)));
+
+  const alumnoIndex = new Map();
+  _matrizAlumnosList.forEach(a => {
+    alumnoIndex.set(normalizarTextoMatriz(a.apellido + ' ' + a.nombre), a.id);
+    alumnoIndex.set(normalizarTextoMatriz(a.nombre + ' ' + a.apellido), a.id);
+  });
+
+  _matrizFilas = filas.map(f => {
+    const norm = normalizarTextoMatriz(f.nombreCrudo);
+    let alumnoId = alumnoIndex.get(norm) || null;
+    if (!alumnoId) {
+      const palabras = norm.split(' ').filter(Boolean);
+      const candidatos = _matrizAlumnosList.filter(a => {
+        const full = normalizarTextoMatriz(a.apellido + ' ' + a.nombre);
+        return palabras.length > 0 && palabras.every(w => full.includes(w));
+      });
+      if (candidatos.length === 1) alumnoId = candidatos[0].id;
+    }
+    f.notas.forEach(n => { n.materiaNueva = !materiaNombresNorm.has(normalizarTextoMatriz(n.materiaNombre)); });
+    f.alumnoId = alumnoId;
+    return f;
+  });
+
+  renderGrillaMatriz();
+}
+
+function renderGrillaMatriz() {
+  document.getElementById('matrizReviewArea').style.display = 'block';
+
+  const theadRow = document.getElementById('matrizReviewTheadRow');
+  theadRow.querySelectorAll('.matriz-col-th').forEach(el => el.remove());
+  _matrizColumnas.forEach(c => {
+    const th = document.createElement('th');
+    th.className = 'matriz-col-th';
+    th.style.cssText = 'min-width:68px;font-size:.66rem;font-weight:600;';
+    th.textContent = c.nombre;
+    theadRow.appendChild(th);
+  });
+
+  const tbody = _matrizFilas.map((f, fi) => {
+    const alumnoOpts = ['<option value="">— no encontrado, buscar —</option>']
+      .concat(_matrizAlumnosList.map(a =>
+        `<option value="${a.id}" ${String(a.id) === String(f.alumnoId) ? 'selected' : ''}>${h(a.apellido + ', ' + a.nombre)} — CI:${h(a.cedula)}</option>`
+      )).join('');
+    const notaByCol = new Map(f.notas.map(n => [n.colIndex, n]));
+    const celdas = _matrizColumnas.map(c => {
+      const n = notaByCol.get(c.colIndex);
+      if (!n) return '<td></td>';
+      return `<td style="text-align:center;">
+        <input type="number" min="0" max="20" step="0.1" value="${h(n.valor)}" data-fi="${fi}" data-col="${c.colIndex}"
+          class="matriz-nota-input" style="width:50px;padding:.25rem;border:1px solid var(--border);border-radius:5px;text-align:center;font-size:.76rem;"
+          ${n.materiaNueva ? 'title="Materia nueva — se creará al confirmar"' : ''}>
+        ${n.materiaNueva ? '<div style="font-size:.52rem;color:#ca8a04;">nueva</div>' : ''}
+      </td>`;
+    }).join('');
+    return `<tr data-fi="${fi}" style="${f.omitir ? 'opacity:.4;' : ''}">
+      <td><input type="checkbox" ${f.omitir ? 'checked' : ''} onchange="toggleOmitirFilaMatriz(${fi},this.checked)" title="Omitir esta fila"></td>
+      <td style="font-size:.76rem;max-width:150px;">${h(f.nombreCrudo)}</td>
+      <td><select data-fi="${fi}" onchange="cambiarAlumnoMatriz(${fi},this.value)" style="font-size:.72rem;max-width:190px;padding:.3rem;border:1px solid var(--border);border-radius:6px;">${alumnoOpts}</select></td>
+      ${celdas}
+    </tr>`;
+  }).join('');
+  document.getElementById('tbMatrizReview').innerHTML = tbody;
+
+  const sinResolver = _matrizFilas.filter(f => !f.alumnoId && !f.omitir).length;
+  document.getElementById('matrizResumenTitulo').textContent =
+    `${_matrizFilas.length} alumno(s) detectado(s) en la planilla` +
+    (sinResolver ? ` — ${sinResolver} sin emparejar (elegí manualmente o marcá "omitir")` : '');
+}
+
+function toggleOmitirFilaMatriz(fi, val) {
+  _matrizFilas[fi].omitir = val;
+  const row = document.querySelector(`#tbMatrizReview tr[data-fi="${fi}"]`);
+  if (row) row.style.opacity = val ? '.4' : '';
+}
+function cambiarAlumnoMatriz(fi, val) { _matrizFilas[fi].alumnoId = val || null; }
+
+async function confirmarMatriz() {
+  const periodoId = document.getElementById('selPeriodoMatriz').value;
+  if (!periodoId) { toast('Elegí el período.', 'err'); return; }
+  const filasPayload = [];
+  document.querySelectorAll('.matriz-nota-input').forEach(inp => {
+    const fi = parseInt(inp.dataset.fi, 10);
+    const colIndex = parseInt(inp.dataset.col, 10);
+    const f = _matrizFilas[fi];
+    if (!f || f.omitir || !f.alumnoId) return;
+    const val = inp.value.trim();
+    if (val === '') return;
+    const col = _matrizColumnas.find(c => c.colIndex === colIndex);
+    if (!col) return;
+    filasPayload.push({ alumno_id: f.alumnoId, materia_nombre: col.nombre, nota: val });
+  });
+  if (!filasPayload.length) { toast('No hay filas resueltas y con nota para importar.', 'err'); return; }
+
+  const rr = await Ibbs.confirm({
+    title: '¿Confirmar importación?',
+    text: `Esto va a guardar ${filasPayload.length} nota(s) histórica(s) de ${new Set(filasPayload.map(f => f.alumno_id)).size} alumno(s). Las materias que no existan se crean solas. No se puede deshacer de una — revisá bien antes.`,
+    confirm: 'Sí, importar'
+  });
+  if (!rr.isConfirmed) return;
+
+  toast('Importando…');
+  const d = await ajax('matriz_confirmar', { periodo_id: periodoId, filas: JSON.stringify(filasPayload) }, 'api/notas_importar.php');
+  if (!d?.ok) { toast(d?.msg || 'Error al importar.', 'err'); return; }
+  Ibbs.success(`${d.resumen.ok} nota(s) importada(s) correctamente${d.resumen.error ? ', ' + d.resumen.error + ' con error' : ''}.`);
+  const btnConfM = document.getElementById('btnConfirmarMatriz');
+  if (btnConfM) btnConfM.disabled = true;
 }
 
 async function previsualizarCSV() {

@@ -321,6 +321,7 @@ if($action==='nota_guardar_lote'){
     // flujo normal de aprobación de notas_envios, así que el ajuste
     // final queda reservado al superadmin).
     if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede editar el histórico de notas.']);exit;}
+    mysqli_query($con,"ALTER TABLE materia_alumno ADD COLUMN IF NOT EXISTS origen ENUM('cursado','historico') DEFAULT 'cursado'");
     $aid=(int)($_POST['alumno_id']??0);
     $filas=json_decode($_POST['filas']??'[]',true);
     if(!$aid||!is_array($filas)||!count($filas)){echo json_encode(['ok'=>false,'msg'=>'Nada que guardar.']);exit;}
@@ -334,9 +335,9 @@ if($action==='nota_guardar_lote'){
         if($cal<0||$cal>20){$errores[]="Materia #$mid: nota fuera de rango (recibido '$nota_raw')."; continue;}
         $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
         if($ex){
-            mysqli_query($con,"UPDATE materia_alumno SET nota_final=$cal,nota_fecha=CURDATE(),nota_registrada_por=$uid,nota_actualizada_en=NOW() WHERE materia_id=$mid AND alumno_id=$aid");
+            mysqli_query($con,"UPDATE materia_alumno SET nota_final=$cal,nota_fecha=CURDATE(),nota_registrada_por=$uid,nota_actualizada_en=NOW(),origen='historico' WHERE materia_id=$mid AND alumno_id=$aid");
         } else {
-            mysqli_query($con,"INSERT INTO materia_alumno(materia_id,alumno_id,nota_final,nota_fecha,nota_registrada_por,nota_actualizada_en) VALUES($mid,$aid,$cal,CURDATE(),$uid,NOW())");
+            mysqli_query($con,"INSERT INTO materia_alumno(materia_id,alumno_id,nota_final,nota_fecha,nota_registrada_por,nota_actualizada_en,origen) VALUES($mid,$aid,$cal,CURDATE(),$uid,NOW(),'historico')");
         }
         $ok++;
     }
@@ -372,11 +373,12 @@ if($action==='materia_inscribir_historico'){
     // accesible desde el flujo de carga histórica. Mismo criterio que
     // nota_guardar_lote: solo superadmin puede modificar el histórico.
     if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede editar el histórico de notas.']);exit;}
+    mysqli_query($con,"ALTER TABLE materia_alumno ADD COLUMN IF NOT EXISTS origen ENUM('cursado','historico') DEFAULT 'cursado'");
     $aid=(int)($_POST['alumno_id']??0); $mid=(int)($_POST['materia_id']??0);
     if(!$aid||!$mid){echo json_encode(['ok'=>false,'msg'=>'Datos incompletos.']);exit;}
     $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
     if($ex){echo json_encode(['ok'=>true,'msg'=>'Ya estaba inscrito.']); exit;}
-    mysqli_query($con,"INSERT INTO materia_alumno(materia_id,alumno_id) VALUES($mid,$aid)");
+    mysqli_query($con,"INSERT INTO materia_alumno(materia_id,alumno_id,origen) VALUES($mid,$aid,'historico')");
     log_audit($con,$uid,'MATERIA_INSCRIBIR_HISTORICO',"materia=$mid alumno=$aid");
     echo json_encode(['ok'=>true,'msg'=>'Inscrito.']); exit;
 }
@@ -405,8 +407,8 @@ if($action==='inscripcion_alumno_materias'){
     // Devuelve el expediente COMPLETO de un alumno (notas, materias,
     // datos personales) — sin este chequeo, cualquier usuario logueado
     // (incluido otro alumno) podía pedir el expediente de cualquiera
-    // con solo cambiar alumno_id. Solo lo usan modulo_record.php y
-    // modulo_inscripciones.php, ambos admin/superadmin.
+    // con solo cambiar alumno_id. Solo lo usa modulo_inscripciones.php,
+    // admin/superadmin.
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $aid=(int)($_POST['alumno_id']??0);
     if(!$aid){echo json_encode(['ok'=>false,'msg'=>'ID de alumno requerido.']);exit;}
@@ -1035,8 +1037,20 @@ if($action==='notif_generar'){
 if($action==='notif_leer'){
     mysqli_query($con,"CREATE TABLE IF NOT EXISTS notificaciones (id INT AUTO_INCREMENT PRIMARY KEY,tipo ENUM('reprobado','asistencia','sistema','info') DEFAULT 'info',titulo VARCHAR(200) NOT NULL,mensaje TEXT,para_rol VARCHAR(20) DEFAULT 'admin',usuario_id INT DEFAULT NULL,leida TINYINT(1) DEFAULT 0,creado_en DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB");
     $id=(int)($_POST['id']??0);
-    if($id) mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE id=$id AND (usuario_id=$uid OR usuario_id IS NULL)");
-    else    mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE (usuario_id=$uid OR usuario_id IS NULL)");
+    $roles=notif_roles_aceptados($_rol);
+    // El broadcast (usuario_id NULL) también se filtra por para_rol —
+    // antes cualquier usuario logueado (hasta un alumno marcando "leer
+    // todas" las suyas) podía marcar como leída una notificación
+    // dirigida a otro rol (ej. un aviso para "admin"), haciéndola
+    // desaparecer para todos los admins sin que ninguno la hubiera visto.
+    if($id){
+        $st=mysqli_prepare($con,"UPDATE notificaciones SET leida=1 WHERE id=? AND (usuario_id=? OR (usuario_id IS NULL AND para_rol IN (?,?,?)))");
+        mysqli_stmt_bind_param($st,'iisss',$id,$uid,$roles[0],$roles[1],$roles[2]);
+    } else {
+        $st=mysqli_prepare($con,"UPDATE notificaciones SET leida=1 WHERE (usuario_id=? OR (usuario_id IS NULL AND para_rol IN (?,?,?)))");
+        mysqli_stmt_bind_param($st,'isss',$uid,$roles[0],$roles[1],$roles[2]);
+    }
+    mysqli_stmt_execute($st);
     echo json_encode(['ok'=>true]); exit;
 }
 if($action==='notif_archivar'){
@@ -1046,7 +1060,10 @@ if($action==='notif_archivar'){
     // como pendiente (a diferencia de dejarla como está).
     $id=(int)($_POST['id']??0);
     if(!$id){echo json_encode(['ok'=>false,'msg'=>'Sin ID.']);exit;}
-    mysqli_query($con,"UPDATE notificaciones SET archivada=1,leida=1 WHERE id=$id AND (usuario_id=$uid OR usuario_id IS NULL)");
+    $roles=notif_roles_aceptados($_rol);
+    $st=mysqli_prepare($con,"UPDATE notificaciones SET archivada=1,leida=1 WHERE id=? AND (usuario_id=? OR (usuario_id IS NULL AND para_rol IN (?,?,?)))");
+    mysqli_stmt_bind_param($st,'iisss',$id,$uid,$roles[0],$roles[1],$roles[2]);
+    mysqli_stmt_execute($st);
     echo json_encode(['ok'=>true]); exit;
 }
 if($action==='notif_borrar'){
@@ -1054,10 +1071,16 @@ if($action==='notif_borrar'){
     $id=(int)($_POST['id']??0);
     if(!can('edit')){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     // Igual que notif_leer/notif_archivar: solo se puede borrar lo que
-    // es propio (o una notificación general sin dueño) — antes
-    // cualquiera con permiso 'edit' (incluye profesor) podía borrar
-    // CUALQUIER notificación de CUALQUIER usuario con solo saber el id.
-    if($id) mysqli_query($con,"DELETE FROM notificaciones WHERE id=$id AND (usuario_id=$uid OR usuario_id IS NULL)");
+    // es propio (o una notificación general dirigida al rol propio) —
+    // antes cualquiera con permiso 'edit' (incluye profesor) podía
+    // borrar CUALQUIER notificación de CUALQUIER usuario/rol con solo
+    // saber el id.
+    if($id){
+        $roles=notif_roles_aceptados($_rol);
+        $st=mysqli_prepare($con,"DELETE FROM notificaciones WHERE id=? AND (usuario_id=? OR (usuario_id IS NULL AND para_rol IN (?,?,?)))");
+        mysqli_stmt_bind_param($st,'iisss',$id,$uid,$roles[0],$roles[1],$roles[2]);
+        mysqli_stmt_execute($st);
+    }
     echo json_encode(['ok'=>true]); exit;
 }
 

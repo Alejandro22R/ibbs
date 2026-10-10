@@ -172,7 +172,7 @@ tbody tr:last-child td{border-bottom:none;}
 
 <div class="no-print">
   <button class="btn-dl" onclick="window.print()">Descargar PDF / Imprimir</button>
-  <a href="../<?= $rol==='alumno' ? 'portal_alumno.php' : 'modulo_record.php' ?>" style="font-size:.82rem;color:#666;">&#8592; Volver</a>
+  <a href="../<?= $rol==='alumno' ? 'portal_alumno.php' : 'modulo_herramientas.php' ?>" style="font-size:.82rem;color:#666;">&#8592; Volver</a>
 </div>
 
 <!-- ══ ENCABEZADO INSTITUCIONAL ══ -->

@@ -463,9 +463,12 @@ setTimeout(async function(){
   if (!document.hidden) _notifAbrirStream();
 }, 800);
 
-// Panel desplegable de la campana — solo para profesor/alumno, que no
-// tienen acceso a modulo_herramientas.php (admin/superadmin siguen
-// yendo directo a esa página al clickear la campana).
+// Panel desplegable de la campana — mismo panel para todos los roles,
+// incluido admin/superadmin (antes clickear la campana los mandaba de
+// una a modulo_herramientas.php, sin vista previa ni forma de marcar
+// leída in situ). Para admin/superadmin el panel además agrega un
+// link a Herramientas, donde están las acciones completas (aprobar
+// solicitudes, generar alertas, etc.) que no caben acá.
 async function toggleNotifDrop(){
   const drop = document.getElementById('notifDrop');
   if(!drop) return;
