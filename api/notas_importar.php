@@ -171,6 +171,14 @@ function resolver_fila($con, $uid, $fila, $crear, &$cacheMaterias) {
 }
 
 if ($action === 'preview' || $action === 'confirmar') {
+    // La vista previa es de solo lectura (no escribe nada) y queda
+    // disponible para admin y superadmin. Confirmar sí escribe notas
+    // históricas, así que queda reservado al superadmin — mismo
+    // criterio que nota_guardar_lote/materia_inscribir_historico en
+    // api/ajax.php.
+    if ($action === 'confirmar' && $rol !== 'superadmin') {
+        echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede confirmar la importación.']); exit;
+    }
     $parsed = parse_csv_rows($con);
     if (isset($parsed['error'])) { echo json_encode(['ok'=>false,'msg'=>$parsed['error']]); exit; }
     $crear = ($action === 'confirmar');

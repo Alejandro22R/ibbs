@@ -316,7 +316,11 @@ if($action==='nota_guardar_lote'){
     // Carga histórica: un admin digitalizando el récord de UN alumno
     // carga varias notas de una — se usa desde Cargar Notas > Histórico
     // por Alumno. Mismo chequeo y upsert que nota_guardar, fila por fila.
-    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    // Solo superadmin puede escribir acá — un admin regular puede ver el
+    // histórico pero no modificarlo (son notas que no pasan por el
+    // flujo normal de aprobación de notas_envios, así que el ajuste
+    // final queda reservado al superadmin).
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede editar el histórico de notas.']);exit;}
     $aid=(int)($_POST['alumno_id']??0);
     $filas=json_decode($_POST['filas']??'[]',true);
     if(!$aid||!is_array($filas)||!count($filas)){echo json_encode(['ok'=>false,'msg'=>'Nada que guardar.']);exit;}
@@ -365,8 +369,9 @@ if($action==='materia_inscribir_historico'){
     // Agregar al alumno a una materia YA EXISTENTE desde la pestaña
     // Histórico por Alumno (para poder cargarle la nota ahí mismo) —
     // mismo efecto que "Inscribir" en Materias/Inscripciones, solo que
-    // accesible desde el flujo de carga histórica.
-    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    // accesible desde el flujo de carga histórica. Mismo criterio que
+    // nota_guardar_lote: solo superadmin puede modificar el histórico.
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede editar el histórico de notas.']);exit;}
     $aid=(int)($_POST['alumno_id']??0); $mid=(int)($_POST['materia_id']??0);
     if(!$aid||!$mid){echo json_encode(['ok'=>false,'msg'=>'Datos incompletos.']);exit;}
     $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));

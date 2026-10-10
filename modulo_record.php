@@ -18,6 +18,10 @@ while($f = mysqli_fetch_assoc($r)) {
     $alumnos_list[] = $f;
 }
 mysqli_close($con);
+// Permite llegar acá con el alumno ya elegido, ej. desde Calificaciones
+// > Histórico por Alumno ("Ver Récord / Exportar PDF") — evita que el
+// admin tenga que volver a buscarlo a mano.
+$preseleccionAlumnoId = (int)($_GET['alumno_id'] ?? 0);
 ?>
 
 <style>
@@ -589,9 +593,18 @@ async function cargarRecordAlumno(id) {
   }
 }
 
-// Iniciar cargando si hay un hash o parámetro en URL (Opcional, para enrutar rápido)
+// Si se llegó con ?alumno_id=... (ej. desde Histórico por Alumno en
+// Calificaciones), lo seleccionamos y cargamos de una vez.
+const PRESELECCION_ALUMNO_ID = <?= $preseleccionAlumnoId ?: 0 ?>;
 document.addEventListener('ibbs:ready', () => {
   filtrarAlumnosSelect();
+  if (PRESELECCION_ALUMNO_ID) {
+    const sel = document.getElementById('selectAlumno');
+    if ([...sel.options].some(o => o.value === String(PRESELECCION_ALUMNO_ID))) {
+      sel.value = String(PRESELECCION_ALUMNO_ID);
+      cargarRecordAlumno(sel.value);
+    }
+  }
 });
 
 // ── Tutorial guiado de esta página ──────────────────────────────

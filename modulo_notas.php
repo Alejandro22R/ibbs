@@ -9,6 +9,12 @@ if(!in_array($_rol,['superadmin','admin','profesor'])){
 }
 
 $esAdmin = in_array($_rol,['superadmin','admin']);
+// El histórico (carga retroactiva de notas viejas, fuera del flujo
+// normal de aprobación profesor→admin) solo lo puede EDITAR el
+// superadmin. Un admin regular puede entrar a esta pestaña y ver todo,
+// pero no guardar cambios — ver api/ajax.php (nota_guardar_lote,
+// materia_inscribir_historico) y api/notas_importar.php (confirmar).
+$esSuperadmin = $_rol === 'superadmin';
 $con = db();
 // Admin/superadmin ven todas las materias; un profesor solo las suyas
 // (materias_asignadas ya centraliza esta regla — ver config/materia_permisos.php).
@@ -134,7 +140,15 @@ mysqli_close($con);
   </div>
 
   <div id="histArea" style="display:none;">
-    <div class="card" style="margin-bottom:1.1rem;">
+    <?php if (!$esSuperadmin): ?>
+    <div class="card" style="margin-bottom:1.1rem;background:var(--cream);">
+      <div class="card-body" style="font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:.6rem;">
+        <i class="bx bx-lock-alt" style="font-size:1.1rem;"></i>
+        Podés ver el histórico de este alumno, pero solo el superadmin puede agregar materias o guardar cambios acá.
+      </div>
+    </div>
+    <?php endif; ?>
+    <div class="card" style="margin-bottom:1.1rem;<?= $esSuperadmin ? '' : 'display:none;' ?>">
       <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
         <h3>Agregar una materia histórica</h3>
         <span style="font-size:.78rem;color:var(--muted);">Si el alumno cursó algo que no aparece abajo, agregalo acá primero</span>
@@ -151,9 +165,16 @@ mysqli_close($con);
     </div>
 
     <div class="card">
-      <div class="card-head">
+      <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
         <h3 id="histTitulo">Materias del alumno</h3>
-        <button class="btn btn-primary" id="btnGuardarHist" onclick="guardarHistoricoLote()">Guardar todas las notas</button>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
+          <a class="btn btn-secondary" id="btnVerRecordHist" href="#" target="_blank" title="Ver el récord completo y descargarlo como PDF">
+            <i class="bx bx-file-blank"></i> Ver Récord / Exportar PDF
+          </a>
+          <?php if ($esSuperadmin): ?>
+          <button class="btn btn-primary" id="btnGuardarHist" onclick="guardarHistoricoLote()">Guardar todas las notas</button>
+          <?php endif; ?>
+        </div>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -195,7 +216,13 @@ mysqli_close($con);
     <div class="card">
       <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
         <h3 id="csvResumenTitulo">Vista previa</h3>
+        <?php if ($esSuperadmin): ?>
         <button class="btn btn-primary" id="btnConfirmarCSV" onclick="confirmarCSV()">Confirmar e importar</button>
+        <?php else: ?>
+        <span style="font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;">
+          <i class="bx bx-lock-alt"></i> Solo el superadmin puede confirmar la importación.
+        </span>
+        <?php endif; ?>
       </div>
       <div class="tbl-wrap">
         <table>
@@ -456,6 +483,7 @@ function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replac
 // ═══════════════════════════════════════════════════════════════
 // HISTÓRICO POR ALUMNO
 // ═══════════════════════════════════════════════════════════════
+const ES_SUPERADMIN = <?= $esSuperadmin ? 'true' : 'false' ?>;
 let _histAlumnoId = null;
 let _histMaterias = []; // lo que ya se está mostrando en la tabla
 
@@ -466,6 +494,7 @@ async function cargarHistoricoAlumno() {
   if (!_histAlumnoId) { empty.style.display = 'block'; area.style.display = 'none'; return; }
   empty.style.display = 'none';
   area.style.display  = 'block';
+  document.getElementById('btnVerRecordHist').href = 'modulo_record.php?alumno_id=' + encodeURIComponent(_histAlumnoId);
   document.getElementById('tbHistorico').innerHTML = '<tr class="empty-row"><td colspan="4"><span class="spin"></span></td></tr>';
 
   const [d, todas] = await Promise.all([
@@ -503,7 +532,7 @@ function renderTablaHistorico() {
       <td style="text-align:center;">
         <input type="number" class="hist-nota-input" data-materia-id="${m.materia_id}" min="0" max="20" step="0.1"
           value="${m.nota_final !== null ? parseFloat(m.nota_final) : ''}" placeholder="—"
-          style="width:80px;text-align:center;padding:.4rem;">
+          style="width:80px;text-align:center;padding:.4rem;" ${ES_SUPERADMIN ? '' : 'readonly title="Solo el superadmin puede editar el histórico."'}>
       </td>
     </tr>`).join('');
 }
@@ -567,7 +596,8 @@ async function previsualizarCSV() {
   document.getElementById('csvResumenTitulo').textContent =
     `Vista previa — ${d.resumen.ok} fila(s) OK, ${d.resumen.error} con error, de ${d.resumen.total} total`;
   document.getElementById('tbCsvPreview').innerHTML = d.data.map(filaCsvHtml).join('');
-  document.getElementById('btnConfirmarCSV').disabled = d.resumen.ok === 0;
+  const btnConf = document.getElementById('btnConfirmarCSV');
+  if (btnConf) btnConf.disabled = d.resumen.ok === 0;
 }
 
 async function confirmarCSV() {
@@ -587,7 +617,8 @@ async function confirmarCSV() {
   document.getElementById('tbCsvPreview').innerHTML = d.data.map(filaCsvHtml).join('');
   document.getElementById('csvResumenTitulo').textContent =
     `Importación terminada — ${d.resumen.ok} fila(s) cargada(s), ${d.resumen.error} con error`;
-  document.getElementById('btnConfirmarCSV').disabled = true;
+  const btnConf2 = document.getElementById('btnConfirmarCSV');
+  if (btnConf2) btnConf2.disabled = true;
   Ibbs.success(`${d.resumen.ok} nota(s) importada(s) correctamente.`);
 }
 
