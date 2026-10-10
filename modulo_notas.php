@@ -298,19 +298,22 @@ mysqli_close($con);
     <div class="card">
       <div class="card-head" style="flex-wrap:wrap;gap:.6rem;">
         <h3 id="matrizResumenTitulo">Vista previa</h3>
-        <?php if ($esSuperadmin): ?>
-        <button class="btn btn-primary" id="btnConfirmarMatriz" onclick="confirmarMatriz()">Confirmar e importar</button>
-        <?php else: ?>
+        <?php if (!$esSuperadmin): ?>
         <span style="font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;">
-          <i class="bx bx-lock-alt"></i> Solo el superadmin puede confirmar la importación.
+          <i class="bx bx-lock-alt"></i> Solo el superadmin puede guardar la importación.
         </span>
         <?php endif; ?>
       </div>
-      <div class="tbl-wrap" style="max-height:60vh;">
-        <table style="font-size:.8rem;">
-          <thead><tr id="matrizReviewTheadRow"><th></th><th>Nombre en la planilla</th><th>Alumno en el sistema</th></tr></thead>
-          <tbody id="tbMatrizReview"></tbody>
-        </table>
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:0;">
+        <!-- Lista de alumnos de la planilla — revisión de a uno para no -->
+        <!-- equivocarse cargando a todos de una (pedido explícito). -->
+        <div style="border-right:1px solid var(--border);max-height:70vh;overflow-y:auto;">
+          <div id="matrizListaAlumnos"></div>
+        </div>
+        <!-- Detalle del alumno actual: su nombre tal cual en la planilla, -->
+        <!-- una fila con sus materias y, justo abajo, la fila con sus   -->
+        <!-- notas — la misma disposición que la planilla original.     -->
+        <div style="padding:1.2rem;min-height:300px;" id="matrizDetalleAlumno"></div>
       </div>
     </div>
   </div>
@@ -777,7 +780,7 @@ function procesarMatriz() {
       .map(c => ({ colIndex: c.colIndex, materiaNombre: c.nombre, valor: row[c.colIndex] }))
       .filter(n => n.valor !== null && n.valor !== undefined && String(n.valor).trim() !== '' && !isNaN(parseFloat(n.valor)));
     if (!notas.length) continue; // fila sin ninguna nota numérica — no aporta nada, se ignora
-    filas.push({ rowIndex: r, nombreCrudo, notas, alumnoId: null, omitir: false });
+    filas.push({ rowIndex: r, nombreCrudo, notas, alumnoId: null, omitir: false, guardado: false });
   }
   if (!filas.length) { toast('No se detectaron alumnos con notas. Revisá los números de fila/columna.', 'err'); return; }
 
@@ -821,87 +824,142 @@ async function resolverAlumnosYMostrarMatriz(filas) {
   renderGrillaMatriz();
 }
 
+// Revisión alumno por alumno (pedido explícito: cargar todos los
+// alumnos juntos en una sola grilla gigante es fácil de desordenar al
+// revisar — acá se recorre de a un alumno a la vez, con su nombre tal
+// cual salió de la planilla, una fila con sus materias y justo abajo
+// la fila con sus notas, igual que en la hoja original. Cada alumno se
+// guarda (y su constancia queda lista para exportar) con su propio
+// botón, no hay un "confirmar todo" en lote.
+let _matrizIdxActual = 0;
+
 function renderGrillaMatriz() {
   document.getElementById('matrizReviewArea').style.display = 'block';
+  _matrizIdxActual = 0;
+  renderListaAlumnosMatriz();
+  renderDetalleAlumnoMatriz();
+}
 
-  const theadRow = document.getElementById('matrizReviewTheadRow');
-  theadRow.querySelectorAll('.matriz-col-th').forEach(el => el.remove());
-  _matrizColumnas.forEach(c => {
-    const th = document.createElement('th');
-    th.className = 'matriz-col-th';
-    th.style.cssText = 'min-width:68px;font-size:.66rem;font-weight:600;';
-    th.textContent = c.nombre;
-    theadRow.appendChild(th);
-  });
-
-  const tbody = _matrizFilas.map((f, fi) => {
-    const alumnoOpts = ['<option value="">— no encontrado, buscar —</option>']
-      .concat(_matrizAlumnosList.map(a =>
-        `<option value="${a.id}" ${String(a.id) === String(f.alumnoId) ? 'selected' : ''}>${h(a.apellido + ', ' + a.nombre)} — CI:${h(a.cedula)}</option>`
-      )).join('');
-    const notaByCol = new Map(f.notas.map(n => [n.colIndex, n]));
-    const celdas = _matrizColumnas.map(c => {
-      const n = notaByCol.get(c.colIndex);
-      if (!n) return '<td></td>';
-      return `<td style="text-align:center;">
-        <input type="number" min="0" max="20" step="0.1" value="${h(n.valor)}" data-fi="${fi}" data-col="${c.colIndex}"
-          class="matriz-nota-input" style="width:50px;padding:.25rem;border:1px solid var(--border);border-radius:5px;text-align:center;font-size:.76rem;"
-          ${n.materiaNueva ? 'title="Materia nueva — se creará al confirmar"' : ''}>
-        ${n.materiaNueva ? '<div style="font-size:.52rem;color:#ca8a04;">nueva</div>' : ''}
-      </td>`;
-    }).join('');
-    return `<tr data-fi="${fi}" style="${f.omitir ? 'opacity:.4;' : ''}">
-      <td><input type="checkbox" ${f.omitir ? 'checked' : ''} onchange="toggleOmitirFilaMatriz(${fi},this.checked)" title="Omitir esta fila"></td>
-      <td style="font-size:.76rem;max-width:150px;">${h(f.nombreCrudo)}</td>
-      <td><select data-fi="${fi}" onchange="cambiarAlumnoMatriz(${fi},this.value)" style="font-size:.72rem;max-width:190px;padding:.3rem;border:1px solid var(--border);border-radius:6px;">${alumnoOpts}</select></td>
-      ${celdas}
-    </tr>`;
+function renderListaAlumnosMatriz() {
+  const box = document.getElementById('matrizListaAlumnos');
+  box.innerHTML = _matrizFilas.map((f, fi) => {
+    const estado = f.guardado ? '✅' : f.omitir ? '⊘' : f.alumnoId ? '⏳' : '❓';
+    const activo = fi === _matrizIdxActual;
+    return `<div onclick="irAlumnoMatriz(${fi})" style="padding:.6rem .8rem;border-bottom:1px solid var(--border);cursor:pointer;font-size:.78rem;display:flex;justify-content:space-between;gap:.4rem;align-items:center;${activo ? 'background:var(--cream);font-weight:700;' : ''}">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${h(f.nombreCrudo)}</span>
+      <span title="${f.guardado ? 'Guardado' : f.omitir ? 'Omitido' : f.alumnoId ? 'Pendiente de guardar' : 'Sin emparejar con un alumno'}">${estado}</span>
+    </div>`;
   }).join('');
-  document.getElementById('tbMatrizReview').innerHTML = tbody;
 
-  const sinResolver = _matrizFilas.filter(f => !f.alumnoId && !f.omitir).length;
+  const guardados = _matrizFilas.filter(f => f.guardado).length;
+  const sinResolver = _matrizFilas.filter(f => !f.alumnoId && !f.omitir && !f.guardado).length;
   document.getElementById('matrizResumenTitulo').textContent =
     `${_matrizFilas.length} alumno(s) detectado(s) en la planilla` +
-    (sinResolver ? ` — ${sinResolver} sin emparejar (elegí manualmente o marcá "omitir")` : '');
+    (guardados ? ` — ${guardados} guardado(s)` : '') +
+    (sinResolver ? ` — ${sinResolver} sin emparejar` : '');
 }
 
-function toggleOmitirFilaMatriz(fi, val) {
-  _matrizFilas[fi].omitir = val;
-  const row = document.querySelector(`#tbMatrizReview tr[data-fi="${fi}"]`);
-  if (row) row.style.opacity = val ? '.4' : '';
+function irAlumnoMatriz(fi) {
+  if (fi < 0 || fi >= _matrizFilas.length) return;
+  _matrizIdxActual = fi;
+  renderListaAlumnosMatriz();
+  renderDetalleAlumnoMatriz();
 }
-function cambiarAlumnoMatriz(fi, val) { _matrizFilas[fi].alumnoId = val || null; }
 
-async function confirmarMatriz() {
+function renderDetalleAlumnoMatriz() {
+  const box = document.getElementById('matrizDetalleAlumno');
+  const f = _matrizFilas[_matrizIdxActual];
+  if (!f) { box.innerHTML = ''; return; }
+
+  const alumnoOpts = ['<option value="">— no encontrado, buscar —</option>']
+    .concat(_matrizAlumnosList.map(a =>
+      `<option value="${a.id}" ${String(a.id) === String(f.alumnoId) ? 'selected' : ''}>${h(a.apellido + ', ' + a.nombre)} — CI:${h(a.cedula)}</option>`
+    )).join('');
+
+  const nombresRow = f.notas.map(n => `<th style="text-align:center;min-width:90px;font-size:.72rem;">${h(n.materiaNombre)}${n.materiaNueva ? ' <span style="color:#ca8a04;font-weight:400;">(nueva)</span>' : ''}</th>`).join('');
+  const notasRow = f.notas.map((n, ni) => `<td style="text-align:center;"><input type="number" min="0" max="20" step="0.1" value="${h(n.valor)}" data-ni="${ni}" class="matriz-nota-detalle" ${f.guardado ? 'disabled' : ''} style="width:60px;padding:.35rem;border:1px solid var(--border);border-radius:6px;text-align:center;"></td>`).join('');
+
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;margin-bottom:1rem;">
+      <div>
+        <div style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">Alumno ${_matrizIdxActual + 1} de ${_matrizFilas.length} · tal cual en la planilla</div>
+        <div style="font-size:1.1rem;font-weight:700;">${h(f.nombreCrudo)}</div>
+      </div>
+      <label style="font-size:.78rem;display:flex;align-items:center;gap:.4rem;">
+        <input type="checkbox" ${f.omitir ? 'checked' : ''} onchange="toggleOmitirAlumnoMatriz(this.checked)" ${f.guardado ? 'disabled' : ''}> Omitir este alumno
+      </label>
+    </div>
+
+    <div class="field" style="max-width:420px;margin-bottom:1rem;">
+      <label>Alumno en el sistema</label>
+      <select onchange="cambiarAlumnoMatrizDetalle(this.value)" ${f.guardado ? 'disabled' : ''} style="width:100%;padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:8px;">${alumnoOpts}</select>
+    </div>
+
+    ${f.guardado ? '<div style="padding:.6rem .9rem;background:rgba(46,204,16,.08);border:1px solid var(--lime2);border-radius:8px;color:var(--lime2);font-size:.82rem;font-weight:600;margin-bottom:1rem;"><i class="bx bx-check-circle"></i> Ya guardado en su récord.</div>' : ''}
+
+    ${f.notas.length ? `
+    <div class="tbl-wrap" style="margin-bottom:1rem;">
+      <table style="font-size:.8rem;">
+        <thead><tr>${nombresRow}</tr></thead>
+        <tbody><tr>${notasRow}</tr></tbody>
+      </table>
+    </div>` : '<p style="color:var(--muted);font-size:.84rem;">Esta fila no tiene ninguna nota numérica detectada.</p>'}
+
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.6rem;">
+      <div style="display:flex;gap:.5rem;">
+        <button class="btn btn-secondary" onclick="irAlumnoMatriz(${_matrizIdxActual - 1})" ${_matrizIdxActual === 0 ? 'disabled' : ''}>◀ Anterior</button>
+        <button class="btn btn-secondary" onclick="irAlumnoMatriz(${_matrizIdxActual + 1})" ${_matrizIdxActual === _matrizFilas.length - 1 ? 'disabled' : ''}>Siguiente ▶</button>
+      </div>
+      <div style="display:flex;gap:.5rem;">
+        ${f.alumnoId ? `<a class="btn btn-secondary" href="api/export_constancia.php?tipo=notas&alumno_id=${f.alumnoId}" target="_blank"><i class="bx bx-file-blank"></i> Ver Constancia</a>` : ''}
+        ${ES_SUPERADMIN && !f.guardado ? `<button class="btn btn-primary" onclick="guardarAlumnoMatrizActual()"><i class="bx bx-save"></i> Guardar y exportar</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function toggleOmitirAlumnoMatriz(val) {
+  _matrizFilas[_matrizIdxActual].omitir = val;
+  renderListaAlumnosMatriz();
+}
+function cambiarAlumnoMatrizDetalle(val) {
+  _matrizFilas[_matrizIdxActual].alumnoId = val || null;
+  renderListaAlumnosMatriz();
+  renderDetalleAlumnoMatriz();
+}
+
+async function guardarAlumnoMatrizActual() {
+  const f = _matrizFilas[_matrizIdxActual];
+  if (!f.alumnoId) { toast('Elegí a qué alumno del sistema corresponde esta fila primero.', 'err'); return; }
   const periodoId = document.getElementById('selPeriodoMatriz').value;
   if (!periodoId) { toast('Elegí el período.', 'err'); return; }
+
   const filasPayload = [];
-  document.querySelectorAll('.matriz-nota-input').forEach(inp => {
-    const fi = parseInt(inp.dataset.fi, 10);
-    const colIndex = parseInt(inp.dataset.col, 10);
-    const f = _matrizFilas[fi];
-    if (!f || f.omitir || !f.alumnoId) return;
+  document.querySelectorAll('.matriz-nota-detalle').forEach(inp => {
+    const ni = parseInt(inp.dataset.ni, 10);
     const val = inp.value.trim();
     if (val === '') return;
-    const col = _matrizColumnas.find(c => c.colIndex === colIndex);
-    if (!col) return;
-    filasPayload.push({ alumno_id: f.alumnoId, materia_nombre: col.nombre, nota: val });
+    const n = f.notas[ni];
+    if (!n) return;
+    filasPayload.push({ alumno_id: f.alumnoId, materia_nombre: n.materiaNombre, nota: val });
   });
-  if (!filasPayload.length) { toast('No hay filas resueltas y con nota para importar.', 'err'); return; }
+  if (!filasPayload.length) { toast('No hay ninguna nota cargada para este alumno.', 'err'); return; }
 
+  const listado = filasPayload.map(fp => `${fp.materia_nombre} = ${fp.nota}`).join(', ');
   const rr = await Ibbs.confirm({
-    title: '¿Confirmar importación?',
-    text: `Esto va a guardar ${filasPayload.length} nota(s) histórica(s) de ${new Set(filasPayload.map(f => f.alumno_id)).size} alumno(s). Las materias que no existan se crean solas. No se puede deshacer de una — revisá bien antes.`,
-    confirm: 'Sí, importar'
+    title: `¿Guardar el récord de ${f.nombreCrudo}?`,
+    text: `Se van a guardar ${filasPayload.length} nota(s): ${listado}. ¿Están correctas?`,
+    confirm: 'Sí, guardar'
   });
   if (!rr.isConfirmed) return;
 
-  toast('Importando…');
+  toast('Guardando…');
   const d = await ajax('matriz_confirmar', { periodo_id: periodoId, filas: JSON.stringify(filasPayload) }, 'api/notas_importar.php');
-  if (!d?.ok) { toast(d?.msg || 'Error al importar.', 'err'); return; }
-  Ibbs.success(`${d.resumen.ok} nota(s) importada(s) correctamente${d.resumen.error ? ', ' + d.resumen.error + ' con error' : ''}.`);
-  const btnConfM = document.getElementById('btnConfirmarMatriz');
-  if (btnConfM) btnConfM.disabled = true;
+  if (!d?.ok) { toast(d?.msg || 'Error al guardar.', 'err'); return; }
+  f.guardado = true;
+  Ibbs.success(`Guardado: ${d.resumen.ok} nota(s) de ${f.nombreCrudo}.`);
+  renderListaAlumnosMatriz();
+  renderDetalleAlumnoMatriz();
 }
 
 async function previsualizarCSV() {

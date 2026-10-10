@@ -9,7 +9,10 @@ if(!in_array($_rol,['superadmin','admin','profesor'])){
 }
 
 ?>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Chart.js ya lo carga layout/head.php (assets/libs/chart.umd.min.js,
+     vendorizado local) — este <script> de acá duplicaba la carga desde
+     un CDN en vivo, con el mismo riesgo de quedarse sin gráficos si el
+     CDN fallaba. -->
 
 <div style="display:flex;justify-content:flex-end;margin-bottom:.6rem;">
   <button class="btn btn-secondary btn-sm" onclick="IbbsTour.replay(window.IBBS_TOUR_GRAFICOS)" title="Ver el tutorial de esta página otra vez">

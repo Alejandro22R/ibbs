@@ -133,9 +133,15 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     <!-- CSS Maestro del Sistema IBBS -->
     <link rel="stylesheet" href="assets/ibbs.css">
     
-    <!-- Dependencias externas -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Antes cargaban Font Awesome y Chart.js en vivo desde un CDN —
+         con internet lento/inestable o un firewall que bloquee el CDN,
+         los íconos desaparecían y Chart.js directamente no se definía
+         (ReferenceError al armar los gráficos del dashboard). Mismo
+         criterio que ya se usó para Tailwind en portal_alumno.php (ver
+         assets/libs/tailwind/README.md): vendorizado local, sin
+         depender de que el CDN esté arriba. -->
+    <link href="assets/libs/fontawesome/css/all.min.css" rel="stylesheet">
+    <script src="assets/libs/chart.umd.min.js"></script>
 
     <!-- SweetAlert2 — reemplaza los alert()/confirm() nativos del navegador -->
     <script src="assets/libs/sweetalert2.all.min.js"></script>
@@ -2618,6 +2624,23 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 const r = await fetch(endpoint, { method: 'POST', body: fd });
                 return await r.json();
             } catch (e) { return { ok: false, msg: 'Error de conexión.' }; }
+        }
+
+        // Deep-link desde una notificación de la campana (assets/ibbs-notif-bell.js)
+        // hacia la materia/pestaña exacta del Aula Virtual — mismo helper
+        // que ya tenía portal_alumno.php, con los nombres de pestaña de
+        // este portal (acá es "grabadas", no "grabaciones"; y no hay
+        // pestaña de foro propia, así que cae en "actividades").
+        function irAlAulaMateria(materiaId, tab) {
+            switchView('aula', document.querySelector('[data-tour="nav-aula"]'));
+            const sel = document.getElementById('aulaMateriaSel');
+            if (sel) { sel.value = materiaId; cargarAulaMateria(); }
+            const tabMap = { vivo: 'vivo', grabaciones: 'grabadas', materiales: 'materiales', foro: 'actividades' };
+            const destTab = tabMap[tab];
+            if (destTab) {
+                const btn = document.querySelector('.tab-btn[data-aulatab="' + destTab + '"]');
+                if (btn) switchAulaTab(destTab, btn);
+            }
         }
 
         function cargarAulaMateria() {

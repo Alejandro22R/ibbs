@@ -74,11 +74,27 @@ unset($m);
 // con ws-server/ configurado.
 $ws_token = ws_enabled() ? ws_token_for_materias($con, $user_id, $_SESSION['rol'], $_SESSION['usuario'], array_column($materias, 'id')) : null;
 
+// Solicitudes de autoinscripción ya enviadas y todavía sin revisar —
+// antes no se mostraban en ningún lado: el alumno mandaba la solicitud
+// y la tarjeta de la materia seguía apareciendo como "disponible" en la
+// sección de abajo, exactamente igual que antes de enviarla, así que
+// parecía que no había pasado nada aunque la solicitud sí había
+// quedado registrada (pendiente de que un admin la revise).
+$solicitudes_pendientes = [];
+if ($alumno_id) {
+    $rp = mysqli_query($con, "SELECT s.id,s.materia_id,s.fecha,m.nombre,m.codigo
+                               FROM materia_solicitudes s JOIN materias m ON m.id=s.materia_id
+                               WHERE s.alumno_id=$alumno_id AND s.estado='pendiente' ORDER BY s.fecha DESC");
+    while ($row = mysqli_fetch_assoc($rp)) $solicitudes_pendientes[] = $row;
+}
+
 // Materias disponibles para autoinscripción (solo si el alumno es "regular")
 $materias_disponibles = [];
 if ($alumno && !empty($alumno['regular'])) {
     $ids_inscritas = array_column($materias, 'id');
-    $excluir = count($ids_inscritas) ? implode(',', array_map('intval', $ids_inscritas)) : '0';
+    $ids_pendientes = array_column($solicitudes_pendientes, 'materia_id');
+    $ids_excluir = array_merge($ids_inscritas, $ids_pendientes);
+    $excluir = count($ids_excluir) ? implode(',', array_map('intval', $ids_excluir)) : '0';
     $rd = mysqli_query($con, "SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 AND estado!='culminada' AND inscripcion_abierta=1 AND id NOT IN ($excluir) ORDER BY nombre");
     while ($row = mysqli_fetch_assoc($rd)) $materias_disponibles[] = $row;
 }
@@ -131,12 +147,14 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <?php endif; ?>
     <title>Portal del Alumno | IBBS</title>
     
-    <!-- Google Fonts (Nunito y Playfair Display) -->
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    
-    <!-- FontAwesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+    <!-- Nunito y Playfair Display ya vienen vendorizadas en assets/ibbs.css
+         (mismas variantes que pedía este link a Google Fonts) — se saca
+         la dependencia en vivo, mismo criterio que con Tailwind acá
+         abajo (ver assets/libs/tailwind/README.md). FontAwesome también
+         vendorizado local: antes, si el CDN estaba lento o bloqueado,
+         toda la página se quedaba sin íconos. -->
+    <link href="assets/libs/fontawesome/css/all.min.css" rel="stylesheet">
+
     <!-- Enlace a estilos globales IBBS (opcional si están en la misma carpeta) -->
     <link rel="stylesheet" href="assets/ibbs.css">
 
@@ -476,8 +494,21 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         <p class="text-sm text-ibbs-muted mb-3">
                             Sos alumno(a) regular: podés inscribirte directamente. Una vez inscrito(a), solo la administración puede quitarte de la materia.
                         </p>
+                        <?php if ($solicitudes_pendientes): ?>
+                        <div class="mb-4">
+                            <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider mb-2">Solicitudes enviadas, pendientes de revisión</div>
+                            <div class="flex flex-col gap-2">
+                                <?php foreach ($solicitudes_pendientes as $sp): ?>
+                                <div class="flex items-center justify-between bg-ibbs-cream border border-ibbs-border rounded-lg px-3 py-2">
+                                    <div class="text-sm font-bold text-ibbs-ink"><?= htmlspecialchars($sp['nombre']) ?></div>
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-amber/10 text-ibbs-amber">⏳ Pendiente de revisión</span>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                         <?php if (empty($materias_disponibles)): ?>
-                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a) en todas las disponibles.</p>
+                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a) o con una solicitud pendiente en todas las disponibles.</p>
                         <?php else: ?>
                         <div class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 mb-3 text-xs text-ibbs-ink flex items-start gap-2">
                             <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>

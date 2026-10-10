@@ -105,6 +105,60 @@
     else abrirStream();
   });
 
+  // Qué vista de este portal (portal_docente.php / portal_alumno.php —
+  // ambos son SPA con <div id="view-X">) abrir al hacer clic en una
+  // notificación, según su tipo. Antes la campana solo mostraba texto:
+  // había que salir a buscar a mano el módulo que la notificación
+  // mencionaba (ej. "ya podés autoinscribirte" no llevaba a Materias).
+  // Antes de navegar, chequeamos que la vista exista en este portal —
+  // docente y alumno no tienen las mismas vistas, y este archivo lo
+  // comparten los dos.
+  function vistaParaTipo(tipo) {
+    const esDocente = !!document.getElementById('view-entregas');
+    const mapa = {
+      solicitud_aprobada: 'materias',
+      solicitud_rechazada: 'materias',
+      solicitud_materia_aprobada: 'materias',
+      solicitud_materia_rechazada: 'materias',
+      solicitud_libro_activada: 'biblioteca',
+      solicitud_libro_rechazada: 'biblioteca',
+      notas_envio: 'plan-notas',
+      tarea: esDocente ? 'entregas' : 'tareas',
+      calificacion: esDocente ? 'entregas' : 'notas',
+      reprobado: esDocente ? 'asistencia' : 'notas',
+      asistencia: esDocente ? 'asistencia' : null,
+    };
+    return mapa[tipo] || null;
+  }
+
+  // tipos que son "algo pasó en el aula de esta materia" — si la
+  // notificación trae materia_id, usamos el helper que ya existe en
+  // cada portal (irAlAulaMateria) para caer directo en la pestaña
+  // correcta del Aula Virtual, en vez de solo abrir Materias.
+  const AULA_TAB_POR_TIPO = { foro: 'foro', clase_vivo: 'vivo', grabacion: 'grabaciones', material: 'materiales' };
+
+  function navegarPorNotificacion(tipo, materiaId) {
+    const tabAula = AULA_TAB_POR_TIPO[tipo];
+    if (tabAula && materiaId && typeof window.irAlAulaMateria === 'function') {
+      window.irAlAulaMateria(materiaId, tabAula);
+      return true;
+    }
+    const vista = vistaParaTipo(tipo);
+    if (vista && typeof window.switchView === 'function' && document.getElementById('view-' + vista)) {
+      window.switchView(vista);
+      return true;
+    }
+    return false;
+  }
+
+  window._ibbsNotifIr = function _ibbsNotifIr(id, tipo, materiaId) {
+    const navego = navegarPorNotificacion(tipo, materiaId || null);
+    if (navego) {
+      const drop = document.getElementById('notifDrop');
+      if (drop) drop.style.display = 'none';
+    }
+  };
+
   async function renderDrop() {
     const box = document.getElementById('notifDropList');
     if (!box) return;
@@ -114,18 +168,21 @@
       box.innerHTML = '<div style="text-align:center;padding:1.2rem;color:#7a8c72;font-size:.8rem;">Sin notificaciones pendientes.</div>';
       return;
     }
-    box.innerHTML = d.data.map((n) => `
-      <div id="nd${n.id}" style="padding:.6rem .5rem;border-bottom:1px solid #e0d8c8;">
+    box.innerHTML = d.data.map((n) => {
+      const seNavega = !!(AULA_TAB_POR_TIPO[n.tipo] || vistaParaTipo(n.tipo));
+      return `
+      <div id="nd${n.id}" style="padding:.6rem .5rem;border-bottom:1px solid #e0d8c8;${seNavega ? 'cursor:pointer;' : ''}" ${seNavega ? `onclick="_ibbsNotifIr(${n.id},'${n.tipo}',${n.materia_id ?? 'null'})"` : ''}>
         <div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;color:#7a8c72;margin-bottom:.15rem;">${NOTIF_ICONS[n.tipo] || 'ℹ️'} ${h(n.titulo || '')}</div>
         <div style="font-size:.8rem;color:#1a4d2e;line-height:1.4;">${h(n.mensaje || '')}</div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.35rem;gap:.6rem;">
           <span style="font-size:.66rem;color:#7a8c72;">${n.creado_en ? n.creado_en.substring(0, 16) : ''}</span>
           <span>
-            <button onclick="_ibbsNotifLeer(${n.id})" style="background:none;border:none;color:#16a34a;font-size:.7rem;cursor:pointer;">Marcar leída</button>
-            <button onclick="_ibbsNotifArchivar(${n.id})" style="background:none;border:none;color:#7a8c72;font-size:.7rem;cursor:pointer;margin-left:.4rem;">Archivar</button>
+            <button onclick="event.stopPropagation();_ibbsNotifLeer(${n.id})" style="background:none;border:none;color:#16a34a;font-size:.7rem;cursor:pointer;">Marcar leída</button>
+            <button onclick="event.stopPropagation();_ibbsNotifArchivar(${n.id})" style="background:none;border:none;color:#7a8c72;font-size:.7rem;cursor:pointer;margin-left:.4rem;">Archivar</button>
           </span>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   window.toggleNotifDrop = async function toggleNotifDrop() {
