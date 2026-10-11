@@ -81,7 +81,7 @@ $lastCol = count($headers)-1;
 <head>
 <meta charset="UTF-8">
 <title><?=$titulo?> — IBBS</title>
-<link rel="icon" type="image/jpeg" href="../assets/logo.jpg">
+<link rel="icon" type="image/png" href="../assets/favicon.png">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:Arial,sans-serif;font-size:10pt;color:#1a1a1a;background:#fff;padding:20px;}

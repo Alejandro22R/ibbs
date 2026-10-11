@@ -903,6 +903,22 @@ function renderDetalleAlumnoMatriz() {
       <select onchange="cambiarAlumnoMatrizDetalle(this.value)" ${f.guardado ? 'disabled' : ''} style="width:100%;padding:.55rem .8rem;border:1.5px solid var(--border);border-radius:8px;">${alumnoOpts}</select>
     </div>
 
+    ${(!f.alumnoId && ES_SUPERADMIN && !f.guardado) ? (() => {
+      const partes = f.nombreCrudo.trim().split(/\s+/);
+      const apellidoGuess = partes[0] || '';
+      const nombreGuess = partes.slice(1).join(' ') || '';
+      return `
+      <div style="border:1.5px dashed var(--border);border-radius:10px;padding:.9rem 1rem;margin-bottom:1rem;max-width:560px;">
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;">No está en el sistema — con el nombre, apellido y cédula alcanza para crearlo de una (revisá que el nombre/apellido quedaron bien separados):</div>
+        <div class="form-grid">
+          <div class="field" style="margin:0;"><label>Apellido</label><input type="text" id="matrizNuevoApellido" value="${h(apellidoGuess)}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:7px;width:100%;"></div>
+          <div class="field" style="margin:0;"><label>Nombre</label><input type="text" id="matrizNuevoNombre" value="${h(nombreGuess)}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:7px;width:100%;"></div>
+          <div class="field" style="margin:0;"><label>Cédula</label><input type="text" id="matrizNuevoCedula" placeholder="Solo números" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:7px;width:100%;"></div>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:.7rem;" onclick="crearAlumnoDesdeMatriz()"><i class="bx bx-user-plus"></i> Crear alumno nuevo</button>
+      </div>`;
+    })() : ''}
+
     ${f.guardado ? '<div style="padding:.6rem .9rem;background:rgba(46,204,16,.08);border:1px solid var(--lime2);border-radius:8px;color:var(--lime2);font-size:.82rem;font-weight:600;margin-bottom:1rem;"><i class="bx bx-check-circle"></i> Ya guardado en su récord.</div>' : ''}
 
     ${f.notas.length ? `
@@ -932,6 +948,24 @@ function toggleOmitirAlumnoMatriz(val) {
 }
 function cambiarAlumnoMatrizDetalle(val) {
   _matrizFilas[_matrizIdxActual].alumnoId = val || null;
+  renderListaAlumnosMatriz();
+  renderDetalleAlumnoMatriz();
+}
+
+async function crearAlumnoDesdeMatriz() {
+  const apellido = document.getElementById('matrizNuevoApellido').value.trim();
+  const nombre = document.getElementById('matrizNuevoNombre').value.trim();
+  const cedula = document.getElementById('matrizNuevoCedula').value.trim();
+  if (!nombre || !apellido || !cedula) { toast('Completá nombre, apellido y cédula.', 'err'); return; }
+  const d = await ajax('matriz_crear_alumno', { nombre, apellido, cedula }, 'api/notas_importar.php');
+  if (!d?.ok) { toast(d?.msg || 'No se pudo crear el alumno.', 'err'); return; }
+  const nuevo = d.data;
+  // Lo sumamos a la lista en memoria (para que también aparezca en el
+  // selector de las demás filas de esta misma planilla) y lo dejamos
+  // seleccionado para esta fila.
+  if (!_matrizAlumnosList.some(a => String(a.id) === String(nuevo.id))) _matrizAlumnosList.push(nuevo);
+  _matrizFilas[_matrizIdxActual].alumnoId = nuevo.id;
+  toast(d.msg || `Alumno creado: ${nuevo.apellido}, ${nuevo.nombre}.`);
   renderListaAlumnosMatriz();
   renderDetalleAlumnoMatriz();
 }

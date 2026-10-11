@@ -155,7 +155,7 @@ $miPromedio = ($sn && $sn['promedio'] !== null) ? (float)$sn['promedio'] : null;
 <head>
 <meta charset="UTF-8">
 <title>Perfil Profesional — <?=$nombre_c?></title>
-<link rel="icon" type="image/jpeg" href="../assets/logo.jpg">
+<link rel="icon" type="image/png" href="../assets/favicon.png">
 <style>
 /* ── Base ─────────────────────────────────────────── */
 *{margin:0;padding:0;box-sizing:border-box;}

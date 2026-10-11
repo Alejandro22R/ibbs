@@ -118,7 +118,7 @@ $estLabel = ['presente'=>'Presente','ausente'=>'Ausente','tardanza'=>'Tardanza',
 <head>
 <meta charset="UTF-8">
 <title><?= htmlspecialchars(mb_strtoupper($titulo)) ?></title>
-<link rel="icon" type="image/jpeg" href="../assets/logo.jpg">
+<link rel="icon" type="image/png" href="../assets/favicon.png">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{

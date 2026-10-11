@@ -89,13 +89,24 @@ if ($alumno_id) {
 }
 
 // Materias disponibles para autoinscripción (solo si el alumno es "regular")
+// — además de excluir por materia_id (ya inscrito o con solicitud
+// pendiente), se excluye por NOMBRE cualquier materia que el alumno ya
+// haya aprobado (nota_final>=15) en cualquier período: si "Hermenéutica"
+// se vuelve a ofrecer más adelante con un materia_id nuevo, no tendría
+// sentido que la vea otra vez como disponible — ya la cursó y aprobó.
 $materias_disponibles = [];
 if ($alumno && !empty($alumno['regular'])) {
     $ids_inscritas = array_column($materias, 'id');
     $ids_pendientes = array_column($solicitudes_pendientes, 'materia_id');
     $ids_excluir = array_merge($ids_inscritas, $ids_pendientes);
     $excluir = count($ids_excluir) ? implode(',', array_map('intval', $ids_excluir)) : '0';
-    $rd = mysqli_query($con, "SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 AND estado!='culminada' AND inscripcion_abierta=1 AND id NOT IN ($excluir) ORDER BY nombre");
+    $rd = mysqli_query($con, "SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 AND estado!='culminada' AND inscripcion_abierta=1 AND id NOT IN ($excluir)
+                               AND LOWER(nombre) NOT IN (
+                                   SELECT LOWER(m2.nombre) FROM materia_alumno ma2
+                                   JOIN materias m2 ON m2.id=ma2.materia_id
+                                   WHERE ma2.alumno_id=$alumno_id AND ma2.nota_final IS NOT NULL AND ma2.nota_final>=15
+                               )
+                               ORDER BY nombre");
     while ($row = mysqli_fetch_assoc($rd)) $materias_disponibles[] = $row;
 }
 
@@ -146,7 +157,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <meta name="ibbs-ws-token" content="<?=htmlspecialchars($ws_token)?>">
     <?php endif; ?>
     <title>Portal del Alumno | IBBS</title>
-    <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
     
     <!-- Nunito y Playfair Display ya vienen vendorizadas en assets/ibbs.css
          (mismas variantes que pedía este link a Google Fonts) — se saca
