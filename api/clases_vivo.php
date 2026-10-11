@@ -75,14 +75,14 @@ function vivo_join_url($row) {
 
 /* ════ MIS MATERIAS (selector de entrada) ══════════════════════ */
 if ($action === 'materias_mias') {
-    echo json_encode(['ok'=>true,'data'=>materias_asignadas($con, $uid, $_rol)]); exit;
+    echo json_encode(['ok'=>true,'data'=>materias_asignadas($con, $uid, $_rol, true)]); exit;
 }
 
 /* ════ INFO DE LA MATERIA ═══════════════════════════════════════ */
 if ($action === 'materia_info') {
     $mid = (int)($_POST['materia_id'] ?? 0);
     if (!$mid) json_fail('Materia no especificada.');
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso sobre esta materia.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso sobre esta materia.');
 
     $st = mysqli_prepare($con, "SELECT id,nombre,codigo,estado FROM materias WHERE id=? LIMIT 1");
     mysqli_stmt_bind_param($st, 'i', $mid);
@@ -99,7 +99,7 @@ if ($action === 'materia_info') {
 /* ════ LISTAR ════════════════════════════════════════════════════ */
 if ($action === 'vivo_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
 
     mysqli_query($con, "ALTER TABLE clases_vivo ADD COLUMN IF NOT EXISTS grabacion_clase_id INT NULL DEFAULT NULL");
     $st = mysqli_prepare($con, "SELECT c.id,c.titulo,c.descripcion,c.plataforma,c.sala,c.url,c.fecha_hora,c.estado,c.grabacion_clase_id,u.usuario autor

@@ -77,14 +77,14 @@ function clases_embed_url($url, $plataforma) {
 
 /* ════ MIS MATERIAS (selector de entrada) ══════════════════════ */
 if ($action === 'materias_mias') {
-    echo json_encode(['ok'=>true,'data'=>materias_asignadas($con, $uid, $_rol)]); exit;
+    echo json_encode(['ok'=>true,'data'=>materias_asignadas($con, $uid, $_rol, true)]); exit;
 }
 
 /* ════ INFO DE LA MATERIA ═══════════════════════════════════════ */
 if ($action === 'materia_info') {
     $mid = (int)($_POST['materia_id'] ?? 0);
     if (!$mid) json_fail('Materia no especificada.');
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso sobre esta materia.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso sobre esta materia.');
 
     $st = mysqli_prepare($con, "SELECT id,nombre,codigo,estado FROM materias WHERE id=? LIMIT 1");
     mysqli_stmt_bind_param($st, 'i', $mid);
@@ -101,7 +101,7 @@ if ($action === 'materia_info') {
 /* ════ LISTAR ════════════════════════════════════════════════════ */
 if ($action === 'clase_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
 
     $st = mysqli_prepare($con, "SELECT c.id,c.titulo,c.descripcion,c.url,c.plataforma,c.fecha,c.creado_en,u.usuario autor
                                  FROM clases_grabadas c JOIN usuarios u ON u.id=c.usuario_id

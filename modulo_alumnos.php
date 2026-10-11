@@ -46,7 +46,7 @@ if(!in_array($_rol,['superadmin','admin'])){
     <table id="tblA">
       <thead><tr>
         <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllAlum" onchange="toggleAllAlumnos(this)" title="Seleccionar todo"></th>
-        <th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Solicitud</th><th>Acciones</th></tr></thead>
+        <th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Modalidad</th><th>Solicitud</th><th>Acciones</th></tr></thead>
       <tbody id="tbodyA"><tr class="empty-row"><td colspan="10"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
@@ -101,6 +101,13 @@ if(!in_array($_rol,['superadmin','admin'])){
             <option value="1">Sí (puede autoinscribirse en materias)</option>
           </select>
         </div>
+        <div class="field">
+          <label>Modalidad</label>
+          <select id="eAModalidad">
+            <option value="presencial">Presencial (ve sus clases en persona)</option>
+            <option value="virtual">Virtual — diplomado (siempre con Aula Virtual activa)</option>
+          </select>
+        </div>
         <?php endif; ?>
       </div>
       <div style="display:flex;justify-content:flex-end;gap:.6rem;">
@@ -146,6 +153,7 @@ async function loadAlumnos(){
     <td><span class="badge b-alumno">${r.nm}</span></td>
     <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
     <td>${r.regular=='1'?'<span class="badge b-presente" title="Puede autoinscribirse en materias">Sí</span>':'<span style="color:var(--muted);font-size:.78rem;">No</span>'}</td>
+    <td>${r.modalidad==='virtual'?'<span class="badge b-profesor" title="Diplomado: Aula Virtual siempre activa">Virtual</span>':'<span style="color:var(--muted);font-size:.78rem;">Presencial</span>'}</td>
     <td>${estadoSolicitud(r)}</td>
     <td class="td-actions">
       ${r.aprobado!==null && r.aprobado=='0' ? `
@@ -198,12 +206,16 @@ async function editA(id){
   document.getElementById('eAAct').value=r.activo;
   const selReg=document.getElementById('eARegular');
   if(selReg) selReg.value=r.regular??0;
+  const selMod=document.getElementById('eAModalidad');
+  if(selMod) selMod.value=r.modalidad||'presencial';
   openModal('mEA');
 }
 async function saveEditA(){
   const payload={id:document.getElementById('eAId').value,nombre:document.getElementById('eAN').value,apellido:document.getElementById('eAA').value,cedula:document.getElementById('eAC').value,correo:document.getElementById('eAM').value,telefono:document.getElementById('eAT').value,ciudad:document.getElementById('eACi').value,activo:document.getElementById('eAAct').value};
   const selReg=document.getElementById('eARegular');
   if(selReg) payload.regular=selReg.value;
+  const selMod=document.getElementById('eAModalidad');
+  if(selMod) payload.modalidad=selMod.value;
   const d=await ajax('alumno_update',payload);
   if(d?.ok){toast(d.msg);closeModal('mEA');loadAlumnos();}else toast(d?.msg||'Err','err');
 }

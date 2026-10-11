@@ -37,8 +37,8 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
   <div class="tbl-wrap">
     <table id="tblM">
-      <thead><tr><th>Código</th><th>Materia</th><th>Período</th><th>Horario</th><th>Estado</th><th>Inscripción</th><th>Docentes</th><th>Alumnos</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyM"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
+      <thead><tr><th>Código</th><th>Materia</th><th>Período</th><th>Horario</th><th>Estado</th><th>Inscripción</th><th>Aula Virtual</th><th>Docentes</th><th>Alumnos</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyM"><tr class="empty-row"><td colspan="10"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -326,9 +326,9 @@ function estadoBadge(e){
 }
 
 async function loadMaterias(){
-  const d=await ajax('materia_list'); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="9">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  const d=await ajax('materia_list'); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="10">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
   const tb=document.getElementById('tbodyM');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="9">Sin materias.</td></tr>';return;}
+  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="10">Sin materias.</td></tr>';return;}
   tb.innerHTML=d.data.map(m=>`<tr>
     <td><strong>${h(m.codigo)}</strong></td><td>${h(m.nombre)}</td>
     <td style="font-size:.79rem;color:var(--muted);">${m.periodo_nombre||'—'}</td>
@@ -337,6 +337,11 @@ async function loadMaterias(){
     <td>
       <button class="btn btn-sm ${m.inscripcion_abierta==1?'btn-success':'btn-secondary'}" onclick="toggleInscripcion(${m.id})" style="font-size:.7rem;" title="Alumnos regulares pueden autoinscribirse cuando está abierta">
         ${m.inscripcion_abierta==1?'🔓 Abierta':'🔒 Cerrada'}
+      </button>
+    </td>
+    <td>
+      <button class="btn btn-sm ${m.aula_virtual_presencial==1?'btn-success':'btn-secondary'}" onclick="toggleAulaPresencial(${m.id})" style="font-size:.7rem;" title="Mientras esté activa, los alumnos presenciales de esta materia también entran al Aula Virtual (los del diplomado/virtual ya entran siempre)">
+        ${m.aula_virtual_presencial==1?'🎓 Activa para presenciales':'— Solo diplomado'}
       </button>
     </td>
     <td><span class="badge b-profesor">${m.nd}</span></td>
@@ -394,6 +399,10 @@ async function toggleEstado(id,est){
 
 async function toggleInscripcion(id){
   const d=await ajax('materia_toggle_inscripcion',{id});
+  if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
+}
+async function toggleAulaPresencial(id){
+  const d=await ajax('materia_toggle_aula_presencial',{id});
   if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
 }
 

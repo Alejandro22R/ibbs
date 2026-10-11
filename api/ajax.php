@@ -114,8 +114,10 @@ if($action==='materia_list'){
     // autoinscribirse usa otra acción, no esta.
     if(!in_array($_rol,['superadmin','admin','profesor'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS periodo_id INT DEFAULT NULL");
+    mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS aula_virtual_presencial TINYINT(1) DEFAULT 0");
     $r=mysqli_query($con,"
         SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado,m.activo,m.inscripcion_abierta,
+               m.aula_virtual_presencial,
                m.periodo_id,p.nombre periodo_nombre,
                COUNT(DISTINCT md.docente_id) nd,
                COUNT(DISTINCT ma.alumno_id) na,
@@ -180,6 +182,22 @@ if($action==='materia_toggle_inscripcion'){
     $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT inscripcion_abierta FROM materias WHERE id=$id"));
     log_audit($con,$uid,'MATERIA_INSCRIPCION_TOGGLE',"ID=$id abierta=".($f['inscripcion_abierta']??'?'));
     echo json_encode(['ok'=>true,'msg'=>$f && (int)$f['inscripcion_abierta']===1 ? 'Inscripción abierta para alumnos regulares.' : 'Inscripción cerrada.','abierta'=>$f?(int)$f['inscripcion_abierta']:0]); exit;
+}
+if($action==='materia_toggle_aula_presencial'){
+    // A diferencia de "abrir inscripción" (exclusivo de administración),
+    // este interruptor sí lo puede prender/apagar el propio profesor de
+    // la materia: es él quien sabe si, puntualmente, también va a dar
+    // esta clase en modalidad virtual y sus alumnos presenciales
+    // necesitan entrar al Aula Virtual. Los alumnos "virtual"/diplomado
+    // no dependen de esto — siempre tienen acceso a las suyas.
+    $id=(int)($_POST['id']??0);
+    if(!materia_puede_gestionar($con,$uid,$_rol,$id)){echo json_encode(['ok'=>false,'msg'=>'Sin permiso sobre esta materia.']);exit;}
+    if(!$id){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
+    mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS aula_virtual_presencial TINYINT(1) DEFAULT 0");
+    mysqli_query($con,"UPDATE materias SET aula_virtual_presencial=1-aula_virtual_presencial WHERE id=$id");
+    $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT aula_virtual_presencial FROM materias WHERE id=$id"));
+    log_audit($con,$uid,'MATERIA_AULA_PRESENCIAL_TOGGLE',"ID=$id activa=".($f['aula_virtual_presencial']??'?'));
+    echo json_encode(['ok'=>true,'msg'=>$f && (int)$f['aula_virtual_presencial']===1 ? 'Aula Virtual habilitada para los alumnos presenciales de esta materia.' : 'Aula Virtual cerrada para los alumnos presenciales de esta materia.','activa'=>$f?(int)$f['aula_virtual_presencial']:0]); exit;
 }
 if($action==='materia_delete'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
@@ -580,6 +598,16 @@ if($action==='alumno_update'){
         mysqli_query($con,"UPDATE alumnos SET regular=$reg WHERE id=$id");
         log_audit($con,$uid,'ALUMNO_REGULAR',"ID=$id regular=$reg");
     }
+    // "Modalidad" (presencial/virtual-diplomado) define si entra siempre
+    // al Aula Virtual de todas sus materias (virtual) o solo cuando el
+    // profesor la habilita puntualmente (presencial) — mismo criterio
+    // de exclusividad superadmin que "regular".
+    if(isset($_POST['modalidad']) && $_rol==='superadmin'){
+        $modalidad=in_array($_POST['modalidad'],['presencial','virtual'],true)?$_POST['modalidad']:'presencial';
+        mysqli_query($con,"ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS modalidad ENUM('presencial','virtual') DEFAULT 'presencial'");
+        mysqli_query($con,"UPDATE alumnos SET modalidad='".esc($con,$modalidad)."' WHERE id=$id");
+        log_audit($con,$uid,'ALUMNO_MODALIDAD',"ID=$id modalidad=$modalidad");
+    }
     echo json_encode(['ok'=>true,'msg'=>'Alumno actualizado.']); exit;
 }
 if($action==='alumno_delete'){
@@ -628,6 +656,7 @@ if($action==='alumno_lote'){
 }
 if($action==='alumno_list'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    mysqli_query($con,"ALTER TABLE alumnos ADD COLUMN IF NOT EXISTS modalidad ENUM('presencial','virtual') DEFAULT 'presencial'");
     $ciudad=trim($_POST['ciudad']??'');
     $w=$ciudad?" WHERE a.ciudad LIKE '%".esc($con,$ciudad)."%'":'';
     // aprobado/usuario_activo: NULL si el alumno no tiene cuenta de

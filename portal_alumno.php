@@ -36,13 +36,17 @@ $alumno_id = $alumno ? $alumno['id'] : 0;
 $nombre_alumno = $alumno ? ($alumno['nombre'] . ' ' . $alumno['apellido']) : $_SESSION['usuario'];
 $inicial = strtoupper(substr($nombre_alumno, 0, 1));
 
-// Obtener materias del alumno
-$query_materias = "SELECT m.*, d.nombre as doc_nombre, d.apellido as doc_apellido 
-                   FROM materias m 
-                   JOIN materia_alumno ma ON m.id = ma.materia_id 
+// Obtener materias del alumno — GROUP BY m.id porque una materia puede
+// tener más de un docente asignado (materia_docente); sin agrupar, el
+// JOIN la duplicaba una vez por cada docente (aparecía repetida en "Mis
+// Materias" y dos veces en el selector del Aula Virtual).
+$query_materias = "SELECT m.*, GROUP_CONCAT(DISTINCT CONCAT(d.nombre,' ',d.apellido) SEPARATOR ', ') AS doc_nombre_completo
+                   FROM materias m
+                   JOIN materia_alumno ma ON m.id = ma.materia_id
                    LEFT JOIN materia_docente md ON m.id = md.materia_id
                    LEFT JOIN docentes d ON md.docente_id = d.id
-                   WHERE ma.alumno_id = ? AND m.activo = 1";
+                   WHERE ma.alumno_id = ? AND m.activo = 1
+                   GROUP BY m.id";
 $stmt_m = mysqli_prepare($con, $query_materias);
 mysqli_stmt_bind_param($stmt_m, "i", $alumno_id);
 mysqli_stmt_execute($stmt_m);
@@ -53,6 +57,13 @@ while($row = mysqli_fetch_assoc($res_materias)) $materias[] = $row;
 // Para cada materia: próxima clase en vivo (programada o en curso) y cantidad
 // de materiales, para mostrarlos de un vistazo en la tarjeta antes de entrar
 // al Aula Virtual (sin tener que abrirla para saber si hay algo nuevo).
+//
+// aula_acceso: un alumno "virtual" (diplomado) siempre tiene Aula Virtual
+// en todas sus materias; un alumno "presencial" solo en las que su
+// profesor haya activado puntualmente (materia_puede_ver_aula, en
+// config/materia_permisos.php — mismo candado que ya protege a
+// api/aula.php, api/clases_vivo.php y api/clases_grabadas.php del lado
+// del servidor, así que esto no es solo cosmético).
 foreach ($materias as &$m) {
     $stC = mysqli_prepare($con, "SELECT titulo,fecha_hora,estado FROM clases_vivo
                                   WHERE materia_id=? AND estado IN ('programada','en_curso')
@@ -65,6 +76,8 @@ foreach ($materias as &$m) {
     mysqli_stmt_bind_param($stMat, 'i', $m['id']);
     mysqli_stmt_execute($stMat);
     $m['materiales_count'] = (int)(mysqli_fetch_assoc(mysqli_stmt_get_result($stMat))['c'] ?? 0);
+
+    $m['aula_acceso'] = materia_puede_ver_aula($con, $user_id, 'alumno', (int)$m['id']);
 }
 unset($m);
 
@@ -580,7 +593,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         <div class="p-5 flex-1 flex flex-col">
                             <h3 class="text-lg font-bold text-ibbs-ink mb-1 leading-tight"><?= htmlspecialchars($m['nombre']) ?></h3>
                             <p class="text-sm text-ibbs-muted mb-3 flex items-center gap-2">
-                                <i class="fas fa-chalkboard-teacher text-ibbs-lime2"></i> Prof. <?= htmlspecialchars($m['doc_nombre'] . ' ' . $m['doc_apellido']) ?>
+                                <i class="fas fa-chalkboard-teacher text-ibbs-lime2"></i> Prof. <?= htmlspecialchars($m['doc_nombre_completo'] ?: 'Por asignar') ?>
                             </p>
                             <div class="flex flex-col gap-1.5 mb-4">
                                 <?php if ($m['proxima_clase']): ?>
@@ -598,10 +611,14 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                 <button onclick="document.querySelector('#sidebar nav button:nth-child(4)').click()" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors">Ver Tareas</button>
                                 <button onclick="irAlChatMateria(<?= $m['id'] ?>)" class="flex-1 btn-ibbs py-2 rounded-lg text-xs font-bold text-center">Foro de Clase</button>
                             </div>
+                            <?php if ($m['aula_acceso']): ?>
                             <div class="flex gap-2">
                                 <button onclick="irAlAulaMateria(<?= $m['id'] ?>, 'vivo')" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🔴 En Vivo</button>
                                 <button onclick="irAlAulaMateria(<?= $m['id'] ?>, 'grabadas')" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors text-center">🎬 Grabadas</button>
                             </div>
+                            <?php else: ?>
+                            <p class="text-xs text-ibbs-muted italic text-center">Ves esta materia de forma presencial — el Aula Virtual no está activa para ella.</p>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -831,18 +848,21 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 </div>
                 <p class="text-sm text-ibbs-muted -mt-2">El material de cada materia, tus calificaciones de actividades y el acceso a las clases en vivo y grabadas — todo en un solo lugar.</p>
 
+                <?php $materias_con_aula = array_values(array_filter($materias, fn($m) => $m['aula_acceso'])); ?>
                 <div class="max-w-md">
                     <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-1">Materia</label>
                     <select id="aulaAlMateriaSel" onchange="cargarAulaAlMateria()" class="w-full p-2.5 rounded-lg border border-ibbs-border bg-ibbs-paper text-ibbs-ink text-sm">
                         <option value="">— Selecciona una materia —</option>
-                        <?php foreach($materias as $m): ?>
+                        <?php foreach($materias_con_aula as $m): ?>
                         <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['codigo'].' · '.$m['nombre']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
 
-                <?php if(empty($materias)): ?>
-                <div class="text-center py-10 text-ibbs-muted border-2 border-dashed border-ibbs-border rounded-[14px]">Aún no estás inscrito en ninguna materia.</div>
+                <?php if(empty($materias_con_aula)): ?>
+                <div class="text-center py-10 text-ibbs-muted border-2 border-dashed border-ibbs-border rounded-[14px]">
+                    <?= empty($materias) ? 'Aún no estás inscrito en ninguna materia.' : 'Ves tus materias de forma presencial — por ahora ningún profesor activó el Aula Virtual para vos. Si lo hace, va a aparecer acá.' ?>
+                </div>
                 <?php else: ?>
 
                 <div id="aulaAlEmpty" class="text-center py-10 text-ibbs-muted border-2 border-dashed border-ibbs-border rounded-[14px]">Selecciona una materia arriba para ver su aula.</div>

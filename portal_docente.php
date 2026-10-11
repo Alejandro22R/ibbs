@@ -60,6 +60,7 @@ mysqli_stmt_execute($stmt_doc);
 $docente_data = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_doc));
 if ($docente_data) $docente_id = $docente_data['id'];
 
+mysqli_query($con, "ALTER TABLE materias ADD COLUMN IF NOT EXISTS aula_virtual_presencial TINYINT(1) DEFAULT 0");
 // Obtener materias (El superadmin ve todas, el profesor solo las suyas)
 if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     $query_materias = "SELECT * FROM materias WHERE activo = 1";
@@ -732,8 +733,14 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <h3 style="font-weight: 700; color: var(--ink); font-size: 1.1rem; line-height: 1.2;"><?= htmlspecialchars($m['nombre']) ?></h3>
                             <span class="badge" style="background:var(--cream); border:1px solid var(--border); color:var(--muted);"><?= htmlspecialchars($m['codigo']) ?></span>
                         </div>
-                        <p style="font-size: .8rem; color: var(--muted); margin-bottom: 1.5rem;"><i class="far fa-clock"></i> <?= htmlspecialchars($m['dias'] . ' · ' . substr($m['hora_inicio']??'00:00',0,5)) ?></p>
-                        
+                        <p style="font-size: .8rem; color: var(--muted); margin-bottom: 1rem;"><i class="far fa-clock"></i> <?= htmlspecialchars($m['dias'] . ' · ' . substr($m['hora_inicio']??'00:00',0,5)) ?></p>
+
+                        <button onclick="toggleAulaPresencialDocente(<?= $m['id'] ?>, this)" data-activa="<?= (int)($m['aula_virtual_presencial'] ?? 0) ?>"
+                            class="btn btn-sm <?= !empty($m['aula_virtual_presencial']) ? 'btn-success' : 'btn-secondary' ?>" style="width:100%;justify-content:center;margin-bottom:1rem;font-size:.74rem;"
+                            title="Mientras esté activa, tus alumnos presenciales de esta materia también entran al Aula Virtual (los del diplomado ya entran siempre)">
+                            <?= !empty($m['aula_virtual_presencial']) ? '🎓 Aula Virtual activa para presenciales' : '— Aula Virtual: solo diplomado' ?>
+                        </button>
+
                         <div style="margin-top: auto;">
                             <button onclick="irAlChatMateria(<?= $m['id'] ?>)" class="btn btn-secondary" style="width: 100%; justify-content: center;">Abrir Foro de Discusión</button>
                         </div>
@@ -2650,6 +2657,17 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         // que ya tenía portal_alumno.php, con los nombres de pestaña de
         // este portal (acá es "grabadas", no "grabaciones"; y no hay
         // pestaña de foro propia, así que cae en "actividades").
+        async function toggleAulaPresencialDocente(materiaId, btn) {
+            const d = await _aulaPost('api/ajax.php', 'materia_toggle_aula_presencial', { id: materiaId });
+            if (!d?.ok) { Ibbs.error(d?.msg || 'No se pudo cambiar.'); return; }
+            Ibbs.success(d.msg);
+            const activa = !!d.activa;
+            btn.dataset.activa = activa ? '1' : '0';
+            btn.classList.toggle('btn-success', activa);
+            btn.classList.toggle('btn-secondary', !activa);
+            btn.textContent = activa ? '🎓 Aula Virtual activa para presenciales' : '— Aula Virtual: solo diplomado';
+        }
+
         function irAlAulaMateria(materiaId, tab) {
             switchView('aula', document.querySelector('[data-tour="nav-aula"]'));
             const sel = document.getElementById('aulaMateriaSel');

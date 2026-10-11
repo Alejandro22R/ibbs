@@ -48,14 +48,14 @@ if (!function_exists('json_fail')) {
 
 /* ════ MIS MATERIAS (selector de entrada al aula) ═════════════ */
 if ($action === 'materias_mias') {
-    echo json_encode(['ok'=>true,'data'=>materias_asignadas($con, $uid, $_rol)]); exit;
+    echo json_encode(['ok'=>true,'data'=>materias_asignadas($con, $uid, $_rol, true)]); exit;
 }
 
 /* ════ INFO DE LA MATERIA (para el encabezado del aula) ═══════ */
 if ($action === 'materia_info') {
     $mid = (int)($_POST['materia_id'] ?? 0);
     if (!$mid) json_fail('Materia no especificada.');
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso sobre esta materia.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso sobre esta materia.');
 
     $st = mysqli_prepare($con, "SELECT id,nombre,codigo,estado FROM materias WHERE id=? LIMIT 1");
     mysqli_stmt_bind_param($st, 'i', $mid);
@@ -72,7 +72,7 @@ if ($action === 'materia_info') {
 /* ════ SECCIONES (semanas/unidades, estilo Moodle) ═══════════ */
 if ($action === 'seccion_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
     $soloVisibles = !materia_puede_gestionar($con, $uid, $_rol, $mid);
     $sql = "SELECT id,titulo,descripcion,orden,visible FROM aula_secciones WHERE materia_id=?".
            ($soloVisibles ? " AND visible=1" : "")." ORDER BY orden, id";
@@ -188,7 +188,7 @@ if ($action === 'contenido_mover_seccion') {
 /* ════ ANUNCIOS ═════════════════════════════════════════════ */
 if ($action === 'anuncio_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
     $st = mysqli_prepare($con, "SELECT a.id,a.titulo,a.contenido,a.fijado,a.seccion_id,a.creado_en,u.usuario autor
                                  FROM aula_anuncios a JOIN usuarios u ON u.id=a.usuario_id
                                  WHERE a.materia_id=? ORDER BY a.fijado DESC, a.creado_en DESC");
@@ -249,7 +249,7 @@ if ($action === 'anuncio_delete') {
 /* ════ MATERIALES ═══════════════════════════════════════════ */
 if ($action === 'material_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
     $st = mysqli_prepare($con, "SELECT m.id,m.titulo,m.descripcion,m.archivo_nombre,m.archivo_tipo,m.tamano_bytes,m.seccion_id,m.creado_en,u.usuario autor
                                  FROM aula_materiales m JOIN usuarios u ON u.id=m.usuario_id
                                  WHERE m.materia_id=? ORDER BY m.creado_en DESC");
@@ -346,7 +346,7 @@ if ($action === 'material_download') {
     mysqli_stmt_bind_param($st, 'i', $id);
     mysqli_stmt_execute($st);
     $row = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
-    if (!$row || !materia_puede_ver($con, $uid, $_rol, (int)$row['materia_id'])) {
+    if (!$row || !materia_puede_ver_aula($con, $uid, $_rol, (int)$row['materia_id'])) {
         ob_end_clean(); http_response_code(403); die('Sin permiso.');
     }
     $ruta = __DIR__.'/../'.$row['archivo'];
@@ -369,7 +369,7 @@ if ($action === 'material_download') {
 /* ════ ACTIVIDADES Y CALIFICACIONES ═════════════════════════ */
 if ($action === 'actividad_list') {
     $mid = (int)($_POST['materia_id'] ?? 0);
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
     $st = mysqli_prepare($con, "SELECT id,titulo,descripcion,tipo,nota_max,fecha,seccion_id,creado_en FROM aula_actividades WHERE materia_id=? ORDER BY (fecha IS NULL), fecha DESC, creado_en DESC");
     mysqli_stmt_bind_param($st, 'i', $mid);
     mysqli_stmt_execute($st);
@@ -445,7 +445,7 @@ if ($action === 'actividad_calificaciones') {
 // Para el alumno: sus propias actividades de la materia con su nota (si existe), en una sola llamada.
 if ($action === 'actividad_mis_notas') {
     $mid = (int)($_POST['materia_id'] ?? 0);
-    if (!materia_puede_ver($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
+    if (!materia_puede_ver_aula($con, $uid, $_rol, $mid)) json_fail('Sin permiso.');
 
     $al = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
     if (!$al) json_fail('No se encontró el registro de alumno.');
