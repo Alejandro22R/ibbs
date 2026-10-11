@@ -101,12 +101,30 @@ if ($alumno_id) {
     while ($row = mysqli_fetch_assoc($rp)) $solicitudes_pendientes[] = $row;
 }
 
+// Materias que el alumno ya tiene registradas (cualquier período, aprobada,
+// no aprobada o todavía sin nota) — se usa tanto para excluir por NOMBRE de
+// la autoinscripción como para mostrarle al alumno por qué una materia no
+// le aparece disponible aunque esté con inscripción abierta.
+$materias_ya_vistas = [];
+if ($alumno_id) {
+    $rv = mysqli_query($con, "SELECT m2.nombre, MAX(ma2.nota_final) AS mejor_nota
+                               FROM materia_alumno ma2 JOIN materias m2 ON m2.id = ma2.materia_id
+                               WHERE ma2.alumno_id = $alumno_id
+                               GROUP BY LOWER(m2.nombre) ORDER BY m2.nombre");
+    while ($row = mysqli_fetch_assoc($rv)) $materias_ya_vistas[] = $row;
+}
+$nombres_actuales = array_map(fn($m) => mb_strtolower(trim($m['nombre'])), $materias);
+$materias_ya_vistas_otras = array_values(array_filter($materias_ya_vistas, fn($r) => !in_array(mb_strtolower(trim($r['nombre'])), $nombres_actuales, true)));
+
 // Materias disponibles para autoinscripción (solo si el alumno es "regular")
 // — además de excluir por materia_id (ya inscrito o con solicitud
-// pendiente), se excluye por NOMBRE cualquier materia que el alumno ya
-// haya aprobado (nota_final>=15) en cualquier período: si "Hermenéutica"
-// se vuelve a ofrecer más adelante con un materia_id nuevo, no tendría
-// sentido que la vea otra vez como disponible — ya la cursó y aprobó.
+// pendiente), se excluye por NOMBRE cualquier materia de la que el alumno ya
+// tenga registro (sin importar si la aprobó, la reprobó o todavía no tiene
+// nota): si "Hermenéutica" se vuelve a ofrecer más adelante con un
+// materia_id nuevo, no tendría sentido que la vea otra vez como disponible
+// para autoinscribirse — ya la está viendo o ya la vio. Si reprobó y la
+// institución quiere que la repita, eso lo hace la administración
+// inscribiéndolo directamente, no por autoinscripción.
 $materias_disponibles = [];
 if ($alumno && !empty($alumno['regular'])) {
     $ids_inscritas = array_column($materias, 'id');
@@ -117,7 +135,7 @@ if ($alumno && !empty($alumno['regular'])) {
                                AND LOWER(nombre) NOT IN (
                                    SELECT LOWER(m2.nombre) FROM materia_alumno ma2
                                    JOIN materias m2 ON m2.id=ma2.materia_id
-                                   WHERE ma2.alumno_id=$alumno_id AND ma2.nota_final IS NOT NULL AND ma2.nota_final>=15
+                                   WHERE ma2.alumno_id=$alumno_id
                                )
                                ORDER BY nombre");
     while ($row = mysqli_fetch_assoc($rd)) $materias_disponibles[] = $row;
@@ -550,8 +568,27 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             </div>
                         </div>
                         <?php endif; ?>
+                        <?php if ($materias_ya_vistas_otras): ?>
+                        <div class="mb-4">
+                            <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider mb-2">Materias que ya tenés registradas (no disponibles para autoinscripción)</div>
+                            <div class="flex flex-col gap-2">
+                                <?php foreach ($materias_ya_vistas_otras as $yv): ?>
+                                <div class="flex items-center justify-between bg-ibbs-cream border border-ibbs-border rounded-lg px-3 py-2">
+                                    <div class="text-sm font-bold text-ibbs-ink"><?= htmlspecialchars($yv['nombre']) ?></div>
+                                    <?php if ($yv['mejor_nota'] === null): ?>
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-blue/10 text-ibbs-blue">📖 La estás viendo / ya la viste</span>
+                                    <?php elseif ($yv['mejor_nota'] >= 15): ?>
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-lime2/10 text-ibbs-lime2">✅ Aprobada</span>
+                                    <?php else: ?>
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-red/10 text-ibbs-red">⚠️ No aprobada</span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                         <?php if (empty($materias_disponibles)): ?>
-                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a) o con una solicitud pendiente en todas las disponibles.</p>
+                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a), con una solicitud pendiente, o ya registrado(a) en todas las disponibles.</p>
                         <?php else: ?>
                         <div class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 mb-3 text-xs text-ibbs-ink flex items-start gap-2">
                             <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
