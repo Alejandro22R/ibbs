@@ -311,6 +311,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button data-tour="nav-biblioteca" onclick="switchView('biblioteca', this); cargarMisLibrosDocente();" class="sb-link">
                 <i class="fas fa-book"></i> <span class="sb-lbl">Biblioteca</span>
             </button>
+            <button data-tour="nav-notificaciones" onclick="switchView('notificaciones', this); renderNotifFull('notifListFull');" class="sb-link">
+                <i class="fas fa-bell"></i> <span class="sb-lbl">Notificaciones</span>
+            </button>
 
             <?php if(in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
             <div class="sb-section" style="margin-top: .5rem;">Administración</div>
@@ -350,7 +353,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     <svg class="t-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>
                 </button>
                 <div style="position: relative;">
-                    <button id="notifBell" onclick="toggleNotifDrop()" title="Notificaciones" style="position:relative;background:none;border:1.5px solid var(--border);border-radius:9px;padding:.5rem .7rem;cursor:pointer;display:flex;align-items:center;color:var(--ink);">
+                    <button id="notifBell" onclick="switchView('notificaciones', document.querySelector('[data-tour=&quot;nav-notificaciones&quot;]')); renderNotifFull('notifListFull');" title="Notificaciones" style="position:relative;background:none;border:1.5px solid var(--border);border-radius:9px;padding:.5rem .7rem;cursor:pointer;display:flex;align-items:center;color:var(--ink);">
                         <i class="fas fa-bell"></i>
                         <span id="notifCount" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border-radius:50%;width:17px;height:17px;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;"></span>
                     </button>
@@ -684,6 +687,21 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <div style="font-weight:700;font-size:.88rem;color:var(--ink);margin-bottom:.6rem;">Hojas cargadas recientemente</div>
                 <div class="card"><div id="ocrHojasList" style="padding:1rem;"><span class="spin"></span></div></div>
             </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VISTA: NOTIFICACIONES — panel completo en pantalla grande,  -->
+        <!-- no la ventanita chica de la campana. Mismo contenido/       -->
+        <!-- acciones que el drop (ver assets/ibbs-notif-bell.js:        -->
+        <!-- renderNotifFull), con un clic en cada notificación llevando -->
+        <!-- directo al módulo que corresponde.                         -->
+        <!-- ============================================== -->
+        <div id="view-notificaciones" class="view-section">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.8rem;">
+                <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink);">Notificaciones</h2>
+                <button class="btn btn-secondary" onclick="marcarTodasLeidasFull('notifListFull')">Marcar todas leídas</button>
+            </div>
+            <div class="card"><div id="notifListFull"></div></div>
         </div>
 
         <!-- ============================================== -->

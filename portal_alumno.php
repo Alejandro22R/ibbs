@@ -360,6 +360,9 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 </div>
                 <span id="badgePagosPendientes" class="hidden bg-ibbs-lime text-ibbs-ink text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm ibbs-badge-pulse"></span>
             </button>
+            <button data-tour="nav-notificaciones" onclick="switchView('notificaciones', this); renderNotifFull('notifListFull');" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <i class="fas fa-bell w-5 text-center"></i> <span class="font-medium text-sm">Notificaciones</span>
+            </button>
 
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-6 mb-3 px-3">Cuenta</p>
             <button id="navBtnPerfil" data-tour="nav-perfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
@@ -405,7 +408,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             </div>
             <div class="flex items-center gap-2 ml-auto">
                 <div style="position: relative;">
-                    <button id="notifBell" onclick="toggleNotifDrop()" title="Notificaciones" class="text-ibbs-muted hover:text-ibbs-ink focus:outline-none p-2 rounded-lg bg-ibbs-cream border border-ibbs-border" style="position:relative;">
+                    <button id="notifBell" onclick="switchView('notificaciones', document.querySelector('[data-tour=&quot;nav-notificaciones&quot;]')); renderNotifFull('notifListFull');" title="Notificaciones" class="text-ibbs-muted hover:text-ibbs-ink focus:outline-none p-2 rounded-lg bg-ibbs-cream border border-ibbs-border" style="position:relative;">
                         <i class="fas fa-bell"></i>
                         <span id="notifCount" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:50%;width:16px;height:16px;font-size:.55rem;font-weight:700;align-items:center;justify-content:center;line-height:1;"></span>
                     </button>
@@ -471,6 +474,21 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             <p class="text-[10px] font-bold text-ibbs-muted uppercase tracking-wider mt-1">Promedio General</p>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- VISTA: NOTIFICACIONES — panel completo en pantalla grande, no
+                 la ventanita chica de la campana. Mismo contenido/acciones
+                 que el drop (ver assets/ibbs-notif-bell.js: renderNotifFull),
+                 pero con espacio para leerlo cómodo y un clic en cada
+                 notificación te lleva directo al módulo que corresponde. -->
+            <div id="view-notificaciones" class="view-section hidden space-y-5">
+                <div class="flex items-center justify-between pb-3 border-b border-ibbs-border flex-wrap gap-3">
+                    <h2 class="text-2xl font-serif text-ibbs-ink">Notificaciones</h2>
+                    <button onclick="marcarTodasLeidasFull('notifListFull')" class="btn-ibbs px-4 py-2 rounded-lg text-sm font-bold">Marcar todas leídas</button>
+                </div>
+                <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden">
+                    <div id="notifListFull"></div>
                 </div>
             </div>
 

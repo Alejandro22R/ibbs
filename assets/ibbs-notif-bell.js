@@ -185,6 +185,57 @@
     }).join('');
   }
 
+  // Panel completo de notificaciones (vista "Notificaciones" en pantalla
+  // grande, en la barra lateral de portal_docente.php/portal_alumno.php)
+  // — mismo contenido y acciones que el drop chico de la campana, pero
+  // con espacio para leerlo cómodo. Usa su propio prefijo de id
+  // ("ndf" en vez de "nd") para no chocar con las filas del drop si
+  // ambos llegaran a tener markup en la página a la vez.
+  window.renderNotifFull = async function renderNotifFull(containerId) {
+    const box = document.getElementById(containerId);
+    if (!box) return;
+    box.innerHTML = '<div style="text-align:center;padding:2rem;color:#7a8c72;">Cargando…</div>';
+    const d = await postAjax('notif_list');
+    if (!d || !d.ok || !d.data.length) {
+      box.innerHTML = '<div style="text-align:center;padding:2rem;color:#7a8c72;font-size:.85rem;">No tenés notificaciones pendientes.</div>';
+      return;
+    }
+    box.innerHTML = d.data.map((n) => {
+      const seNavega = !!(AULA_TAB_POR_TIPO[n.tipo] || vistaParaTipo(n.tipo));
+      return `
+      <div id="ndf${n.id}" style="display:flex;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid #e0d8c8;${seNavega ? 'cursor:pointer;' : ''}" ${seNavega ? `onclick="_ibbsNotifIr(${n.id},'${n.tipo}',${n.materia_id ?? 'null'})"` : ''}>
+        <div style="font-size:1.4rem;flex-shrink:0;line-height:1;">${NOTIF_ICONS[n.tipo] || 'ℹ️'}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:.74rem;text-transform:uppercase;letter-spacing:.5px;color:#7a8c72;margin-bottom:.25rem;font-weight:700;">${h(n.titulo || '')}</div>
+          <div style="font-size:.92rem;color:#1a4d2e;line-height:1.5;">${h(n.mensaje || '')}</div>
+          <div style="font-size:.74rem;color:#7a8c72;margin-top:.4rem;">${n.creado_en ? n.creado_en.substring(0, 16) : ''}</div>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-shrink:0;align-items:flex-start;">
+          <button onclick="event.stopPropagation();_ibbsNotifLeerFull(${n.id})" style="background:none;border:1px solid #16a34a;color:#16a34a;border-radius:6px;padding:.3rem .7rem;font-size:.76rem;cursor:pointer;">Marcar leída</button>
+          <button onclick="event.stopPropagation();_ibbsNotifArchivarFull(${n.id})" style="background:none;border:1px solid #7a8c72;color:#7a8c72;border-radius:6px;padding:.3rem .7rem;font-size:.76rem;cursor:pointer;">Archivar</button>
+        </div>
+      </div>`;
+    }).join('');
+  };
+
+  window._ibbsNotifLeerFull = async function _ibbsNotifLeerFull(id) {
+    await postAjax('notif_leer', { id });
+    document.getElementById('ndf' + id)?.remove();
+    setBadge(unread - 1);
+  };
+
+  window._ibbsNotifArchivarFull = async function _ibbsNotifArchivarFull(id) {
+    await postAjax('notif_archivar', { id });
+    document.getElementById('ndf' + id)?.remove();
+    setBadge(unread - 1);
+  };
+
+  window.marcarTodasLeidasFull = async function marcarTodasLeidasFull(containerId) {
+    await postAjax('notif_leer', { id: 0 });
+    setBadge(0);
+    await renderNotifFull(containerId);
+  };
+
   window.toggleNotifDrop = async function toggleNotifDrop() {
     const drop = document.getElementById('notifDrop');
     if (!drop) return;

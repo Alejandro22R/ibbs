@@ -734,16 +734,24 @@ async function leerPlanillaMatriz() {
 }
 
 function renderRawPreviewMatriz() {
-  const rows = _matrizSheetAOA.slice(0, 12);
-  const maxCols = Math.min(20, Math.max(0, ...rows.map(r => r.length)));
-  let html = '<div class="tbl-wrap" style="max-height:320px;"><table style="font-size:.7rem;"><thead><tr><th></th>';
-  for (let c = 0; c < maxCols; c++) html += `<th>${colLetraMatriz(c)}</th>`;
+  // Sin recortar nombres (ni de alumnos ni de materias) — antes el
+  // ellipsis + max-width:110px tapaba el texto y solo se veía completo
+  // pasando el mouse. El pedido fue poder leerlo de un vistazo tal cual
+  // está en la planilla original, así que las columnas crecen con su
+  // contenido y el ancho/alto se resuelve con scroll, no con recorte.
+  // Tampoco se limitan a 20 columnas / 12 filas — una planilla con
+  // varias secciones (ej. pensum + licenciatura) necesita verse entera
+  // para ubicar bien los números de fila/columna.
+  const rows = _matrizSheetAOA.slice(0, 25);
+  const maxCols = Math.max(0, ...rows.map(r => r.length));
+  let html = '<div class="tbl-wrap" style="max-height:480px;"><table style="font-size:.82rem;"><thead><tr><th></th>';
+  for (let c = 0; c < maxCols; c++) html += `<th style="white-space:nowrap;">${colLetraMatriz(c)}</th>`;
   html += '</tr></thead><tbody>';
   rows.forEach((r, ri) => {
-    html += `<tr><td style="font-weight:700;background:var(--cream);">${ri + 1}</td>`;
+    html += `<tr><td style="font-weight:700;background:var(--cream);position:sticky;left:0;">${ri + 1}</td>`;
     for (let c = 0; c < maxCols; c++) {
       const v = (r && r[c] != null) ? String(r[c]) : '';
-      html += `<td style="white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;" title="${h(v)}">${h(v)}</td>`;
+      html += `<td style="white-space:nowrap;padding:.4rem .7rem;">${h(v)}</td>`;
     }
     html += '</tr>';
   });
