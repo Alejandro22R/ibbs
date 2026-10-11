@@ -64,6 +64,7 @@ function can($perm){
 <meta name="ibbs-ws-token" content="<?=htmlspecialchars($_wsToken)?>">
 <?php endif; ?>
 <title><?=htmlspecialchars($page_title)?> — IBBS</title>
+<link rel="icon" type="image/jpeg" href="assets/logo.jpg">
 <link rel="stylesheet" href="assets/ibbs.css">
 <link rel="stylesheet" href="assets/libs/boxicons/boxicons.min.css">
 <script src="assets/libs/chart.umd.min.js"></script>

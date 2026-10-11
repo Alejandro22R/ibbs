@@ -41,6 +41,7 @@ mysqli_close($con);
 <head>
 <meta charset="UTF-8">
 <title>Acta de Calificaciones — <?=htmlspecialchars($mat['nombre'])?></title>
+<link rel="icon" type="image/jpeg" href="../assets/logo.jpg">
 <style>
 @page { size: A4; margin: 1.8cm 1.5cm; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

@@ -759,6 +759,7 @@ async function generarCert() {
   <head>
     <meta charset="UTF-8">
     <title>${titulo.toUpperCase()}</title>
+    <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
     <style>
       *{margin:0;padding:0;box-sizing:border-box;}
       body{

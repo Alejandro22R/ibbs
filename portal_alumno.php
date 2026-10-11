@@ -146,6 +146,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <meta name="ibbs-ws-token" content="<?=htmlspecialchars($ws_token)?>">
     <?php endif; ?>
     <title>Portal del Alumno | IBBS</title>
+    <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
     
     <!-- Nunito y Playfair Display ya vienen vendorizadas en assets/ibbs.css
          (mismas variantes que pedía este link a Google Fonts) — se saca

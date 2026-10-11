@@ -129,6 +129,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     <meta name="ibbs-ws-token" content="<?=htmlspecialchars($ws_token)?>">
     <?php endif; ?>
     <title>Portal Docente | IBBS</title>
+    <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
     
     <!-- CSS Maestro del Sistema IBBS -->
     <link rel="stylesheet" href="assets/ibbs.css">

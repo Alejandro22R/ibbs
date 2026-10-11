@@ -344,6 +344,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="csrf-token" content="<?=htmlspecialchars(csrf_token() ?? '')?>">
 <title>IBBS — Acceso</title>
+<link rel="icon" type="image/jpeg" href="assets/logo.jpg">
 <style>
 /* Fuentes locales */
 @font-face { font-family:'Nunito'; font-style:normal; font-weight:400; font-display:swap;

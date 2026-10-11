@@ -81,6 +81,7 @@ $estLabel=['pendiente'=>'Pendiente','en_curso'=>'En curso','culminada'=>'Culmina
 <head>
 <meta charset="UTF-8">
 <title>Boletín — <?=$nombre_c?></title>
+<link rel="icon" type="image/jpeg" href="../assets/logo.jpg">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:Arial,sans-serif;font-size:10.5pt;color:#1a1a1a;background:#fff;padding:20px;}
