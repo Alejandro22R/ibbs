@@ -68,34 +68,75 @@ if (!function_exists('materia_puede_ver_aula')) {
     }
 }
 
+if (!function_exists('materia_tiene_bypass_administrativo')) {
+    /**
+     * Las dos formas en que administración salta cualquier candado
+     * automático (orden del pensum o "ya la tenía registrada, no
+     * puede recursarla") para UNA materia puntual: materias.prerequisito_libre=1
+     * (la abre para todo el mundo) o una fila en materia_desbloqueos
+     * para ese alumno+materia en particular (p.ej. reprobó pero el
+     * administrador decidió dejarlo recursarla, o lo adelantó a una de
+     * más nivel).
+     */
+    function materia_tiene_bypass_administrativo($con, $alumno_id, $materia_id) {
+        $st = mysqli_prepare($con, "SELECT prerequisito_libre FROM materias WHERE id=? LIMIT 1");
+        mysqli_stmt_bind_param($st, 'i', $materia_id);
+        mysqli_stmt_execute($st);
+        $m = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+        if ($m && (int)$m['prerequisito_libre'] === 1) return true;
+
+        $st2 = mysqli_prepare($con, "SELECT 1 FROM materia_desbloqueos WHERE alumno_id=? AND materia_id=? LIMIT 1");
+        mysqli_stmt_bind_param($st2, 'ii', $alumno_id, $materia_id);
+        mysqli_stmt_execute($st2);
+        return (bool) mysqli_fetch_row(mysqli_stmt_get_result($st2));
+    }
+}
+
+if (!function_exists('materia_puede_recursar')) {
+    /**
+     * Si el alumno ya tiene CUALQUIER registro (materia_alumno, sin
+     * importar el materia_id ni el período) con este MISMO NOMBRE:
+     * aprobado (nota_final>=15) queda excluido PARA SIEMPRE, sin
+     * excepción — ya la pasó. No aprobado (reprobada, o todavía sin
+     * nota) queda excluido por defecto, salvo que administración le
+     * haya dado un bypass para ESTA materia puntual (ver
+     * materia_tiene_bypass_administrativo) — ahí sí puede volver a
+     * verla/inscribirse. Si nunca tuvo un registro con ese nombre, no
+     * hay restricción acá (pasa al candado normal de orden del pensum).
+     */
+    function materia_puede_recursar($con, $alumno_id, $materia_id, $nombre) {
+        $st = mysqli_prepare($con, "SELECT COUNT(*) c, MAX(ma.nota_final) mejor FROM materia_alumno ma
+                                     JOIN materias m2 ON m2.id = ma.materia_id
+                                     WHERE ma.alumno_id=? AND LOWER(m2.nombre)=LOWER(?)");
+        mysqli_stmt_bind_param($st, 'is', $alumno_id, $nombre);
+        mysqli_stmt_execute($st);
+        $row = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+        if (!$row || (int)$row['c'] === 0) return true;
+        if ($row['mejor'] !== null && (float)$row['mejor'] >= 15) return false;
+        return materia_tiene_bypass_administrativo($con, $alumno_id, $materia_id);
+    }
+}
+
 if (!function_exists('materia_cumple_prerequisito')) {
     /**
      * Orden secuencial del pensum ("no le puede aparecer desbloqueada
      * una materia más adelante si no ha visto la de atrás"). Una
      * materia con materias.orden definido solo queda disponible para
      * un alumno si ya aprobó (nota_final>=15, por NOMBRE — sin importar
-     * en qué período ni bajo qué materia_id la cursó, igual que la
-     * exclusión de materias_disponibles en portal_alumno.php) TODAS las
-     * materias con un orden menor. Dos formas de saltarse esto, ambas
-     * decisión de administración: materias.prerequisito_libre=1 (abre
-     * esa materia para todo el mundo, sin importar el orden) o una fila
-     * en materia_desbloqueos para ese alumno+materia en particular
-     * (p.ej. reprobó pero el administrador decidió dejarlo avanzar, o
-     * se lo adelantó a una materia de más nivel).
+     * en qué período ni bajo qué materia_id la cursó) TODAS las
+     * materias con un orden menor. Se puede saltar vía
+     * materia_tiene_bypass_administrativo(). Esta función NO mira si el
+     * alumno ya tiene un registro de ESTA materia en particular —
+     * eso lo resuelve materia_puede_recursar(), un candado aparte.
      */
     function materia_cumple_prerequisito($con, $alumno_id, $materia_id) {
-        $st = mysqli_prepare($con, "SELECT orden, prerequisito_libre FROM materias WHERE id=? LIMIT 1");
+        $st = mysqli_prepare($con, "SELECT orden FROM materias WHERE id=? LIMIT 1");
         mysqli_stmt_bind_param($st, 'i', $materia_id);
         mysqli_stmt_execute($st);
         $m = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
         if (!$m) return false;
         if ($m['orden'] === null) return true;
-        if ((int)$m['prerequisito_libre'] === 1) return true;
-
-        $st2 = mysqli_prepare($con, "SELECT 1 FROM materia_desbloqueos WHERE alumno_id=? AND materia_id=? LIMIT 1");
-        mysqli_stmt_bind_param($st2, 'ii', $alumno_id, $materia_id);
-        mysqli_stmt_execute($st2);
-        if (mysqli_fetch_row(mysqli_stmt_get_result($st2))) return true;
+        if (materia_tiene_bypass_administrativo($con, $alumno_id, $materia_id)) return true;
 
         $orden = (int)$m['orden'];
         $totalPrevias = (int)(mysqli_fetch_assoc(mysqli_query($con, "SELECT COUNT(DISTINCT LOWER(nombre)) c FROM materias WHERE orden IS NOT NULL AND orden < $orden"))['c'] ?? 0);

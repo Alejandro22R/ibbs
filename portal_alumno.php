@@ -116,48 +116,36 @@ if ($alumno_id) {
 $nombres_actuales = array_map(fn($m) => mb_strtolower(trim($m['nombre'])), $materias);
 $materias_ya_vistas_otras = array_values(array_filter($materias_ya_vistas, fn($r) => !in_array(mb_strtolower(trim($r['nombre'])), $nombres_actuales, true)));
 
-// Materias disponibles para autoinscripción (solo si el alumno es "regular")
-// — además de excluir por materia_id (ya inscrito o con solicitud
-// pendiente), se excluye por NOMBRE cualquier materia de la que el alumno ya
-// tenga registro (sin importar si la aprobó, la reprobó o todavía no tiene
-// nota): si "Hermenéutica" se vuelve a ofrecer más adelante con un
-// materia_id nuevo, no tendría sentido que la vea otra vez como disponible
-// para autoinscribirse — ya la está viendo o ya la vio. Si reprobó y la
-// institución quiere que la repita, eso lo hace la administración
-// inscribiéndolo directamente, no por autoinscripción.
+// Materias disponibles para autoinscripción (solo si el alumno es "regular").
+// Dos candados en cadena sobre cada materia abierta (ni inscrito ni con
+// solicitud pendiente en ella):
+//   1. materia_puede_recursar(): si ya tiene CUALQUIER registro con ese
+//      mismo NOMBRE (aprobada, reprobada o sin nota aún, sin importar el
+//      materia_id/período), por defecto queda afuera — aprobada, para
+//      siempre; reprobada/en curso, salvo que administración le haya
+//      dado un bypass puntual (prerequisito_libre de la materia o un
+//      desbloqueo individual) — ahí sí puede volver a verla/recursarla.
+//   2. materia_cumple_prerequisito(): orden secuencial del pensum — ya
+//      aprobó (por nombre) todas las materias de orden menor, o tiene el
+//      mismo bypass administrativo.
+// Las que pasan el candado 1 pero no el 2 se muestran igual, aparte,
+// explicando qué le falta aprobar — así el alumno entiende por qué no
+// puede inscribirse en vez de que la materia simplemente no aparezca.
 $materias_disponibles = [];
+$materias_bloqueadas_prerequisito = [];
 if ($alumno && !empty($alumno['regular'])) {
     $ids_inscritas = array_column($materias, 'id');
     $ids_pendientes = array_column($solicitudes_pendientes, 'materia_id');
     $ids_excluir = array_merge($ids_inscritas, $ids_pendientes);
     $excluir = count($ids_excluir) ? implode(',', array_map('intval', $ids_excluir)) : '0';
-    $rd = mysqli_query($con, "SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 AND estado!='culminada' AND inscripcion_abierta=1 AND id NOT IN ($excluir)
-                               AND LOWER(nombre) NOT IN (
-                                   SELECT LOWER(m2.nombre) FROM materia_alumno ma2
-                                   JOIN materias m2 ON m2.id=ma2.materia_id
-                                   WHERE ma2.alumno_id=$alumno_id
-                               )
-                               ORDER BY nombre");
-    while ($row = mysqli_fetch_assoc($rd)) $materias_disponibles[] = $row;
-}
-
-// Orden secuencial del pensum: de las materias que quedaron arriba como
-// "disponibles" (abiertas, no inscrito, no vista antes), separamos las
-// que además cumplen el prerequisito (ya aprobó, por nombre, todas las
-// de orden menor) de las que están abiertas pero todavía bloqueadas por
-// orden — a estas últimas se les muestra igual, mencionando qué le
-// falta aprobar primero, para que el alumno entienda por qué no puede
-// inscribirse (en vez de simplemente no mostrarlas y que se pregunte
-// por qué no aparecen).
-$materias_bloqueadas_prerequisito = [];
-if ($materias_disponibles) {
-    $candidatas = $materias_disponibles;
-    $materias_disponibles = [];
-    foreach ($candidatas as $cand) {
-        if (materia_cumple_prerequisito($con, $alumno_id, (int)$cand['id'])) {
+    $rd = mysqli_query($con, "SELECT id,nombre,codigo,estado FROM materias WHERE activo=1 AND estado!='culminada' AND inscripcion_abierta=1 AND id NOT IN ($excluir) ORDER BY nombre");
+    while ($cand = mysqli_fetch_assoc($rd)) {
+        $mid = (int)$cand['id'];
+        if (!materia_puede_recursar($con, $alumno_id, $mid, $cand['nombre'])) continue;
+        if (materia_cumple_prerequisito($con, $alumno_id, $mid)) {
             $materias_disponibles[] = $cand;
         } else {
-            $cand['faltan'] = materia_prerequisitos_faltantes($con, $alumno_id, (int)$cand['id']);
+            $cand['faltan'] = materia_prerequisitos_faltantes($con, $alumno_id, $mid);
             $materias_bloqueadas_prerequisito[] = $cand;
         }
     }
