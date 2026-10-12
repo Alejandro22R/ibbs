@@ -55,7 +55,7 @@ mysqli_close($con);
         <option value="pagado">Pagado</option>
         <option value="rechazado">Rechazado</option>
       </select>
-      <button class="btn btn-secondary" onclick="IbbsExport.table('#tablaPagos','historial-pagos')" title="Descargar la planilla completa (según los filtros de arriba) en Excel/CSV">
+      <button class="btn btn-secondary" onclick="exportarPagosExcel()" title="Descargar la planilla completa (según los filtros de arriba) en Excel/CSV">
         <i class="bx bx-download"></i> Excel
       </button>
       <button class="btn btn-secondary" onclick="exportarPagosPDF()" title="Genera un reporte en PDF con el membrete institucional, con los filtros aplicados">
@@ -75,13 +75,14 @@ mysqli_close($con);
     <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionPagos()" style="margin-left:auto;">Cancelar selección</button>
   </div>
   <div class="tbl-wrap">
-    <table id="tablaPagos">
+    <table id="tablaPagos" class="table-stack">
       <thead><tr>
         <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllPagos" onchange="toggleAllPagos(this)" title="Seleccionar todo"></th>
         <th style="text-align:left;">Alumno</th><th>Tipo</th><th style="text-align:left;">Concepto</th><th>Monto</th><th>Comprobante</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead>
       <tbody id="tbodyPagos"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
+  <div id="pagerPagos"></div>
 </div>
 
 <!-- MODAL: registrar cobro -->
@@ -165,6 +166,32 @@ function badgePago(estado){
   return `<span class="badge ${m[estado]||'b-tardanza'}">${l[estado]||estado}</span>`;
 }
 
+// Paginador (20 filas por página) — ver assets/ibbs-paginate.js. Se
+// crea recién la primera vez que se necesita, no acá arriba, porque
+// IbbsPaginate se carga en layout/foot.php, DESPUÉS de este <script>.
+let pagosPager = null;
+let _pagosAll = [];
+
+function filaPago(p){
+  return `<tr>
+    <td style="text-align:center;"><input type="checkbox" class="chkPago" value="${p.id}" onchange="actualizarBarraLotePagos()"></td>
+    <td data-label="Alumno" style="text-align:left;">${h(p.alumno_apellido)}, ${h(p.alumno_nombre)}<br><span style="font-size:.72rem;color:var(--muted);">CI: ${h(p.alumno_cedula)}</span></td>
+    <td data-label="Tipo" style="text-align:center;">${p.tipo==='mensualidad'?'Mensualidad':'Inscripción'}</td>
+    <td data-label="Concepto" style="text-align:left;">${h(p.concepto)}</td>
+    <td data-label="Monto" style="text-align:center;">$${parseFloat(p.monto).toFixed(2)}</td>
+    <td data-label="Comprobante" style="text-align:center;">${p.comprobante?`<button class="btn btn-icon btn-sm btn-secondary" onclick="verComprobantePago('${p.comprobante}')" title="Ver comprobante"><i class="bx bx-receipt"></i></button>`:'—'}</td>
+    <td data-label="Estado" style="text-align:center;">${badgePago(p.estado)}</td>
+    <td data-label="Fecha" style="text-align:center;font-size:.78rem;">${(p.creado_en||'').substring(0,10)}</td>
+    <td data-label="Acciones" class="td-actions">
+      ${p.estado==='pendiente'?`<button class="btn btn-icon btn-sm btn-success" onclick="marcarPagado(${p.id})" title="Marcar pagado"><i class="bx bx-check"></i></button>`:''}
+      ${p.estado==='en_revision'?`
+        <button class="btn btn-icon btn-sm btn-success" onclick="aprobarPago(${p.id})" title="Aprobar"><i class="bx bx-check"></i></button>
+        <button class="btn btn-icon btn-sm btn-danger" onclick="rechazarPago(${p.id})" title="Rechazar"><i class="bx bx-x"></i></button>
+      `:''}
+      ${p.estado!=='pagado'?`<button class="btn btn-icon btn-sm btn-danger" onclick="eliminarPago(${p.id})" title="Eliminar"><i class="bx bx-trash"></i></button>`:''}
+    </td></tr>`;
+}
+
 async function loadPagos(){
   const tipo = document.getElementById('fTipo').value;
   const estado = document.getElementById('fEstado').value;
@@ -172,24 +199,25 @@ async function loadPagos(){
   const tb = document.getElementById('tbodyPagos');
   limpiarSeleccionPagos();
   if(!d?.ok){ tb.innerHTML = `<tr class="empty-row"><td colspan="9">${d?.msg||'Error'}</td></tr>`; return; }
-  if(!d.data.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="9">Sin cobros registrados todavía.</td></tr>'; return; }
-  tb.innerHTML = d.data.map(p => `<tr>
-    <td style="text-align:center;"><input type="checkbox" class="chkPago" value="${p.id}" onchange="actualizarBarraLotePagos()"></td>
-    <td style="text-align:left;">${h(p.alumno_apellido)}, ${h(p.alumno_nombre)}<br><span style="font-size:.72rem;color:var(--muted);">CI: ${h(p.alumno_cedula)}</span></td>
-    <td style="text-align:center;">${p.tipo==='mensualidad'?'Mensualidad':'Inscripción'}</td>
-    <td style="text-align:left;">${h(p.concepto)}</td>
-    <td style="text-align:center;">$${parseFloat(p.monto).toFixed(2)}</td>
-    <td style="text-align:center;">${p.comprobante?`<button class="btn btn-sm btn-secondary" onclick="verComprobantePago('${p.comprobante}')">🧾 Ver</button>`:'—'}</td>
-    <td style="text-align:center;">${badgePago(p.estado)}</td>
-    <td style="text-align:center;font-size:.78rem;">${(p.creado_en||'').substring(0,10)}</td>
-    <td class="td-actions">
-      ${p.estado==='pendiente'?`<button class="btn btn-sm btn-success" onclick="marcarPagado(${p.id})">✓ Marcar pagado</button>`:''}
-      ${p.estado==='en_revision'?`
-        <button class="btn btn-sm btn-success" onclick="aprobarPago(${p.id})">✓ Aprobar</button>
-        <button class="btn btn-sm btn-danger" onclick="rechazarPago(${p.id})">✕ Rechazar</button>
-      `:''}
-      ${p.estado!=='pagado'?`<button class="btn btn-sm btn-danger" onclick="eliminarPago(${p.id})" title="Eliminar">🗑</button>`:''}
-    </td></tr>`).join('');
+  _pagosAll = d.data;
+  if (!pagosPager) {
+    pagosPager = IbbsPaginate.create('pagos', { perPage: 20 });
+    pagosPager.mount(tb, document.getElementById('pagerPagos'));
+    pagosPager.configure({ rowHtml: filaPago, empty: '<tr class="empty-row"><td colspan="9">Sin cobros registrados todavía.</td></tr>' });
+  }
+  pagosPager.setData(_pagosAll);
+}
+
+// IbbsExport.table() lee las filas que están en el DOM en ese momento
+// — con el paginador eso ya no es "todos los cobros filtrados", es
+// solo los 20 de la página visible. Se renderiza el listado completo
+// (ya filtrado por tipo/estado en el servidor) un instante, se
+// exporta, y se vuelve a pintar la página en la que estaba.
+function exportarPagosExcel(){
+  if (!_pagosAll.length) { IbbsExport.table('#tablaPagos','historial-pagos'); return; }
+  document.getElementById('tbodyPagos').innerHTML = _pagosAll.map(filaPago).join('');
+  IbbsExport.table('#tablaPagos','historial-pagos');
+  if (pagosPager) pagosPager.refresh();
 }
 
 function toggleAllPagos(cb){

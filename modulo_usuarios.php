@@ -27,7 +27,7 @@ if($_rol !== 'superadmin'){
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:190px;">
       <input type="text" id="fUsuCedula" data-only="cedula" placeholder="Buscar por cédula…" oninput="filtrarUsuarios()"
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:180px;">
-      <button type="button" class="btn btn-secondary btn-sm" onclick="IbbsExport.table('#tblU','usuarios-ibbs')" title="Descargar esta lista como Excel/CSV">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="exportarUsuariosExcel()" title="Descargar esta lista como Excel/CSV">
         <i class="bx bx-download"></i> Exportar
       </button>
     </div>
@@ -40,7 +40,7 @@ if($_rol !== 'superadmin'){
     <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionUsuarios()" style="margin-left:auto;">Cancelar selección</button>
   </div>
   <div class="tbl-wrap">
-    <table id="tblU">
+    <table id="tblU" class="table-stack">
       <thead>
         <tr>
           <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllUsu" onchange="toggleAllUsuarios(this)" title="Seleccionar todo"></th>
@@ -57,6 +57,7 @@ if($_rol !== 'superadmin'){
       </tbody>
     </table>
   </div>
+  <div id="pagerU"></div>
 </div>
 
 <!-- MODAL CREAR -->
@@ -151,6 +152,36 @@ const ROL_LABEL = {superadmin:'Superadmin',admin:'Admin',profesor:'Profesor'};
 
 document.addEventListener('ibbs:ready', () => loadUsuarios());
 
+// Paginador (20 filas por página) — ver assets/ibbs-paginate.js. Se
+// crea recién la primera vez que se necesita, no acá arriba, porque
+// IbbsPaginate se carga en layout/foot.php, DESPUÉS de este <script>.
+let usuPager = null;
+let _usuariosAll = [];
+
+function filaUsuario(u){
+  const fecha = u.creado_en ? u.creado_en.substring(0,10) : '—';
+  const rolBadge = `<span class="badge ${ROL_BADGE[u.rol]||'b-profesor'}">${ROL_LABEL[u.rol]||u.rol}</span>`;
+  const actBadge = `<span class="badge ${u.activo=='1'?'b-activo':'b-inactivo'}">${u.activo=='1'?'Activo':'Inactivo'}</span>`;
+  return `<tr>
+    <td style="text-align:center;"><input type="checkbox" class="chkUsu" value="${u.id}" onchange="actualizarBarraLoteUsuarios()"></td>
+    <td data-label="Usuario" style="text-align:left;">
+      <div style="display:flex;align-items:center;gap:.6rem;">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--ink2);color:var(--lime);font-family:'DM Serif Display',serif;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${h(u.usuario[0].toUpperCase())}</div>
+        <div><strong style="font-size:.88rem;">${h(u.usuario)}</strong></div>
+      </div>
+    </td>
+    <td data-label="Correo" style="text-align:left;font-size:.82rem;">${h(u.correo)}</td>
+    <td data-label="Rol" style="text-align:center;">${rolBadge}</td>
+    <td data-label="Estado" style="text-align:center;">${actBadge}</td>
+    <td data-label="Registrado" style="text-align:center;font-size:.78rem;color:var(--muted);">${fecha}</td>
+    <td data-label="Acciones" class="td-actions">
+      <button class="btn btn-icon btn-sm btn-primary" onclick="editarUsuario(${u.id},'${hAttr(u.usuario)}','${hAttr(u.correo)}','${u.rol}',${u.activo})" title="Editar"><i class="bx bx-edit"></i></button>
+      <button class="btn btn-icon btn-sm ${u.activo=='1'?'btn-secondary':'btn-success'}" onclick="toggleUsuario(${u.id},this)" title="${u.activo=='1'?'Desactivar':'Activar'}"><i class="bx ${u.activo=='1'?'bx-pause':'bx-play'}"></i></button>
+      <button class="btn btn-icon btn-sm btn-danger" onclick="eliminarUsuario(${u.id},'${hAttr(u.usuario)}')" ${IS_SUPER?'':'disabled title="Solo superadmin"'} title="Eliminar"><i class="bx bx-trash"></i></button>
+    </td>
+  </tr>`;
+}
+
 async function loadUsuarios() {
   const d = await ajax('usuario_list');
   const tb = document.getElementById('tbodyU');
@@ -159,33 +190,24 @@ async function loadUsuarios() {
     tb.innerHTML = '<tr class="empty-row"><td colspan="7">' + (d?.msg || 'Error al cargar') + '</td></tr>';
     return;
   }
-  if (!d.data.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="7">Sin usuarios registrados.</td></tr>';
-    return;
+  _usuariosAll = d.data;
+  if (!usuPager) {
+    usuPager = IbbsPaginate.create('usuarios', { perPage: 20 });
+    usuPager.mount(tb, document.getElementById('pagerU'));
+    usuPager.configure({ rowHtml: filaUsuario, empty: '<tr class="empty-row"><td colspan="7">Sin usuarios registrados.</td></tr>' });
   }
-  tb.innerHTML = d.data.map(u => {
-    const fecha = u.creado_en ? u.creado_en.substring(0,10) : '—';
-    const rolBadge = `<span class="badge ${ROL_BADGE[u.rol]||'b-profesor'}">${ROL_LABEL[u.rol]||u.rol}</span>`;
-    const actBadge = `<span class="badge ${u.activo=='1'?'b-activo':'b-inactivo'}">${u.activo=='1'?'Activo':'Inactivo'}</span>`;
-    return `<tr>
-      <td style="text-align:center;"><input type="checkbox" class="chkUsu" value="${u.id}" onchange="actualizarBarraLoteUsuarios()"></td>
-      <td style="text-align:left;">
-        <div style="display:flex;align-items:center;gap:.6rem;">
-          <div style="width:32px;height:32px;border-radius:50%;background:var(--ink2);color:var(--lime);font-family:'DM Serif Display',serif;font-size:.9rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${h(u.usuario[0].toUpperCase())}</div>
-          <div><strong style="font-size:.88rem;">${h(u.usuario)}</strong></div>
-        </div>
-      </td>
-      <td style="text-align:left;font-size:.82rem;">${h(u.correo)}</td>
-      <td style="text-align:center;">${rolBadge}</td>
-      <td style="text-align:center;">${actBadge}</td>
-      <td style="text-align:center;font-size:.78rem;color:var(--muted);">${fecha}</td>
-      <td class="td-actions">
-        <button class="btn btn-sm btn-primary" onclick="editarUsuario(${u.id},'${hAttr(u.usuario)}','${hAttr(u.correo)}','${u.rol}',${u.activo})">Editar</button>
-        <button class="btn btn-sm ${u.activo=='1'?'btn-secondary':'btn-success'}" onclick="toggleUsuario(${u.id},this)">${u.activo=='1'?'Desactivar':'Activar'}</button>
-        <button class="btn btn-sm btn-danger" onclick="eliminarUsuario(${u.id},'${hAttr(u.usuario)}')" ${IS_SUPER?'':'disabled title="Solo superadmin"'}>Eliminar</button>
-      </td>
-    </tr>`;
-  }).join('');
+  filtrarUsuarios();
+}
+
+// IbbsExport.table() lee las filas que están en el DOM — con el
+// paginador eso ya no es "todos los usuarios", solo los 20 de la
+// página visible. Se renderiza el listado completo un instante, se
+// exporta, y se vuelve a pintar la página en la que estaba.
+function exportarUsuariosExcel(){
+  if (!_usuariosAll.length) { IbbsExport.table('#tblU','usuarios-ibbs'); return; }
+  document.getElementById('tbodyU').innerHTML = _usuariosAll.map(filaUsuario).join('');
+  IbbsExport.table('#tblU','usuarios-ibbs');
+  if (usuPager) usuPager.refresh();
 }
 
 function toggleAllUsuarios(cb){
@@ -302,16 +324,14 @@ function h(s) { const d = document.createElement('div'); d.textContent = String(
 function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
 function filtrarUsuarios() {
+  if (!usuPager) return;
   const qN = (document.getElementById('fUsuNombre')?.value||'').toLowerCase();
   const qC = (document.getElementById('fUsuCedula')?.value||'').toLowerCase();
-  document.querySelectorAll('#tblU tbody tr:not(.empty-row)').forEach(tr => {
-    const txt  = tr.textContent.toLowerCase();
-    const celd = tr.querySelector('td:nth-child(1)')?.textContent.toLowerCase()||'';
-    const mailcol = tr.querySelector('td:nth-child(2)')?.textContent.toLowerCase()||'';
-    const matchN = !qN || txt.includes(qN);
-    const matchC = !qC || txt.includes(qC);
-    tr.style.display = (matchN && matchC) ? '' : 'none';
+  const filtrados = _usuariosAll.filter(u => {
+    const txt = `${u.usuario||''} ${u.correo||''} ${u.rol||''}`.toLowerCase();
+    return (!qN || txt.includes(qN)) && (!qC || txt.includes(qC));
   });
+  usuPager.setData(filtrados);
 }
 
 // ── Tutorial guiado de esta página ──────────────────────────────

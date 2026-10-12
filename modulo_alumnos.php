@@ -12,7 +12,7 @@ if(!in_array($_rol,['superadmin','admin'])){
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem;">
   <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
     <a href="api/export_plantilla.php?tipo=alumnos" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
-    <button class="btn btn-secondary" onclick="IbbsExport.table('#tblA','alumnos-ibbs')" title="Descargar esta lista como Excel/CSV">
+    <button class="btn btn-secondary" onclick="exportarAlumnosExcel()" title="Descargar esta lista como Excel/CSV">
       <i class="bx bx-download"></i> Excel
     </button>
     <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_ALUMNOS)" title="Ver el tutorial de esta página otra vez">
@@ -363,6 +363,17 @@ window.IBBS_TOUR_ALUMNOS = {
   auto: true,
 };
 document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_ALUMNOS));
+
+// IbbsExport.table() lee las filas que están en el DOM en ese momento
+// — con el paginador eso ya no es "todos los alumnos", es solo los 20
+// de la página visible. Se renderiza el listado completo un instante,
+// se exporta, y se vuelve a pintar la página en la que estaba.
+function exportarAlumnosExcel(){
+  if (!_alumnosAll.length) { IbbsExport.table('#tblA','alumnos-ibbs'); return; }
+  document.getElementById('tbodyA').innerHTML = _alumnosAll.map(filaAlumno).join('');
+  IbbsExport.table('#tblA','alumnos-ibbs');
+  if (alumPager) alumPager.refresh();
+}
 
 function filtrarAlumnos() {
   if (!alumPager) return;

@@ -19,7 +19,7 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;flex-wrap:wrap;gap:.6rem;">
   <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
     <a href="api/export_plantilla.php?tipo=docentes" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
-    <button class="btn btn-secondary" onclick="IbbsExport.table('#tblD','docentes-ibbs')" title="Descargar esta lista como Excel/CSV">
+    <button class="btn btn-secondary" onclick="exportarDocentesExcel()" title="Descargar esta lista como Excel/CSV">
       <i class="bx bx-download"></i> Excel
     </button>
     <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_DOCENTES)" title="Ver el tutorial de esta página otra vez">
@@ -48,13 +48,14 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
     <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionDocentes()" style="margin-left:auto;">Cancelar selección</button>
   </div>
   <div class="tbl-wrap">
-    <table id="tblD">
+    <table id="tblD" class="table-stack">
       <thead><tr>
         <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllDoc" onchange="toggleAllDocentes(this)" title="Seleccionar todo"></th>
         <th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Especialidad</th><th>Materias</th><th>Estado</th><th>Acciones</th></tr></thead>
       <tbody id="tbodyD"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
+  <div id="pagerD"></div>
 </div>
 
 <!-- MODAL CREAR -->
@@ -170,6 +171,31 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
 <script>
 document.addEventListener('ibbs:ready', () => loadDocentes());
 
+// Paginador (20 filas por página) — ver assets/ibbs-paginate.js. Se
+// crea recién la primera vez que se necesita, no acá arriba, porque
+// IbbsPaginate se carga en layout/foot.php, DESPUÉS de este <script>.
+let docPager = null;
+let _docentesAll = [];
+
+function filaDocente(r){
+  return `<tr>
+    <td style="text-align:center;"><input type="checkbox" class="chkDoc" value="${r.id}" onchange="actualizarBarraLoteDocentes()"></td>
+    <td data-label="Cédula"><strong>${h(r.cedula)}</strong></td>
+    <td data-label="Nombre">${h(r.apellido)}, ${h(r.nombre)}</td>
+    <td data-label="Correo" style="font-size:.82rem;">${h(r.correo)}</td>
+    <td style="font-size:.82rem;">${h(r.ciudad)||'—'}</td>
+    <td data-label="Especialidad" style="font-size:.82rem;color:var(--muted);">${h(r.especialidad)||'—'}</td>
+    <td data-label="Materias"><span class="badge b-profesor">${r.nm}</span></td>
+    <td data-label="Estado"><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
+    <td data-label="Acciones" class="td-actions">
+      <button class="btn btn-icon btn-sm btn-secondary" onclick="abrirModalAsignar(${r.id}, '${hAttr(r.nombre+' '+r.apellido)}')" style="background:var(--ink);color:var(--lime);" title="Asignar materia"><i class="bx bx-link"></i></button>
+      <button class="btn btn-icon btn-sm btn-secondary" onclick="verPerfil(${r.id})" title="Perfil"><i class="bx bx-user"></i></button>
+      <button class="btn btn-icon btn-sm btn-primary" onclick="editDoc(${r.id})" title="Editar"><i class="bx bx-edit"></i></button>
+      <a class="btn btn-icon btn-sm btn-secondary" href="api/export_constancia.php?tipo=trabajo&docente_id=${r.id}" target="_blank" title="Constancia de Trabajo"><i class="bx bx-file"></i></a>
+      <button class="btn btn-icon btn-sm btn-danger" onclick="delDoc(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')" title="Eliminar"><i class="bx bx-trash"></i></button>
+    </td></tr>`;
+}
+
 async function loadDocentes(){
   const d = await ajax('docente_list');
 
@@ -179,28 +205,13 @@ async function loadDocentes(){
       return;
   }
 
-  const tb = document.getElementById('tbodyD');
-  if(!d.data.length){
-      tb.innerHTML='<tr class="empty-row"><td colspan="9">Sin docentes.</td></tr>';
-      return;
+  _docentesAll = d.data;
+  if (!docPager) {
+    docPager = IbbsPaginate.create('docentes', { perPage: 20 });
+    docPager.mount(document.getElementById('tbodyD'), document.getElementById('pagerD'));
+    docPager.configure({ rowHtml: filaDocente, empty: '<tr class="empty-row"><td colspan="9">Sin docentes.</td></tr>' });
   }
-
-  tb.innerHTML = d.data.map(r => `<tr>
-    <td style="text-align:center;"><input type="checkbox" class="chkDoc" value="${r.id}" onchange="actualizarBarraLoteDocentes()"></td>
-    <td><strong>${h(r.cedula)}</strong></td>
-    <td>${h(r.apellido)}, ${h(r.nombre)}</td>
-    <td style="font-size:.82rem;">${h(r.correo)}</td>
-    <td style="font-size:.82rem;">${h(r.ciudad)||'—'}</td>
-    <td style="font-size:.82rem;color:var(--muted);">${h(r.especialidad)||'—'}</td>
-    <td><span class="badge b-profesor">${r.nm}</span></td>
-    <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
-    <td class="td-actions">
-      <button class="btn btn-sm btn-secondary" onclick="abrirModalAsignar(${r.id}, '${hAttr(r.nombre+' '+r.apellido)}')" style="background:var(--ink);color:var(--lime);">Asignar</button>
-      <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
-      <button class="btn btn-sm btn-primary" onclick="editDoc(${r.id})">Editar</button>
-      <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=trabajo&docente_id=${r.id}" target="_blank" title="Constancia de Trabajo">📄 Trabajo</a>
-      <button class="btn btn-sm btn-danger" onclick="delDoc(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')">Eliminar</button>
-    </td></tr>`).join('');
+  filtrarDocentes();
 }
 
 function generarPasswordDocente(){
@@ -343,14 +354,26 @@ function filterTable(t,q){
     document.querySelectorAll('#'+t+' tbody tr:not(.empty-row)').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none');
 }
 
+// IbbsExport.table() lee las filas que están en el DOM en ese momento
+// — con el paginador eso ya no es "todos los docentes", es solo los
+// 20 de la página visible. Se renderiza el listado completo un
+// instante, se exporta, y se vuelve a pintar la página en la que estaba.
+function exportarDocentesExcel(){
+  if (!_docentesAll.length) { IbbsExport.table('#tblD','docentes-ibbs'); return; }
+  document.getElementById('tbodyD').innerHTML = _docentesAll.map(filaDocente).join('');
+  IbbsExport.table('#tblD','docentes-ibbs');
+  if (docPager) docPager.refresh();
+}
+
 function filtrarDocentes() {
+  if (!docPager) return;
   const qN = (document.getElementById('fDocNombre')?.value||'').toLowerCase();
   const qC = (document.getElementById('fDocCedula')?.value||'').toLowerCase();
-  document.querySelectorAll('#tblD tbody tr:not(.empty-row)').forEach(tr => {
-    const matchN = !qN || tr.textContent.toLowerCase().includes(qN);
-    const matchC = !qC || tr.textContent.toLowerCase().includes(qC);
-    tr.style.display = (matchN && matchC) ? '' : 'none';
-  });
+  const filtrados = _docentesAll.filter(r =>
+    (!qN || `${r.nombre||''} ${r.apellido||''}`.toLowerCase().includes(qN)) &&
+    (!qC || (r.cedula||'').toLowerCase().includes(qC))
+  );
+  docPager.setData(filtrados);
 }
 
 // --- LÓGICA: ASIGNAR MATERIAS ---

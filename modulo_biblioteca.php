@@ -16,7 +16,7 @@ $esAdmin = in_array($_rol,['superadmin','admin']);
     <button class="btn btn-secondary tab-btn" data-tab="compras" onclick="showTab('compras',this)">🧾 Solicitudes de Compra</button>
     <button class="btn btn-secondary tab-btn" data-tab="pago" onclick="showTab('pago',this)">💳 Datos de Pago</button>
     <?php endif; ?>
-    <button class="btn btn-secondary" onclick="IbbsExport.table('#tblLibros','biblioteca-ibbs')" title="Descargar esta lista como Excel/CSV">
+    <button class="btn btn-secondary" onclick="exportarLibrosExcel()" title="Descargar esta lista como Excel/CSV">
       <i class="bx bx-download"></i> Excel
     </button>
     <button class="btn btn-secondary" onclick="IbbsTour.replay(window.IBBS_TOUR_BIBLIOTECA)" title="Ver el tutorial de esta página otra vez">
@@ -26,8 +26,14 @@ $esAdmin = in_array($_rol,['superadmin','admin']);
   <button class="btn btn-primary" onclick="abrirNuevoLibro()" data-tour="bib-nuevo"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo Libro</button>
 </div>
 
-<!-- TAB: CATÁLOGO -->
-<div id="tab-catalogo" class="tab-pane">
+<!-- TAB: CATÁLOGO —
+     display:block explícito porque esta página usa su propio showTab()
+     con estilos inline (no el sistema genérico .tab-pane.active de
+     ibbs.css), pero la regla global ".tab-pane{display:none}" sí le
+     aplica — sin este inline, el catálogo quedaba invisible al cargar
+     la página hasta que el usuario volvía a tocar la pestaña "Catálogo"
+     (que ya aparecía seleccionada), aunque fuera la pestaña por defecto. -->
+<div id="tab-catalogo" class="tab-pane" style="display:block;">
   <div class="card" data-tour="bib-tabla">
     <div class="card-head"><h3><?=$esAdmin?'Todos los libros':'Los libros que subiste'?></h3></div>
     <div id="barraLoteLibros" style="display:none;align-items:center;gap:.5rem;flex-wrap:wrap;background:var(--cream);border-bottom:1px solid var(--border);padding:.6rem 1rem;">
@@ -36,13 +42,14 @@ $esAdmin = in_array($_rol,['superadmin','admin']);
       <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionLibros()" style="margin-left:auto;">Cancelar selección</button>
     </div>
     <div class="tbl-wrap">
-      <table id="tblLibros">
+      <table id="tblLibros" class="table-stack">
         <thead><tr>
           <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllLibros" onchange="toggleAllLibros(this)" title="Seleccionar todo"></th>
           <th></th><th>Título</th><th>Autor</th><th>Categoría</th><th>Precio</th><?php if($esAdmin):?><th>Subido por</th><?php endif;?><th>Estado</th><th>Acciones</th></tr></thead>
         <tbody id="tbodyLibros"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
       </table>
     </div>
+    <div id="pagerLibros"></div>
   </div>
 </div>
 
@@ -133,27 +140,53 @@ function showTab(tab, btn){
 
 document.addEventListener('ibbs:ready', () => loadLibros());
 
+// Paginador (20 filas por página) — ver assets/ibbs-paginate.js. Se
+// crea recién la primera vez que se necesita, no acá arriba, porque
+// IbbsPaginate se carga en layout/foot.php, DESPUÉS de este <script>.
+let librosPager = null;
+let _librosAll = [];
+
+function filaLibro(r){
+  return `<tr>
+    <td style="text-align:center;"><input type="checkbox" class="chkLibro" value="${r.id}" onchange="actualizarBarraLoteLibros()"></td>
+    <td>${r.portada?`<img class="libro-cover" src="${r.portada}">`:'📖'}</td>
+    <td data-label="Título"><strong>${h(r.titulo)}</strong></td>
+    <td data-label="Autor" style="font-size:.82rem;">${h(r.autor||'—')}</td>
+    <td data-label="Categoría" style="font-size:.82rem;color:var(--muted);">${h(r.categoria||'—')}</td>
+    <td data-label="Precio">${parseFloat(r.precio)>0?'$'+parseFloat(r.precio).toFixed(2):'<span class="badge b-presente">Gratis</span>'}</td>
+    <?php if($esAdmin):?><td data-label="Subido por" style="font-size:.78rem;color:var(--muted);">${h(r.creado_por_nombre||'—')}</td><?php endif;?>
+    <td data-label="Estado"><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Visible':'Oculto'}</span></td>
+    <td data-label="Acciones" class="td-actions">
+      <button class="btn btn-icon btn-sm btn-secondary" onclick="verComoDescarga(${r.id})" title="Vista previa"><i class="bx bx-show"></i></button>
+      <button class="btn btn-icon btn-sm btn-primary" onclick="editarLibro(${r.id})" title="Editar"><i class="bx bx-edit"></i></button>
+      <button class="btn btn-icon btn-sm btn-secondary" onclick="toggleLibro(${r.id})" title="${r.activo=='1'?'Ocultar':'Mostrar'}"><i class="bx ${r.activo=='1'?'bx-hide':'bx-show-alt'}"></i></button>
+      <button class="btn btn-icon btn-sm btn-danger" onclick="eliminarLibro(${r.id},'${hAttr(r.titulo)}')" title="Eliminar"><i class="bx bx-trash"></i></button>
+    </td></tr>`;
+}
+
 async function loadLibros(){
   const d = await ajax('libro_list', {}, 'api/biblioteca.php');
   const tb = document.getElementById('tbodyLibros');
   limpiarSeleccionLibros();
   if(!d?.ok){ tb.innerHTML = `<tr class="empty-row"><td colspan="9">${d?.msg||'Error al conectar'}</td></tr>`; return; }
-  if(!d.data.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="9">Sin libros todavía.</td></tr>'; return; }
-  tb.innerHTML = d.data.map(r => `<tr>
-    <td style="text-align:center;"><input type="checkbox" class="chkLibro" value="${r.id}" onchange="actualizarBarraLoteLibros()"></td>
-    <td>${r.portada?`<img class="libro-cover" src="${r.portada}">`:'📖'}</td>
-    <td><strong>${h(r.titulo)}</strong></td>
-    <td style="font-size:.82rem;">${h(r.autor||'—')}</td>
-    <td style="font-size:.82rem;color:var(--muted);">${h(r.categoria||'—')}</td>
-    <td>${parseFloat(r.precio)>0?'$'+parseFloat(r.precio).toFixed(2):'<span class="badge b-presente">Gratis</span>'}</td>
-    <?php if($esAdmin):?><td style="font-size:.78rem;color:var(--muted);">${h(r.creado_por_nombre||'—')}</td><?php endif;?>
-    <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Visible':'Oculto'}</span></td>
-    <td class="td-actions">
-      <button class="btn btn-sm btn-secondary" onclick="verComoDescarga(${r.id})">👁 Vista previa</button>
-      <button class="btn btn-sm btn-primary" onclick="editarLibro(${r.id})">Editar</button>
-      <button class="btn btn-sm btn-secondary" onclick="toggleLibro(${r.id})">${r.activo=='1'?'Ocultar':'Mostrar'}</button>
-      <button class="btn btn-sm btn-danger" onclick="eliminarLibro(${r.id},'${hAttr(r.titulo)}')">Eliminar</button>
-    </td></tr>`).join('');
+  _librosAll = d.data;
+  if (!librosPager) {
+    librosPager = IbbsPaginate.create('libros', { perPage: 20 });
+    librosPager.mount(tb, document.getElementById('pagerLibros'));
+    librosPager.configure({ rowHtml: filaLibro, empty: '<tr class="empty-row"><td colspan="9">Sin libros todavía.</td></tr>' });
+  }
+  librosPager.setData(_librosAll);
+}
+
+// IbbsExport.table() lee las filas que están en el DOM — con el
+// paginador eso ya no es "todos los libros", solo los 20 de la
+// página visible. Se renderiza el listado completo un instante, se
+// exporta, y se vuelve a pintar la página en la que estaba.
+function exportarLibrosExcel(){
+  if (!_librosAll.length) { IbbsExport.table('#tblLibros','biblioteca-ibbs'); return; }
+  document.getElementById('tbodyLibros').innerHTML = _librosAll.map(filaLibro).join('');
+  IbbsExport.table('#tblLibros','biblioteca-ibbs');
+  if (librosPager) librosPager.refresh();
 }
 function h(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
 function hAttr(s){ return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }

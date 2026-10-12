@@ -72,7 +72,7 @@ if($_rol !== 'superadmin'){
   </div>
 
   <div class="tbl-wrap" style="padding:0;">
-    <table id="tblHist">
+    <table id="tblHist" class="table-stack">
       <thead>
         <tr>
           <th style="width:36px;padding:.6rem .7rem;">
@@ -232,15 +232,15 @@ function render() {
           onchange="toggleRow(${ri},this.checked)"
           style="width:14px;height:14px;cursor:pointer;accent-color:var(--ink);">
       </td>
-      <td>
+      <td data-label="Tipo">
         <span class="tipo-badge" style="background:${ts.bg};color:${ts.color};">${ts.label}</span>
       </td>
-      <td><span style="font-weight:600;font-size:.84rem;">${r.persona||'—'}</span></td>
-      <td style="font-size:.8rem;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.detalle||''}">${r.detalle||'—'}</td>
-      <td style="text-align:center;">
+      <td data-label="Persona"><span style="font-weight:600;font-size:.84rem;">${r.persona||'—'}</span></td>
+      <td data-label="Detalle" style="font-size:.8rem;color:var(--muted);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.detalle||''}">${r.detalle||'—'}</td>
+      <td data-label="Valor" style="text-align:center;">
         ${r.valor ? `<strong style="font-size:.82rem;color:${r.valor_color||'var(--ink)'};">${r.valor}</strong>` : '<span style="color:var(--muted);">—</span>'}
       </td>
-      <td style="text-align:center;font-size:.78rem;color:var(--muted);white-space:nowrap;">${r.fecha||'—'}</td>
+      <td data-label="Fecha" style="text-align:center;font-size:.78rem;color:var(--muted);white-space:nowrap;">${r.fecha||'—'}</td>
     </tr>`;
   }).join('');
 
