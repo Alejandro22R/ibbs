@@ -9,6 +9,14 @@ if(!in_array($_rol,['superadmin','admin'])){
     echo '<script>window.location="index.php";</script>'; exit;
 }
 ?>
+<style>
+/* Con el pensum oficial la tabla pasó de 5 a 71 filas y de columnas con
+   texto completo a 9 — acá se aprieta un poco más el padding/tamaño
+   para que en una pantalla de laptop normal (no solo 4K) no haga
+   falta mover el scroll horizontal para llegar a Acciones. */
+#tblM th, #tblM td { padding: .55rem .6rem; }
+#tblM { font-size: .8rem; }
+</style>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;gap:.6rem;flex-wrap:wrap;">
   <a href="api/export_plantilla.php?tipo=materias" target="_blank" class="btn btn-secondary" style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;">&#128424; Exportar PDF</a>
   <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
@@ -18,11 +26,6 @@ if(!in_array($_rol,['superadmin','admin'])){
     <button class="btn btn-secondary" onclick="abrirGestorPeriodos()" title="Los años/semestres en los que se dictan las materias — útil para ordenar el historial académico" data-tour="mat-periodos">
       <i class="bx bx-calendar"></i> Períodos
     </button>
-    <?php if($_rol==='superadmin'): ?>
-    <button class="btn btn-danger" onclick="abrirCargarPensum()" title="Borra todas las materias actuales y las reemplaza por el pensum oficial, en orden">
-      <i class="bx bx-list-ol"></i> Cargar Pensum Oficial
-    </button>
-    <?php endif; ?>
     <button class="btn btn-primary" onclick="openModal('mCreateMateria')" data-tour="mat-nueva">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Nueva Materia
@@ -41,11 +44,12 @@ if(!in_array($_rol,['superadmin','admin'])){
     </div>
   </div>
   <div class="tbl-wrap">
-    <table id="tblM">
-      <thead><tr><th>Orden</th><th>Código</th><th>Materia</th><th>Período</th><th>Horario</th><th>Estado</th><th>Inscripción</th><th>Aula Virtual</th><th>Prerequisito</th><th>Docentes</th><th>Alumnos</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyM"><tr class="empty-row"><td colspan="12"><span class="spin"></span></td></tr></tbody>
+    <table id="tblM" class="table-stack">
+      <thead><tr><th>Código</th><th>Materia</th><th>Programación</th><th>Estado</th><th>Inscripción</th><th>Aula Virtual</th><th>Prerequisito</th><th>Personas</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyM"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
+  <div id="pagerM"></div>
 </div>
 
 <!-- MODAL CREAR -->
@@ -247,26 +251,6 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
 </div>
 
-<!-- MODAL: cargar pensum oficial (borra y reemplaza TODAS las materias) -->
-<div class="modal-backdrop" id="mCargarPensum">
-  <div class="modal">
-    <div class="modal-head"><h3>⚠️ Cargar Pensum Oficial</h3>
-      <button class="modal-close" onclick="closeModal('mCargarPensum')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:.85rem;color:var(--ink);line-height:1.6;margin-bottom:1rem;">
-        Esto va a <strong>borrar TODAS las materias actuales</strong> — junto con todas sus inscripciones, notas, docentes asignados, Aula Virtual, tareas y todo lo que cuelgue de ellas — y las va a reemplazar por las 71 materias del pensum oficial (Lcdo. en Teología, mención Ministerio Pastoral), numeradas en el orden exacto en que se tienen que cursar. Esta acción <strong>no se puede deshacer</strong>.
-      </p>
-      <p style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem;">Para confirmar, escribí exactamente: <code>BORRAR TODO</code></p>
-      <input type="text" id="confirmarPensumTexto" placeholder="BORRAR TODO" style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;">
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-secondary" onclick="closeModal('mCargarPensum')">Cancelar</button>
-      <button class="btn btn-danger" id="btnConfirmarPensum" onclick="confirmarCargarPensum()">Sí, borrar y cargar el pensum</button>
-    </div>
-  </div>
-</div>
-
 <script>
 function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
 function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
@@ -352,41 +336,62 @@ function estadoBadge(e){
     return `<span class="badge ${m[e]||'b-tardanza'}">${l[e]||e}</span>`; 
 }
 
-async function loadMaterias(){
-  const d=await ajax('materia_list'); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="12">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
-  const tb=document.getElementById('tbodyM');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="12">Sin materias.</td></tr>';return;}
-  tb.innerHTML=d.data.map(m=>`<tr>
-    <td style="text-align:center;color:var(--muted);font-size:.82rem;">${m.orden!==null?m.orden:'—'}</td>
-    <td><strong>${h(m.codigo)}</strong></td><td>${h(m.nombre)}</td>
-    <td style="font-size:.79rem;color:var(--muted);">${m.periodo_nombre||'—'}</td>
-    <td style="font-size:.79rem;color:var(--muted);">${m.dias||'—'} ${m.hora_inicio?m.hora_inicio.substring(0,5):''}${m.hora_fin?'–'+m.hora_fin.substring(0,5):''}</td>
-    <td>${estadoBadge(m.estado||'en_curso')}</td>
-    <td>
+// Paginador (20 filas por página) — ver assets/ibbs-paginate.js. Se
+// guarda también el array completo (_materiasAll) para que el buscador
+// de nombre/código filtre sobre TODO el listado, no solo la página
+// visible, y vuelva a paginar el resultado filtrado.
+// IbbsPaginate se carga en layout/foot.php, DESPUÉS de este <script> —
+// no se puede crear el paginador acá arriba (ver el comentario de más
+// arriba sobre 'ibbs:ready' y el mismo problema con ajax()); se crea
+// recién adentro de loadMaterias(), la primera vez que se necesita.
+let matPager = null;
+let _materiasAll = [];
+
+function filaMateria(m){
+  const horario = `${m.dias||'—'} ${m.hora_inicio?m.hora_inicio.substring(0,5):''}${m.hora_fin?'–'+m.hora_fin.substring(0,5):''}`.trim();
+  return `<tr>
+    <td data-label="Código"><span style="color:var(--muted);font-size:.72rem;">${m.orden!==null?'#'+m.orden+' · ':''}</span><strong>${h(m.codigo)}</strong></td>
+    <td data-label="Materia">${h(m.nombre)}</td>
+    <td data-label="Programación" style="font-size:.79rem;color:var(--muted);">${m.periodo_nombre||'Sin período'}<br>${horario}</td>
+    <td data-label="Estado">${estadoBadge(m.estado||'en_curso')}</td>
+    <td data-label="Inscripción">
       <button class="btn btn-sm ${m.inscripcion_abierta==1?'btn-success':'btn-secondary'}" onclick="toggleInscripcion(${m.id})" style="font-size:.7rem;" title="Alumnos regulares pueden autoinscribirse cuando está abierta">
         ${m.inscripcion_abierta==1?'🔓 Abierta':'🔒 Cerrada'}
       </button>
     </td>
-    <td>
+    <td data-label="Aula Virtual">
       <button class="btn btn-sm ${m.aula_virtual_presencial==1?'btn-success':'btn-secondary'}" onclick="toggleAulaPresencial(${m.id})" style="font-size:.7rem;" title="Mientras esté activa, los alumnos presenciales de esta materia también entran al Aula Virtual (los del diplomado/virtual ya entran siempre)">
-        ${m.aula_virtual_presencial==1?'🎓 Activa para presenciales':'— Solo diplomado'}
+        ${m.aula_virtual_presencial==1?'🎓 Activa':'— Diplomado'}
       </button>
     </td>
-    <td>
+    <td data-label="Prerequisito">
       <button class="btn btn-sm ${m.prerequisito_libre==1?'btn-success':'btn-secondary'}" onclick="togglePrerequisitoLibre(${m.id})" style="font-size:.7rem;" title="Mientras esté 'Libre', cualquier alumno regular puede inscribirse en esta materia sin importar el orden del pensum">
         ${m.prerequisito_libre==1?'🔓 Libre':(m.orden!==null?'🔒 Requiere anteriores':'— Sin secuencia')}
       </button>
     </td>
-    <td><span class="badge b-profesor">${m.nd}</span></td>
-    <td><span class="badge b-alumno">${m.na}</span></td>
-    <td class="td-actions">
-      <a class="btn btn-sm btn-secondary" href="modulo_aula.php?materia_id=${m.id}" title="Aula Virtual">🎓 Aula</a>
-      <a class="btn btn-sm btn-secondary" href="modulo_grabaciones.php?materia_id=${m.id}" title="Clases Grabadas">🎬 Grabadas</a>
-      <a class="btn btn-sm btn-secondary" href="modulo_vivo.php?materia_id=${m.id}" title="Clases en Vivo">🔴 En Vivo</a>
-      <button class="btn btn-sm btn-success" onclick="toggleEstado(${m.id},'${m.estado||'en_curso'}')" style="font-size:.72rem;">${m.estado==='culminada'?'↺ Reabrir':'✓ Culminar'}</button>
-      <button class="btn btn-sm btn-primary" onclick="editM(${m.id})">Editar</button>
-      <button class="btn btn-sm btn-danger" onclick="delM(${m.id},'${hAttr(m.nombre)}')">Eliminar</button>
-    </td></tr>`).join('');
+    <td data-label="Personas" style="text-align:center;white-space:nowrap;">
+      <span class="badge b-profesor" title="Docentes asignados"><i class="bx bx-chalkboard" style="vertical-align:middle;"></i> ${m.nd}</span>
+      <span class="badge b-alumno" title="Alumnos inscritos"><i class="bx bx-group" style="vertical-align:middle;"></i> ${m.na}</span>
+    </td>
+    <td data-label="Acciones" class="td-actions">
+      <a class="btn btn-icon btn-sm btn-secondary" href="modulo_aula.php?materia_id=${m.id}" title="Aula Virtual"><i class="bx bx-chalkboard"></i></a>
+      <a class="btn btn-icon btn-sm btn-secondary" href="modulo_grabaciones.php?materia_id=${m.id}" title="Clases Grabadas"><i class="bx bx-video"></i></a>
+      <a class="btn btn-icon btn-sm btn-secondary" href="modulo_vivo.php?materia_id=${m.id}" title="Clases en Vivo"><i class="bx bx-broadcast"></i></a>
+      <button class="btn btn-icon btn-sm btn-success" onclick="toggleEstado(${m.id},'${m.estado||'en_curso'}')" title="${m.estado==='culminada'?'Reabrir':'Culminar'}"><i class="bx ${m.estado==='culminada'?'bx-rotate-left':'bx-check-circle'}"></i></button>
+      <button class="btn btn-icon btn-sm btn-primary" onclick="editM(${m.id})" title="Editar"><i class="bx bx-edit"></i></button>
+      <button class="btn btn-icon btn-sm btn-danger" onclick="delM(${m.id},'${hAttr(m.nombre)}')" title="Eliminar"><i class="bx bx-trash"></i></button>
+    </td></tr>`;
+}
+
+async function loadMaterias(){
+  const d=await ajax('materia_list'); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="9">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  _materiasAll = d.data;
+  if (!matPager) {
+    matPager = IbbsPaginate.create('materias', { perPage: 20 });
+    matPager.mount(document.getElementById('tbodyM'), document.getElementById('pagerM'));
+    matPager.configure({ rowHtml: filaMateria, empty: '<tr class="empty-row"><td colspan="9">Sin materias.</td></tr>' });
+  }
+  filtrarMaterias();
 }
 
 async function submitCreate(e){
@@ -444,20 +449,6 @@ async function togglePrerequisitoLibre(id){
   if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
 }
 
-function abrirCargarPensum(){
-  document.getElementById('confirmarPensumTexto').value='';
-  openModal('mCargarPensum');
-}
-async function confirmarCargarPensum(){
-  const texto=document.getElementById('confirmarPensumTexto').value.trim();
-  if(texto!=='BORRAR TODO'){ Ibbs.error('Tenés que escribir exactamente "BORRAR TODO" para confirmar.'); return; }
-  const btn=document.getElementById('btnConfirmarPensum'); btn.disabled=true; const txt=btn.textContent; btn.textContent='Cargando…';
-  const d=await ajax('pensum_cargar_oficial',{confirmar:texto});
-  btn.disabled=false; btn.textContent=txt;
-  if(d?.ok){ toast(d.msg); closeModal('mCargarPensum'); loadMaterias(); }
-  else Ibbs.error(d?.msg||'Error al cargar el pensum.');
-}
-
 // ----------------------------------------------------
 // Renderizado exacto de tablas (Docentes y Alumnos)
 // ----------------------------------------------------
@@ -501,13 +492,14 @@ async function delM(id,n){
 function filterTable(tbl,q){document.querySelectorAll('#'+tbl+' tbody tr:not(.empty-row)').forEach(r=>r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none');}
 
 function filtrarMaterias() {
+  if (!matPager) return;
   const qN = (document.getElementById('fMatNombre')?.value||'').toLowerCase();
   const qC = (document.getElementById('fMatCodigo')?.value||'').toLowerCase();
-  document.querySelectorAll('#tblM tbody tr:not(.empty-row)').forEach(tr => {
-    const matchN = !qN || tr.textContent.toLowerCase().includes(qN);
-    const matchC = !qC || tr.textContent.toLowerCase().includes(qC);
-    tr.style.display = (matchN && matchC) ? '' : 'none';
-  });
+  const filtradas = _materiasAll.filter(m =>
+    (!qN || (m.nombre||'').toLowerCase().includes(qN)) &&
+    (!qC || (m.codigo||'').toLowerCase().includes(qC))
+  );
+  matPager.setData(filtradas);
 }
 
 // ══════════════════════════════════════════════════════════════

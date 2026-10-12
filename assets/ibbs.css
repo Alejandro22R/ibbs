@@ -459,6 +459,26 @@ tr:hover td { background:rgba(46,204,16,.045); }
 .td-actions { display:flex; gap:.4rem; }
 .empty-row td { text-align:center; padding:2.5rem; color:var(--muted); font-style:italic; font-size:.84rem; }
 
+/* ── Botón de acción solo-ícono — para columnas de Acciones con muchos
+   botones (ej. Materias: Aula/Grabadas/En Vivo/Culminar/Editar/Eliminar)
+   que antes obligaban a hacer scroll horizontal. El texto queda en el
+   title (tooltip); el ícono ya comunica a dónde lleva cada uno. ── */
+.btn-icon { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; padding:0; border-radius:7px; flex-shrink:0; }
+.btn-icon i { font-size:15px; line-height:1; }
+.btn-icon svg { width:14px; height:14px; }
+
+/* ── Paginador reusable (ver assets/ibbs-paginate.js) — listas largas
+   (Materias con 71 filas y creciendo, Alumnos, etc.) ya no se resuelven
+   con scroll infinito: se cortan en páginas de a N filas. ── */
+.ibbs-pager { display:flex; justify-content:space-between; align-items:center; padding:.8rem 1rem; flex-wrap:wrap; gap:.6rem; border-top:1px solid var(--border); }
+.ibbs-pager-info { font-size:.78rem; color:var(--muted); }
+.ibbs-pager-btns { display:flex; gap:.3rem; flex-wrap:wrap; }
+.ibbs-pg-btn { min-width:30px; height:30px; padding:0 .4rem; border:1px solid var(--border); background:var(--paper); border-radius:7px; font-size:.78rem; cursor:pointer; color:var(--ink); transition:background .15s,color .15s; }
+.ibbs-pg-btn:hover:not(:disabled) { background:var(--cream); }
+.ibbs-pg-btn.active { background:var(--ink); color:var(--lime); border-color:var(--ink); font-weight:700; }
+.ibbs-pg-btn:disabled { opacity:.4; cursor:default; }
+.ibbs-pg-btn i { font-size:14px; vertical-align:middle; }
+
 /* ══ BADGES ══════════════════════════════════════════════════ */
 .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.67rem; font-weight:700; text-transform:uppercase; letter-spacing:.5px; border:1px solid transparent; }
 .b-presente   { background:rgba(22,163,74,.1);  color:#15803d; border-color:rgba(22,163,74,.2); }
@@ -647,11 +667,26 @@ tr:hover td { background:rgba(46,204,16,.045); }
   .card-head     { flex-wrap: wrap; gap: .6rem; align-items: flex-start; }
   .card-head > div:last-child { width: 100%; }
 
-  /* Tablas — scroll horizontal */
+  /* Tablas — scroll horizontal (tablas que no pidieron .table-stack) */
   .tbl-wrap      { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table          { min-width: 540px; font-size: .76rem; }
   .td-actions    { flex-wrap: nowrap; }
   .td-actions .btn-sm { padding: .3rem .55rem; font-size: .72rem; }
+
+  /* Tablas con .table-stack — en vez de obligar a mover el dedo hacia
+     los lados, cada fila se vuelve una tarjeta vertical (como una app
+     nativa): un bloque por fila, un renglón por columna, con el
+     nombre de la columna (data-label en cada <td>) a la izquierda y el
+     valor a la derecha. Nada de ancho mínimo ni scroll horizontal. */
+  table.table-stack { min-width: 0; width: 100%; }
+  table.table-stack thead { display: none; }
+  table.table-stack, table.table-stack tbody, table.table-stack tr, table.table-stack td { display: block; width: 100%; }
+  table.table-stack tr:not(.empty-row) { border: 1px solid var(--border); border-radius: 12px; margin-bottom: .7rem; background: var(--paper); overflow: hidden; }
+  table.table-stack tr:not(.empty-row) td { display: flex; justify-content: space-between; align-items: center; gap: .7rem; padding: .55rem .8rem; border-bottom: 1px dashed var(--border); text-align: right; }
+  table.table-stack tr:not(.empty-row) td:last-child { border-bottom: none; }
+  table.table-stack tr:not(.empty-row) td[data-label]::before { content: attr(data-label); font-weight: 700; font-size: .66rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); text-align: left; flex-shrink: 0; }
+  table.table-stack tr:not(.empty-row) td:not([data-label]) { display: none; }
+  table.table-stack .td-actions { justify-content: flex-end; flex-wrap: wrap; gap: .35rem; }
 
   /* Modales full width */
   .modal         { max-width: 96vw; border-radius: 14px; margin: 0; }

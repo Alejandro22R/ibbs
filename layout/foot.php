@@ -9,6 +9,8 @@
 <script src="assets/ibbs-password-toggle.js"></script>
 <!-- Exportar tablas a CSV (opcional, por tabla) -->
 <script src="assets/ibbs-export.js"></script>
+<!-- Paginador reusable para tablas largas (Materias, Alumnos...) -->
+<script src="assets/ibbs-paginate.js"></script>
 <!-- Paleta de comandos (Ctrl/Cmd+K) y hoja de atajos ("?") -->
 <script src="assets/ibbs-shortcuts.js"></script>
 <!-- Tutorial guiado (mismo motor que usan los portales de alumno/docente) -->
