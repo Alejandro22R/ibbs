@@ -141,6 +141,28 @@ if ($alumno && !empty($alumno['regular'])) {
     while ($row = mysqli_fetch_assoc($rd)) $materias_disponibles[] = $row;
 }
 
+// Orden secuencial del pensum: de las materias que quedaron arriba como
+// "disponibles" (abiertas, no inscrito, no vista antes), separamos las
+// que además cumplen el prerequisito (ya aprobó, por nombre, todas las
+// de orden menor) de las que están abiertas pero todavía bloqueadas por
+// orden — a estas últimas se les muestra igual, mencionando qué le
+// falta aprobar primero, para que el alumno entienda por qué no puede
+// inscribirse (en vez de simplemente no mostrarlas y que se pregunte
+// por qué no aparecen).
+$materias_bloqueadas_prerequisito = [];
+if ($materias_disponibles) {
+    $candidatas = $materias_disponibles;
+    $materias_disponibles = [];
+    foreach ($candidatas as $cand) {
+        if (materia_cumple_prerequisito($con, $alumno_id, (int)$cand['id'])) {
+            $materias_disponibles[] = $cand;
+        } else {
+            $cand['faltan'] = materia_prerequisitos_faltantes($con, $alumno_id, (int)$cand['id']);
+            $materias_bloqueadas_prerequisito[] = $cand;
+        }
+    }
+}
+
 // Obtener tareas y entregas
 $query_tareas = "SELECT t.*, m.nombre as materia_nombre, e.id as entrega_id, e.nota, e.observacion
                  FROM tareas t
@@ -587,8 +609,26 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             </div>
                         </div>
                         <?php endif; ?>
+                        <?php if ($materias_bloqueadas_prerequisito): ?>
+                        <div class="mb-4">
+                            <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider mb-2">Materias que todavía no podés cursar (te falta aprobar antes)</div>
+                            <div class="flex flex-col gap-2">
+                                <?php foreach ($materias_bloqueadas_prerequisito as $bq): ?>
+                                <div class="bg-ibbs-cream border border-ibbs-border rounded-lg px-3 py-2">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="text-sm font-bold text-ibbs-ink"><?= htmlspecialchars($bq['nombre']) ?></div>
+                                        <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-ink/5 text-ibbs-muted whitespace-nowrap">🔒 Bloqueada</span>
+                                    </div>
+                                    <?php if ($bq['faltan']): ?>
+                                    <div class="text-xs text-ibbs-muted mt-1">Tenés que aprobar primero: <?= htmlspecialchars(implode(', ', $bq['faltan'])) ?></div>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
                         <?php if (empty($materias_disponibles)): ?>
-                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a), con una solicitud pendiente, o ya registrado(a) en todas las disponibles.</p>
+                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a), con una solicitud pendiente, o ya registrado(a) o bloqueado(a) por orden del pensum en todas las disponibles.</p>
                         <?php else: ?>
                         <div class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 mb-3 text-xs text-ibbs-ink flex items-start gap-2">
                             <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>

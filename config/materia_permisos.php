@@ -68,6 +68,76 @@ if (!function_exists('materia_puede_ver_aula')) {
     }
 }
 
+if (!function_exists('materia_cumple_prerequisito')) {
+    /**
+     * Orden secuencial del pensum ("no le puede aparecer desbloqueada
+     * una materia más adelante si no ha visto la de atrás"). Una
+     * materia con materias.orden definido solo queda disponible para
+     * un alumno si ya aprobó (nota_final>=15, por NOMBRE — sin importar
+     * en qué período ni bajo qué materia_id la cursó, igual que la
+     * exclusión de materias_disponibles en portal_alumno.php) TODAS las
+     * materias con un orden menor. Dos formas de saltarse esto, ambas
+     * decisión de administración: materias.prerequisito_libre=1 (abre
+     * esa materia para todo el mundo, sin importar el orden) o una fila
+     * en materia_desbloqueos para ese alumno+materia en particular
+     * (p.ej. reprobó pero el administrador decidió dejarlo avanzar, o
+     * se lo adelantó a una materia de más nivel).
+     */
+    function materia_cumple_prerequisito($con, $alumno_id, $materia_id) {
+        $st = mysqli_prepare($con, "SELECT orden, prerequisito_libre FROM materias WHERE id=? LIMIT 1");
+        mysqli_stmt_bind_param($st, 'i', $materia_id);
+        mysqli_stmt_execute($st);
+        $m = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+        if (!$m) return false;
+        if ($m['orden'] === null) return true;
+        if ((int)$m['prerequisito_libre'] === 1) return true;
+
+        $st2 = mysqli_prepare($con, "SELECT 1 FROM materia_desbloqueos WHERE alumno_id=? AND materia_id=? LIMIT 1");
+        mysqli_stmt_bind_param($st2, 'ii', $alumno_id, $materia_id);
+        mysqli_stmt_execute($st2);
+        if (mysqli_fetch_row(mysqli_stmt_get_result($st2))) return true;
+
+        $orden = (int)$m['orden'];
+        $totalPrevias = (int)(mysqli_fetch_assoc(mysqli_query($con, "SELECT COUNT(DISTINCT LOWER(nombre)) c FROM materias WHERE orden IS NOT NULL AND orden < $orden"))['c'] ?? 0);
+        if ($totalPrevias === 0) return true;
+
+        $st3 = mysqli_prepare($con, "SELECT COUNT(DISTINCT LOWER(m2.nombre)) c FROM materia_alumno ma
+                                      JOIN materias m2 ON m2.id = ma.materia_id
+                                      WHERE ma.alumno_id=? AND ma.nota_final>=15
+                                      AND LOWER(m2.nombre) IN (SELECT LOWER(m3.nombre) FROM materias m3 WHERE m3.orden IS NOT NULL AND m3.orden < ?)");
+        mysqli_stmt_bind_param($st3, 'ii', $alumno_id, $orden);
+        mysqli_stmt_execute($st3);
+        $aprobadas = (int)(mysqli_fetch_assoc(mysqli_stmt_get_result($st3))['c'] ?? 0);
+        return $aprobadas >= $totalPrevias;
+    }
+}
+
+if (!function_exists('materia_prerequisitos_faltantes')) {
+    /** Nombres de las materias anteriores (por orden) que al alumno todavía le faltan aprobar — para explicarle por qué una materia aparece bloqueada. */
+    function materia_prerequisitos_faltantes($con, $alumno_id, $materia_id) {
+        $st = mysqli_prepare($con, "SELECT orden FROM materias WHERE id=? LIMIT 1");
+        mysqli_stmt_bind_param($st, 'i', $materia_id);
+        mysqli_stmt_execute($st);
+        $m = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+        if (!$m || $m['orden'] === null) return [];
+        $orden = (int)$m['orden'];
+        $st2 = mysqli_prepare($con, "SELECT MIN(m3.nombre) nombre, MIN(m3.orden) ord FROM materias m3
+                                      WHERE m3.orden IS NOT NULL AND m3.orden < ?
+                                      AND LOWER(m3.nombre) NOT IN (
+                                          SELECT LOWER(m2.nombre) FROM materia_alumno ma
+                                          JOIN materias m2 ON m2.id = ma.materia_id
+                                          WHERE ma.alumno_id = ? AND ma.nota_final>=15
+                                      )
+                                      GROUP BY LOWER(m3.nombre) ORDER BY ord");
+        mysqli_stmt_bind_param($st2, 'ii', $orden, $alumno_id);
+        mysqli_stmt_execute($st2);
+        $res = mysqli_stmt_get_result($st2);
+        $out = [];
+        while ($r = mysqli_fetch_assoc($res)) $out[] = $r['nombre'];
+        return $out;
+    }
+}
+
 if (!function_exists('materias_asignadas')) {
     /**
      * "Mis materias" para los selectores de cada módulo (Aula, Clases

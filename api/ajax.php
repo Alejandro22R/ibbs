@@ -117,7 +117,7 @@ if($action==='materia_list'){
     mysqli_query($con,"ALTER TABLE materias ADD COLUMN IF NOT EXISTS aula_virtual_presencial TINYINT(1) DEFAULT 0");
     $r=mysqli_query($con,"
         SELECT m.id,m.nombre,m.codigo,m.dias,m.hora_inicio,m.hora_fin,m.estado,m.activo,m.inscripcion_abierta,
-               m.aula_virtual_presencial,
+               m.aula_virtual_presencial,m.orden,m.prerequisito_libre,
                m.periodo_id,p.nombre periodo_nombre,
                COUNT(DISTINCT md.docente_id) nd,
                COUNT(DISTINCT ma.alumno_id) na,
@@ -126,7 +126,7 @@ if($action==='materia_list'){
         LEFT JOIN materia_docente md ON md.materia_id=m.id
         LEFT JOIN materia_alumno  ma ON ma.materia_id=m.id
         LEFT JOIN periodos p ON p.id=m.periodo_id
-        GROUP BY m.id ORDER BY m.nombre");
+        GROUP BY m.id ORDER BY (m.orden IS NULL), m.orden, m.nombre");
     $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
     echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
@@ -137,13 +137,14 @@ if($action==='materia_create'){
     $d=trim($_POST['descripcion']??''); $dias=trim($_POST['dias']??'');
     $hi=trim($_POST['hora_inicio']??'')?:null; $hf=trim($_POST['hora_fin']??'')?:null;
     $pid=(int)($_POST['periodo_id']??0)?:null;
+    $orden=trim($_POST['orden']??'')!==''?(int)$_POST['orden']:null;
     if(!$n||!$c){echo json_encode(['ok'=>false,'msg'=>'Nombre y código requeridos.']);exit;}
     $st=mysqli_prepare($con,"SELECT id FROM materias WHERE codigo=?");
     mysqli_stmt_bind_param($st,'s',$c); mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
     if(mysqli_stmt_num_rows($st)){echo json_encode(['ok'=>false,'msg'=>'Código ya existe.']);exit;}
     mysqli_stmt_close($st);
-    $st=mysqli_prepare($con,"INSERT INTO materias(nombre,codigo,descripcion,dias,hora_inicio,hora_fin,periodo_id) VALUES(?,?,?,?,?,?,?)");
-    mysqli_stmt_bind_param($st,'ssssssi',$n,$c,$d,$dias,$hi,$hf,$pid);
+    $st=mysqli_prepare($con,"INSERT INTO materias(nombre,codigo,descripcion,dias,hora_inicio,hora_fin,periodo_id,orden) VALUES(?,?,?,?,?,?,?,?)");
+    mysqli_stmt_bind_param($st,'ssssssii',$n,$c,$d,$dias,$hi,$hf,$pid,$orden);
     if(mysqli_stmt_execute($st)){
         echo json_encode(['ok'=>true,'msg'=>'Materia creada.','id'=>mysqli_insert_id($con)]);
     } else {
@@ -159,8 +160,9 @@ if($action==='materia_update'){
     $d=trim($_POST['descripcion']??''); $dias=trim($_POST['dias']??'');
     $hi=trim($_POST['hora_inicio']??'')?:null; $hf=trim($_POST['hora_fin']??'')?:null;
     $pid=(int)($_POST['periodo_id']??0)?:null;
-    $st=mysqli_prepare($con,"UPDATE materias SET nombre=?,codigo=?,descripcion=?,dias=?,hora_inicio=?,hora_fin=?,periodo_id=? WHERE id=?");
-    mysqli_stmt_bind_param($st,'ssssssii',$n,$c,$d,$dias,$hi,$hf,$pid,$id); mysqli_stmt_execute($st);
+    $orden=trim($_POST['orden']??'')!==''?(int)$_POST['orden']:null;
+    $st=mysqli_prepare($con,"UPDATE materias SET nombre=?,codigo=?,descripcion=?,dias=?,hora_inicio=?,hora_fin=?,periodo_id=?,orden=? WHERE id=?");
+    mysqli_stmt_bind_param($st,'ssssssiii',$n,$c,$d,$dias,$hi,$hf,$pid,$orden,$id); mysqli_stmt_execute($st);
     echo json_encode(['ok'=>true,'msg'=>'Actualizada.']); exit;
 }
 if($action==='materia_set_estado'){
@@ -198,6 +200,122 @@ if($action==='materia_toggle_aula_presencial'){
     $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT aula_virtual_presencial FROM materias WHERE id=$id"));
     log_audit($con,$uid,'MATERIA_AULA_PRESENCIAL_TOGGLE',"ID=$id activa=".($f['aula_virtual_presencial']??'?'));
     echo json_encode(['ok'=>true,'msg'=>$f && (int)$f['aula_virtual_presencial']===1 ? 'Aula Virtual habilitada para los alumnos presenciales de esta materia.' : 'Aula Virtual cerrada para los alumnos presenciales de esta materia.','activa'=>$f?(int)$f['aula_virtual_presencial']:0]); exit;
+}
+if($action==='materia_toggle_prerequisito_libre'){
+    // "Prerequisito libre" es la vía por la que administración abre una
+    // materia puntual para TODO el mundo, saltándose el orden del
+    // pensum (materias.orden) — p.ej. una materia que se decide dictar
+    // "para todo público" aunque formalmente venga más adelante en la
+    // secuencia. Para excepciones de UN alumno en particular existen
+    // materia_desbloqueos, más abajo.
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $id=(int)($_POST['id']??0);
+    if(!$id){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
+    mysqli_query($con,"UPDATE materias SET prerequisito_libre=1-prerequisito_libre WHERE id=$id");
+    $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT prerequisito_libre FROM materias WHERE id=$id"));
+    log_audit($con,$uid,'MATERIA_PREREQUISITO_LIBRE_TOGGLE',"ID=$id libre=".($f['prerequisito_libre']??'?'));
+    echo json_encode(['ok'=>true,'msg'=>$f && (int)$f['prerequisito_libre']===1 ? 'Materia abierta para todo el mundo, sin importar el orden del pensum.' : 'Vuelve a requerir el orden del pensum.','libre'=>$f?(int)$f['prerequisito_libre']:0]); exit;
+}
+if($action==='materia_all_simple'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $r=mysqli_query($con,"SELECT id,nombre,codigo,orden FROM materias WHERE activo=1 ORDER BY (orden IS NULL), orden, nombre");
+    $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
+    echo json_encode(['ok'=>true,'data'=>$rows]); exit;
+}
+if($action==='materia_desbloqueo_listar'){
+    // Excepciones individuales al orden del pensum: el administrador le
+    // dio a ESTE alumno acceso a ESTA materia aunque le falten
+    // prerequisitos (reprobó con una justificación puntual, o se lo
+    // adelantó a una de más nivel).
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $aid=(int)($_POST['alumno_id']??0);
+    if(!$aid){echo json_encode(['ok'=>false,'msg'=>'Alumno requerido.']);exit;}
+    $r=mysqli_query($con,"SELECT d.id,d.materia_id,m.nombre materia_nombre,m.codigo materia_codigo,d.otorgado_en
+                           FROM materia_desbloqueos d JOIN materias m ON m.id=d.materia_id
+                           WHERE d.alumno_id=$aid ORDER BY m.nombre");
+    $rows=[]; while($f=mysqli_fetch_assoc($r)) $rows[]=$f;
+    echo json_encode(['ok'=>true,'data'=>$rows]); exit;
+}
+if($action==='materia_desbloqueo_otorgar'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $aid=(int)($_POST['alumno_id']??0); $mid=(int)($_POST['materia_id']??0);
+    if(!$aid||!$mid){echo json_encode(['ok'=>false,'msg'=>'Alumno y materia requeridos.']);exit;}
+    $st=mysqli_prepare($con,"INSERT IGNORE INTO materia_desbloqueos(alumno_id,materia_id,otorgado_por) VALUES(?,?,?)");
+    mysqli_stmt_bind_param($st,'iii',$aid,$mid,$uid); mysqli_stmt_execute($st);
+    log_audit($con,$uid,'MATERIA_DESBLOQUEO_OTORGAR',"alumno=$aid materia=$mid");
+    echo json_encode(['ok'=>true,'msg'=>'Desbloqueo otorgado — ese alumno puede ver/inscribirse en esa materia aunque le falten prerequisitos.']); exit;
+}
+if($action==='materia_desbloqueo_revocar'){
+    if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
+    $id=(int)($_POST['id']??0);
+    mysqli_query($con,"DELETE FROM materia_desbloqueos WHERE id=$id");
+    log_audit($con,$uid,'MATERIA_DESBLOQUEO_REVOCAR',"id=$id");
+    echo json_encode(['ok'=>true,'msg'=>'Desbloqueo revocado.']); exit;
+}
+if($action==='pensum_cargar_oficial'){
+    // Carga masiva del pensum oficial (Lcdo. en Teología, mención
+    // Ministerio Pastoral) tal cual lo mandó la institución — BORRA
+    // todas las materias actuales (y en cascada todo lo que cuelga de
+    // ellas: inscripciones, notas, aula virtual, tareas...) y las
+    // reemplaza por estas 71, numeradas 1..71 en el orden exacto del
+    // documento — ese número es justamente materias.orden, el que usa
+    // materia_cumple_prerequisito() para no dejar ver una materia de
+    // más adelante si al alumno le falta aprobar alguna de atrás.
+    // Acción irreversible y de altísimo impacto — superadmin únicamente,
+    // y exige escribir la frase de confirmación tal cual para evitar un
+    // click accidental.
+    if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Solo el superadmin puede cargar el pensum oficial.']);exit;}
+    if(trim($_POST['confirmar']??'')!=='BORRAR TODO'){echo json_encode(['ok'=>false,'msg'=>'Confirmación inválida.']);exit;}
+    $pensum = [
+        // Currículo básico general (CBG)
+        'Introducción Bíblica 1','Introducción Bíblica 2','Hermeneútica',
+        'Introducción al Antiguo Testamento','Pentateuco','Libros Históricos',
+        'Libros sapiensales','Libros proféticos','Introducción al Nuevo Testamento',
+        'Evangelios','Hechos','Epístolas','Apocalipsis',
+        'Enseñanza Bíblica y capacitación','Lenguaje y comunicación 1',
+        'Teología sistemática 1','Teología sistemática 2',
+        'Teología del antiguo testamento','Teología del nuevo testamento',
+        'Teología contemporánea','Teología de la adoración','Teología de la Iglesia',
+        'Administración y Org. de la Iglesia 1','Evangelización',
+        'Introducción a la Misionología','Métodos de evangelismo',
+        'Plantación de Iglesias','Mayordomía Cristiana','Historia de la Iglesia 1',
+        'Historia de la Iglesia 2','Historia de los Bautistas','Historia de la filosofía',
+        'Temas filosóficos generales','Formación del Ministro Cristiano',
+        'Bases Bíblicas de la ética Cristiana','Matrimonio y familia Cristiana',
+        'Introducción al asesoramiento Cristiano','Principios de liderazgo Cristiano',
+        'Introducción a la predicación','Predicación 2','Pedagogía General',
+        'Vida Discipular','Elaboración de una investigación 1','Anteproyecto',
+        // Mención Ministerio Pastoral (MP)
+        'Griego elemental 1','Griego elemental 2','Hebreo elemental 1','Hebreo elemental 2',
+        'Sectas y otros movimientos','Pastoral ante problemas éticos actuales',
+        'Asesoramiento pre matrimonial','Tarea pastoral 1','Tarea pastoral 2',
+        'Familia ministerial','Apologética Bíblica','Hermenéutica Bíblica 2',
+        'Sermón expositivo','Locución y oratoria','Ministerio a los solteros',
+        'Ministerio para crisis personales','Ministerio pastoral juvenil',
+        'Psicología pastoral','Administración y Org. de la Iglesia 2',
+        'Catolicismo Romano','Ministerio Supervisado','Pasantía 1','Pasantía 2',
+        'Pasantía 3','Pasantía 4','Elaboración de una investigación 2',
+        'Elaboración y presentación del trabajo de grado',
+    ];
+    mysqli_begin_transaction($con);
+    $ok = mysqli_query($con,"DELETE FROM materias");
+    if($ok){
+        $st=mysqli_prepare($con,"INSERT INTO materias(nombre,codigo,estado,inscripcion_abierta,activo,orden) VALUES(?,?,'pendiente',0,1,?)");
+        foreach($pensum as $i=>$nombre){
+            $orden=$i+1; $codigo=sprintf('PEN-%03d',$orden);
+            mysqli_stmt_bind_param($st,'ssi',$nombre,$codigo,$orden);
+            if(!mysqli_stmt_execute($st)){ $ok=false; break; }
+        }
+    }
+    if($ok){
+        mysqli_commit($con);
+        log_audit($con,$uid,'PENSUM_CARGAR_OFICIAL',"total=".count($pensum));
+        echo json_encode(['ok'=>true,'msg'=>count($pensum).' materias del pensum oficial cargadas, en orden.']);
+    } else {
+        mysqli_rollback($con);
+        echo json_encode(['ok'=>false,'msg'=>'No se pudo cargar el pensum: '.mysqli_error($con)]);
+    }
+    exit;
 }
 if($action==='materia_delete'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}

@@ -110,6 +110,19 @@ if(!in_array($_rol,['superadmin','admin'])){
         </div>
         <?php endif; ?>
       </div>
+      <div style="margin-bottom:1rem;padding-top:.8rem;border-top:1px solid var(--border);">
+        <label style="display:block;font-weight:700;font-size:.82rem;color:var(--ink2);margin-bottom:.4rem;">
+          Materias desbloqueadas individualmente
+        </label>
+        <p style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;line-height:1.4;">
+          Le dan acceso a este alumno a ver/inscribirse en una materia puntual aunque le falten aprobar las anteriores del pensum (p. ej. reprobó una pero decidiste dejarlo avanzar, o lo adelantás a una de más nivel).
+        </p>
+        <div style="display:flex;gap:.5rem;margin-bottom:.6rem;">
+          <select id="eADesbloqueoSel" style="flex:1;"><option value="">— Seleccionar materia —</option></select>
+          <button type="button" class="btn btn-secondary" onclick="otorgarDesbloqueo()">+ Dar acceso</button>
+        </div>
+        <div id="eADesbloqueosList" style="display:flex;flex-direction:column;gap:.4rem;"></div>
+      </div>
       <div style="display:flex;justify-content:flex-end;gap:.6rem;">
         <button class="btn btn-secondary" onclick="closeModal('mEA')">Cancelar</button>
         <button class="btn btn-primary" onclick="saveEditA()">Guardar</button>
@@ -131,7 +144,40 @@ if(!in_array($_rol,['superadmin','admin'])){
 <script>
 function h(s){ const d=document.createElement('div'); d.textContent=String(s??''); return d.innerHTML; }
 function hAttr(s){ return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
-document.addEventListener('ibbs:ready', () => loadAlumnos());
+document.addEventListener('ibbs:ready', () => { loadAlumnos(); cargarMateriasParaDesbloqueo(); });
+let _materiasSimple = [];
+async function cargarMateriasParaDesbloqueo(){
+  const d = await ajax('materia_all_simple');
+  if(!d?.ok) return;
+  _materiasSimple = d.data;
+  const sel = document.getElementById('eADesbloqueoSel');
+  if(sel) sel.innerHTML = '<option value="">— Seleccionar materia —</option>' +
+    d.data.map(m=>`<option value="${m.id}">${h(m.nombre)} (${h(m.codigo)})${m.orden!==null?' — orden '+m.orden:''}</option>`).join('');
+}
+let _eaId = null;
+async function cargarDesbloqueosAlumno(alumnoId){
+  const cont = document.getElementById('eADesbloqueosList');
+  cont.innerHTML = '<span class="spin"></span>';
+  const d = await ajax('materia_desbloqueo_listar', {alumno_id: alumnoId});
+  if(!d?.ok){ cont.innerHTML = `<p style="color:var(--red);font-size:.8rem;">${h(d?.msg||'Error al cargar.')}</p>`; return; }
+  if(!d.data.length){ cont.innerHTML = '<p style="color:var(--muted);font-size:.8rem;">Sin desbloqueos individuales.</p>'; return; }
+  cont.innerHTML = d.data.map(x=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:.4rem .7rem;">
+      <span style="font-size:.82rem;font-weight:700;">${h(x.materia_nombre)} <span style="font-weight:400;color:var(--muted);">(${h(x.materia_codigo)})</span></span>
+      <button type="button" class="btn btn-sm btn-danger" onclick="revocarDesbloqueo(${x.id},${_eaId})">Quitar</button>
+    </div>`).join('');
+}
+async function otorgarDesbloqueo(){
+  const sel = document.getElementById('eADesbloqueoSel');
+  const materiaId = sel.value;
+  if(!materiaId){ toast('Selecciona una materia.', 'err'); return; }
+  const d = await ajax('materia_desbloqueo_otorgar', {alumno_id: _eaId, materia_id: materiaId});
+  if(d?.ok){ toast(d.msg); sel.value=''; cargarDesbloqueosAlumno(_eaId); } else toast(d?.msg||'Error','err');
+}
+async function revocarDesbloqueo(id, alumnoId){
+  const d = await ajax('materia_desbloqueo_revocar', {id});
+  if(d?.ok){ toast(d.msg); cargarDesbloqueosAlumno(alumnoId); } else toast(d?.msg||'Error','err');
+}
 async function loadAlumnos(){
   const ciudad=document.getElementById('filtCiudad').value.trim();
   const d=await ajax('alumno_list',{ciudad});
@@ -199,6 +245,7 @@ async function createAlumno(e){
 async function editA(id){
   const d=await ajax('alumno_get',{id}); if(!d?.ok){toast(d?.msg,'err');return;}
   const r=d.data;
+  _eaId = id;
   document.getElementById('eAId').value=id;
   document.getElementById('eAN').value=r.nombre; document.getElementById('eAA').value=r.apellido;
   document.getElementById('eAC').value=r.cedula; document.getElementById('eAM').value=r.correo;
@@ -209,6 +256,7 @@ async function editA(id){
   const selMod=document.getElementById('eAModalidad');
   if(selMod) selMod.value=r.modalidad||'presencial';
   openModal('mEA');
+  cargarDesbloqueosAlumno(id);
 }
 async function saveEditA(){
   const payload={id:document.getElementById('eAId').value,nombre:document.getElementById('eAN').value,apellido:document.getElementById('eAA').value,cedula:document.getElementById('eAC').value,correo:document.getElementById('eAM').value,telefono:document.getElementById('eAT').value,ciudad:document.getElementById('eACi').value,activo:document.getElementById('eAAct').value};

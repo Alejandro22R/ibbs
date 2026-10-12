@@ -18,6 +18,11 @@ if(!in_array($_rol,['superadmin','admin'])){
     <button class="btn btn-secondary" onclick="abrirGestorPeriodos()" title="Los años/semestres en los que se dictan las materias — útil para ordenar el historial académico" data-tour="mat-periodos">
       <i class="bx bx-calendar"></i> Períodos
     </button>
+    <?php if($_rol==='superadmin'): ?>
+    <button class="btn btn-danger" onclick="abrirCargarPensum()" title="Borra todas las materias actuales y las reemplaza por el pensum oficial, en orden">
+      <i class="bx bx-list-ol"></i> Cargar Pensum Oficial
+    </button>
+    <?php endif; ?>
     <button class="btn btn-primary" onclick="openModal('mCreateMateria')" data-tour="mat-nueva">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Nueva Materia
@@ -37,8 +42,8 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
   <div class="tbl-wrap">
     <table id="tblM">
-      <thead><tr><th>Código</th><th>Materia</th><th>Período</th><th>Horario</th><th>Estado</th><th>Inscripción</th><th>Aula Virtual</th><th>Docentes</th><th>Alumnos</th><th>Acciones</th></tr></thead>
-      <tbody id="tbodyM"><tr class="empty-row"><td colspan="10"><span class="spin"></span></td></tr></tbody>
+      <thead><tr><th>Orden</th><th>Código</th><th>Materia</th><th>Período</th><th>Horario</th><th>Estado</th><th>Inscripción</th><th>Aula Virtual</th><th>Prerequisito</th><th>Docentes</th><th>Alumnos</th><th>Acciones</th></tr></thead>
+      <tbody id="tbodyM"><tr class="empty-row"><td colspan="12"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
 </div>
@@ -54,6 +59,7 @@ if(!in_array($_rol,['superadmin','admin'])){
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre *</label><input name="nombre" data-only="letters" placeholder="Matemáticas I" required></div>
           <div class="field"><label>Código *</label><input name="codigo" data-only="code" placeholder="MAT-101" required></div>
+          <div class="field"><label>Orden en el pensum</label><input type="number" name="orden" min="1" placeholder="vacío = sin secuencia" title="Si la dejás vacía, esta materia queda disponible para autoinscripción sin pedirle al alumno materias anteriores."></div>
 
           <div class="field field-full">
             <label>Período (año/semestre en que se dicta)</label>
@@ -114,6 +120,7 @@ if(!in_array($_rol,['superadmin','admin'])){
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre</label><input id="eNN"></div>
           <div class="field"><label>Código</label><input id="eNC"></div>
+          <div class="field"><label>Orden en el pensum</label><input type="number" id="eNOrden" min="1" placeholder="vacío = sin secuencia" title="Si la dejás vacía, esta materia queda disponible para autoinscripción sin pedirle al alumno materias anteriores."></div>
           <div class="field field-full">
             <label>Período (año/semestre en que se dicta)</label>
             <div style="display:flex;gap:.5rem;">
@@ -240,6 +247,26 @@ if(!in_array($_rol,['superadmin','admin'])){
   </div>
 </div>
 
+<!-- MODAL: cargar pensum oficial (borra y reemplaza TODAS las materias) -->
+<div class="modal-backdrop" id="mCargarPensum">
+  <div class="modal">
+    <div class="modal-head"><h3>⚠️ Cargar Pensum Oficial</h3>
+      <button class="modal-close" onclick="closeModal('mCargarPensum')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--ink);line-height:1.6;margin-bottom:1rem;">
+        Esto va a <strong>borrar TODAS las materias actuales</strong> — junto con todas sus inscripciones, notas, docentes asignados, Aula Virtual, tareas y todo lo que cuelgue de ellas — y las va a reemplazar por las 71 materias del pensum oficial (Lcdo. en Teología, mención Ministerio Pastoral), numeradas en el orden exacto en que se tienen que cursar. Esta acción <strong>no se puede deshacer</strong>.
+      </p>
+      <p style="font-size:.82rem;color:var(--muted);margin-bottom:.5rem;">Para confirmar, escribí exactamente: <code>BORRAR TODO</code></p>
+      <input type="text" id="confirmarPensumTexto" placeholder="BORRAR TODO" style="width:100%;padding:.6rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.9rem;">
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('mCargarPensum')">Cancelar</button>
+      <button class="btn btn-danger" id="btnConfirmarPensum" onclick="confirmarCargarPensum()">Sí, borrar y cargar el pensum</button>
+    </div>
+  </div>
+</div>
+
 <script>
 function h(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
 function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
@@ -326,10 +353,11 @@ function estadoBadge(e){
 }
 
 async function loadMaterias(){
-  const d=await ajax('materia_list'); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="10">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  const d=await ajax('materia_list'); if(!d?.ok){ document.getElementById('tbodyM').innerHTML='<tr class="empty-row"><td colspan="12">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
   const tb=document.getElementById('tbodyM');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="10">Sin materias.</td></tr>';return;}
+  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="12">Sin materias.</td></tr>';return;}
   tb.innerHTML=d.data.map(m=>`<tr>
+    <td style="text-align:center;color:var(--muted);font-size:.82rem;">${m.orden!==null?m.orden:'—'}</td>
     <td><strong>${h(m.codigo)}</strong></td><td>${h(m.nombre)}</td>
     <td style="font-size:.79rem;color:var(--muted);">${m.periodo_nombre||'—'}</td>
     <td style="font-size:.79rem;color:var(--muted);">${m.dias||'—'} ${m.hora_inicio?m.hora_inicio.substring(0,5):''}${m.hora_fin?'–'+m.hora_fin.substring(0,5):''}</td>
@@ -342,6 +370,11 @@ async function loadMaterias(){
     <td>
       <button class="btn btn-sm ${m.aula_virtual_presencial==1?'btn-success':'btn-secondary'}" onclick="toggleAulaPresencial(${m.id})" style="font-size:.7rem;" title="Mientras esté activa, los alumnos presenciales de esta materia también entran al Aula Virtual (los del diplomado/virtual ya entran siempre)">
         ${m.aula_virtual_presencial==1?'🎓 Activa para presenciales':'— Solo diplomado'}
+      </button>
+    </td>
+    <td>
+      <button class="btn btn-sm ${m.prerequisito_libre==1?'btn-success':'btn-secondary'}" onclick="togglePrerequisitoLibre(${m.id})" style="font-size:.7rem;" title="Mientras esté 'Libre', cualquier alumno regular puede inscribirse en esta materia sin importar el orden del pensum">
+        ${m.prerequisito_libre==1?'🔓 Libre':(m.orden!==null?'🔒 Requiere anteriores':'— Sin secuencia')}
       </button>
     </td>
     <td><span class="badge b-profesor">${m.nd}</span></td>
@@ -378,13 +411,14 @@ async function editM(id){
   document.getElementById('eNN').value=m.nombre; document.getElementById('eNC').value=m.codigo;
   document.getElementById('eND').value=m.descripcion||''; document.getElementById('eNHi').value=m.hora_inicio||''; document.getElementById('eNHf').value=m.hora_fin||'';
   document.getElementById('eNPeriodo').value=m.periodo_id||'';
+  document.getElementById('eNOrden').value=m.orden??'';
   const dias=(m.dias||'').split(','); document.querySelectorAll('.eDia').forEach(c=>c.checked=dias.includes(c.value));
   renderMD(m.docentes); renderMA(m.alumnos);
   switchTab('eM','info'); openModal('mEditMateria');
 }
 
 async function submitEdit(){
-  const d=await ajax('materia_update',{id:_mid,nombre:document.getElementById('eNN').value,codigo:document.getElementById('eNC').value,descripcion:document.getElementById('eND').value,dias:[...document.querySelectorAll('.eDia:checked')].map(c=>c.value).join(','),hora_inicio:document.getElementById('eNHi').value,hora_fin:document.getElementById('eNHf').value,periodo_id:document.getElementById('eNPeriodo').value});
+  const d=await ajax('materia_update',{id:_mid,nombre:document.getElementById('eNN').value,codigo:document.getElementById('eNC').value,descripcion:document.getElementById('eND').value,dias:[...document.querySelectorAll('.eDia:checked')].map(c=>c.value).join(','),hora_inicio:document.getElementById('eNHi').value,hora_fin:document.getElementById('eNHf').value,periodo_id:document.getElementById('eNPeriodo').value,orden:document.getElementById('eNOrden').value});
   if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
 }
 
@@ -404,6 +438,24 @@ async function toggleInscripcion(id){
 async function toggleAulaPresencial(id){
   const d=await ajax('materia_toggle_aula_presencial',{id});
   if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
+}
+async function togglePrerequisitoLibre(id){
+  const d=await ajax('materia_toggle_prerequisito_libre',{id});
+  if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
+}
+
+function abrirCargarPensum(){
+  document.getElementById('confirmarPensumTexto').value='';
+  openModal('mCargarPensum');
+}
+async function confirmarCargarPensum(){
+  const texto=document.getElementById('confirmarPensumTexto').value.trim();
+  if(texto!=='BORRAR TODO'){ Ibbs.error('Tenés que escribir exactamente "BORRAR TODO" para confirmar.'); return; }
+  const btn=document.getElementById('btnConfirmarPensum'); btn.disabled=true; const txt=btn.textContent; btn.textContent='Cargando…';
+  const d=await ajax('pensum_cargar_oficial',{confirmar:texto});
+  btn.disabled=false; btn.textContent=txt;
+  if(d?.ok){ toast(d.msg); closeModal('mCargarPensum'); loadMaterias(); }
+  else Ibbs.error(d?.msg||'Error al cargar el pensum.');
 }
 
 // ----------------------------------------------------
