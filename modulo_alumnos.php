@@ -43,13 +43,14 @@ if(!in_array($_rol,['superadmin','admin'])){
     <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionAlumnos()" style="margin-left:auto;">Cancelar selección</button>
   </div>
   <div class="tbl-wrap">
-    <table id="tblA">
+    <table id="tblA" class="table-stack">
       <thead><tr>
         <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllAlum" onchange="toggleAllAlumnos(this)" title="Seleccionar todo"></th>
         <th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Modalidad</th><th>Solicitud</th><th>Acciones</th></tr></thead>
       <tbody id="tbodyA"><tr class="empty-row"><td colspan="10"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
+  <div id="pagerA"></div>
 </div>
 
 <!-- MODAL CREAR -->
@@ -178,40 +179,55 @@ async function revocarDesbloqueo(id, alumnoId){
   const d = await ajax('materia_desbloqueo_revocar', {id});
   if(d?.ok){ toast(d.msg); cargarDesbloqueosAlumno(alumnoId); } else toast(d?.msg||'Error','err');
 }
-async function loadAlumnos(){
-  const ciudad=document.getElementById('filtCiudad').value.trim();
-  const d=await ajax('alumno_list',{ciudad});
-  limpiarSeleccionAlumnos();
-  if(!d?.ok){ document.getElementById('tbodyA').innerHTML='<tr class="empty-row"><td colspan="10">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
-  const tb=document.getElementById('tbodyA');
-  if(!d.data.length){tb.innerHTML='<tr class="empty-row"><td colspan="10">Sin alumnos.</td></tr>';return;}
-  tb.innerHTML=d.data.map(r=>`<tr>
+// Paginador (20 filas por página) — ver assets/ibbs-paginate.js. Se
+// crea recién la primera vez que se necesita, NO acá arriba, porque
+// IbbsPaginate se carga en layout/foot.php, después de este <script>
+// (mismo motivo que ajax() — ver el comentario de 'ibbs:ready' debajo).
+let alumPager = null;
+let _alumnosAll = [];
+
+function filaAlumno(r){
+  return `<tr>
     <td style="text-align:center;"><input type="checkbox" class="chkAlum" value="${r.id}" onchange="actualizarBarraLoteAlumnos()"></td>
-    <td><strong>${h(r.cedula)}</strong></td>
-    <td>
+    <td data-label="Cédula"><strong>${h(r.cedula)}</strong></td>
+    <td data-label="Nombre">
       <div style="display:flex;align-items:center;gap:.6rem;">
         <div style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.9rem;">${h((r.nombre||'?').charAt(0).toUpperCase())}</div>
         <span>${h(r.apellido)}, ${h(r.nombre)}</span>
       </div>
     </td>
-    <td style="font-size:.82rem;">${h(r.correo)}</td>
+    <td data-label="Correo" style="font-size:.82rem;">${h(r.correo)}</td>
     <td style="font-size:.82rem;">${h(r.ciudad)||'—'}</td>
-    <td><span class="badge b-alumno">${r.nm}</span></td>
-    <td><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
-    <td>${r.regular=='1'?'<span class="badge b-presente" title="Puede autoinscribirse en materias">Sí</span>':'<span style="color:var(--muted);font-size:.78rem;">No</span>'}</td>
-    <td>${r.modalidad==='virtual'?'<span class="badge b-profesor" title="Diplomado: Aula Virtual siempre activa">Virtual</span>':'<span style="color:var(--muted);font-size:.78rem;">Presencial</span>'}</td>
-    <td>${estadoSolicitud(r)}</td>
-    <td class="td-actions">
+    <td data-label="Materias"><span class="badge b-alumno">${r.nm}</span></td>
+    <td data-label="Estado"><span class="badge ${r.activo=='1'?'b-activo':'b-inactivo'}">${r.activo=='1'?'Activo':'Inactivo'}</span></td>
+    <td data-label="Regular">${r.regular=='1'?'<span class="badge b-presente" title="Puede autoinscribirse en materias">Sí</span>':'<span style="color:var(--muted);font-size:.78rem;">No</span>'}</td>
+    <td data-label="Modalidad">${r.modalidad==='virtual'?'<span class="badge b-profesor" title="Diplomado: Aula Virtual siempre activa">Virtual</span>':'<span style="color:var(--muted);font-size:.78rem;">Presencial</span>'}</td>
+    <td data-label="Solicitud">${estadoSolicitud(r)}</td>
+    <td data-label="Acciones" class="td-actions">
       ${r.aprobado!==null && r.aprobado=='0' ? `
-        <button class="btn btn-sm btn-success" onclick="aprobarAlumno(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')" title="Aceptar solicitud de ingreso">✓ Aceptar</button>
-        <button class="btn btn-sm btn-danger" onclick="rechazarAlumno(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')" title="Rechazar solicitud de ingreso">✕ Rechazar</button>
+        <button class="btn btn-icon btn-sm btn-success" onclick="aprobarAlumno(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')" title="Aceptar solicitud de ingreso"><i class="bx bx-check"></i></button>
+        <button class="btn btn-icon btn-sm btn-danger" onclick="rechazarAlumno(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')" title="Rechazar solicitud de ingreso"><i class="bx bx-x"></i></button>
       ` : ''}
-      <button class="btn btn-sm btn-secondary" onclick="verPerfil(${r.id})">Perfil</button>
-      <button class="btn btn-sm btn-primary" onclick="editA(${r.id})">Editar</button>
-      <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=estudio&alumno_id=${r.id}" target="_blank" title="Constancia de Estudio">📄 Estudio</a>
-      <a class="btn btn-sm btn-secondary" href="api/export_constancia.php?tipo=notas&alumno_id=${r.id}" target="_blank" title="Constancia de Notas">📄 Notas</a>
-      <button class="btn btn-sm btn-danger" onclick="delA(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')">Eliminar</button>
-    </td></tr>`).join('');
+      <button class="btn btn-icon btn-sm btn-secondary" onclick="verPerfil(${r.id})" title="Perfil"><i class="bx bx-user"></i></button>
+      <button class="btn btn-icon btn-sm btn-primary" onclick="editA(${r.id})" title="Editar"><i class="bx bx-edit"></i></button>
+      <a class="btn btn-icon btn-sm btn-secondary" href="api/export_constancia.php?tipo=estudio&alumno_id=${r.id}" target="_blank" title="Constancia de Estudio"><i class="bx bx-file"></i></a>
+      <a class="btn btn-icon btn-sm btn-secondary" href="api/export_constancia.php?tipo=notas&alumno_id=${r.id}" target="_blank" title="Constancia de Notas"><i class="bx bx-spreadsheet"></i></a>
+      <button class="btn btn-icon btn-sm btn-danger" onclick="delA(${r.id},'${hAttr(r.nombre+' '+r.apellido)}')" title="Eliminar"><i class="bx bx-trash"></i></button>
+    </td></tr>`;
+}
+
+async function loadAlumnos(){
+  const ciudad=document.getElementById('filtCiudad').value.trim();
+  const d=await ajax('alumno_list',{ciudad});
+  limpiarSeleccionAlumnos();
+  if(!d?.ok){ document.getElementById('tbodyA').innerHTML='<tr class="empty-row"><td colspan="10">'+( d?.msg||'Error al conectar')+'</td></tr>'; return; }
+  _alumnosAll = d.data;
+  if (!alumPager) {
+    alumPager = IbbsPaginate.create('alumnos', { perPage: 20 });
+    alumPager.mount(document.getElementById('tbodyA'), document.getElementById('pagerA'));
+    alumPager.configure({ rowHtml: filaAlumno, empty: '<tr class="empty-row"><td colspan="10">Sin alumnos.</td></tr>' });
+  }
+  alumPager.setData(_alumnosAll);
 }
 function estadoSolicitud(r){
   if(r.aprobado===null||r.aprobado===undefined) return '<span style="color:var(--muted);font-size:.78rem;">Sin cuenta</span>';
@@ -349,13 +365,14 @@ window.IBBS_TOUR_ALUMNOS = {
 document.addEventListener('ibbs:ready', () => IbbsTour.start(window.IBBS_TOUR_ALUMNOS));
 
 function filtrarAlumnos() {
+  if (!alumPager) return;
   const qN = (document.getElementById('fAlumNombre')?.value||'').toLowerCase();
   const qC = (document.getElementById('fAlumCedula')?.value||'').toLowerCase();
-  document.querySelectorAll('#tblA tbody tr:not(.empty-row)').forEach(tr => {
-    const matchN = !qN || tr.textContent.toLowerCase().includes(qN);
-    const matchC = !qC || tr.textContent.toLowerCase().includes(qC);
-    tr.style.display = (matchN && matchC) ? '' : 'none';
-  });
+  const filtrados = _alumnosAll.filter(r =>
+    (!qN || `${r.nombre||''} ${r.apellido||''}`.toLowerCase().includes(qN)) &&
+    (!qC || (r.cedula||'').toLowerCase().includes(qC))
+  );
+  alumPager.setData(filtrados);
 }
 </script>
 <?php include __DIR__.'/layout/foot.php'; ?>
