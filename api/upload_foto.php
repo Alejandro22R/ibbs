@@ -49,7 +49,7 @@ $tabla = $tipo==='docente' ? 'docentes' : ($tipo==='alumno' ? 'alumnos' : 'usuar
 $old = mysqli_fetch_assoc(mysqli_query($con,"SELECT foto FROM $tabla WHERE id=$rid"))['foto']??'';
 if ($old && file_exists(__DIR__.'/../'.$old)) @unlink(__DIR__.'/../'.$old);
 
-$fname = $tipo.'_'.$rid.'_'.time().'.'.$ext;
+$fname = $tipo.'_'.$rid.'_'.time().'_'.bin2hex(random_bytes(6)).'.'.$ext;
 $dest  = $dir.$fname;
 if (!move_uploaded_file($file['tmp_name'], $dest)) {
     echo json_encode(['ok'=>false,'msg'=>'Error al guardar la imagen.']); exit;

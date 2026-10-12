@@ -46,6 +46,23 @@ if ($action === 'crear') {
     $pend = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materia_solicitudes WHERE materia_id=$mid AND alumno_id=$aid AND estado='pendiente' LIMIT 1"));
     if ($pend) { echo json_encode(['ok'=>false,'msg'=>'Ya tenés una solicitud pendiente para esta materia. Esperá a que la administración la revise.']); exit; }
 
+    // La UI (portal_alumno.php) ya filtra qué materias se le muestran como
+    // "disponibles" usando estas mismas funciones, pero esa pantalla es
+    // solo una ayuda visual — sin este chequeo acá, un alumno podía
+    // mandar la solicitud directo por POST con el materia_id de una
+    // materia que ni siquiera le aparecía (bloqueada por orden del
+    // pensum, o de una que ya tiene registrada con ese mismo nombre,
+    // aprobada o no) y quedar "pendiente" a la espera de que un admin
+    // la apruebe sin tener cómo notar el problema.
+    if (!materia_puede_recursar($con, $aid, $mid, $mat['nombre'])) {
+        echo json_encode(['ok'=>false,'msg'=>'Ya tenés un registro para esta materia — no se puede volver a solicitar.']); exit;
+    }
+    if (!materia_cumple_prerequisito($con, $aid, $mid)) {
+        $faltan = materia_prerequisitos_faltantes($con, $aid, $mid);
+        $msg = $faltan ? 'Todavía te falta aprobar: '.implode(', ', $faltan).'.' : 'Todavía no cumplís los prerequisitos de esta materia.';
+        echo json_encode(['ok'=>false,'msg'=>$msg]); exit;
+    }
+
     if (!isset($_FILES['comprobante']) || $_FILES['comprobante']['error'] !== UPLOAD_ERR_OK) {
         echo json_encode(['ok'=>false,'msg'=>'Adjuntá la captura del pago móvil o la transferencia para poder inscribirte.']); exit;
     }
@@ -132,20 +149,40 @@ if ($action === 'aprobar' || $action === 'rechazar') {
     if ($sol['estado'] !== 'pendiente') { echo json_encode(['ok'=>false,'msg'=>'Esta solicitud ya fue revisada.']); exit; }
 
     if ($action === 'aprobar') {
+        // Misma verificación que en "crear" — por si la solicitud quedó
+        // pendiente desde antes de este candado, o alguien la generó
+        // directo por POST sin pasar por él: el admin no tiene forma de
+        // notar a simple vista que a un alumno le faltan prerequisitos o
+        // que ya tiene esa materia registrada, así que el servidor no
+        // puede confiar solo en su click. Va ANTES de tocar el estado de
+        // la solicitud — si falla, la solicitud se queda "pendiente".
+        if (!materia_puede_recursar($con, (int)$sol['alumno_id'], (int)$sol['materia_id'], $sol['materia_nombre'])
+            || !materia_cumple_prerequisito($con, (int)$sol['alumno_id'], (int)$sol['materia_id'])) {
+            echo json_encode(['ok'=>false,'msg'=>'No se puede aprobar: este alumno no cumple los prerequisitos de esta materia o ya tiene un registro de ella. Si igual querés dejarlo avanzar, primero dale un desbloqueo individual en su ficha (Alumnos > Editar) y volvé a intentar.']); exit;
+        }
+    }
+
+    // "Gana" la primera UPDATE que de verdad encuentre la fila todavía
+    // 'pendiente' — dos clicks casi simultáneos (dos pestañas de admin,
+    // doble click) ya no pueden los dos pasar el chequeo de arriba y
+    // terminar insertando la fila en materia_alumno dos veces.
+    $estadoNuevo = $action === 'aprobar' ? 'aprobada' : 'rechazada';
+    mysqli_query($con, "UPDATE materia_solicitudes SET estado='$estadoNuevo',revisado_por=$uid,fecha_revision=NOW() WHERE id=$id AND estado='pendiente'");
+    if (mysqli_affected_rows($con) === 0) { echo json_encode(['ok'=>false,'msg'=>'Esta solicitud ya fue revisada.']); exit; }
+
+    if ($action === 'aprobar') {
         $ex = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materia_alumno WHERE materia_id={$sol['materia_id']} AND alumno_id={$sol['alumno_id']} LIMIT 1"));
         if (!$ex) {
             $stI = mysqli_prepare($con, "INSERT INTO materia_alumno(materia_id,alumno_id,auto_inscrito) VALUES(?,?,1)");
             mysqli_stmt_bind_param($stI, 'ii', $sol['materia_id'], $sol['alumno_id']);
             mysqli_stmt_execute($stI);
         }
-        mysqli_query($con, "UPDATE materia_solicitudes SET estado='aprobada',revisado_por=$uid,fecha_revision=NOW() WHERE id=$id");
         log_audit($con, $uid, 'MATERIA_SOLICITUD_APROBAR', "solicitud=$id materia={$sol['materia_id']} alumno={$sol['alumno_id']}");
         if ($sol['usuario_id']) {
             notificar_usuario($con, (int)$sol['usuario_id'], 'solicitud_materia_aprobada', '¡Tu inscripción fue aprobada!', "Quedaste inscrito(a) en \"{$sol['materia_nombre']}\". Ya podés ver su contenido.");
         }
         $msg = "Se aprobó la inscripción de {$sol['alumno_nombre']} {$sol['alumno_apellido']} en \"{$sol['materia_nombre']}\".";
     } else {
-        mysqli_query($con, "UPDATE materia_solicitudes SET estado='rechazada',revisado_por=$uid,fecha_revision=NOW() WHERE id=$id");
         log_audit($con, $uid, 'MATERIA_SOLICITUD_RECHAZAR', "solicitud=$id materia={$sol['materia_id']} alumno={$sol['alumno_id']}");
         if ($sol['usuario_id']) {
             notificar_usuario($con, (int)$sol['usuario_id'], 'solicitud_materia_rechazada', 'Tu solicitud de inscripción fue rechazada', "No pudimos validar tu comprobante de pago para \"{$sol['materia_nombre']}\". Contactá a la administración.");
