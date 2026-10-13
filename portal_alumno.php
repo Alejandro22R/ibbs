@@ -421,6 +421,9 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             <button id="navBtnPerfil" data-tour="nav-perfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-user-cog w-5 text-center"></i> <span class="font-medium text-sm">Mi Perfil</span>
             </button>
+            <button type="button" data-palette-skip="1" onclick="abrirAcercaDe()" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <i class="fas fa-circle-info w-5 text-center"></i> <span class="font-medium text-sm">Acerca de</span>
+            </button>
             <button type="button" data-tour="nav-replay" data-palette-skip="1" onclick="IbbsTour.replay(window.IBBS_TOUR_ALUMNO)" class="ibbstour-replay nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-circle-question w-5 text-center"></i> <span class="font-medium text-sm">Ver Tutorial</span>
             </button>
@@ -2022,5 +2025,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 </div>`).join('');
         }
     </script>
+
+    <?php include __DIR__.'/layout/acerca_instituto.php'; ?>
 </body>
 </html>

@@ -332,6 +332,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button id="navBtnPerfil" data-tour="nav-perfil" onclick="switchView('perfil', this)" class="sb-link">
                 <i class="fas fa-user-circle"></i> <span class="sb-lbl">Mi Perfil</span>
             </button>
+            <button type="button" data-palette-skip="1" onclick="abrirAcercaDe()" class="sb-link">
+                <i class="fas fa-circle-info"></i> <span class="sb-lbl">Acerca de</span>
+            </button>
             <a href="cerrar_sesion.php" class="sb-link">
                 <i class="fas fa-sign-out-alt"></i> <span class="sb-lbl">Salir</span>
             </a>
@@ -2987,5 +2990,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             if (d?.ok) cargarAulaGrabadas(); else Ibbs.error(d?.msg || 'Error al eliminar.');
         }
     </script>
+
+    <?php include __DIR__.'/layout/acerca_instituto.php'; ?>
 </body>
 </html>
