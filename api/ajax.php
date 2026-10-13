@@ -362,7 +362,7 @@ if($action==='nota_guardar'){
     $fecha=trim($_POST['fecha']??date('Y-m-d'));
     if(!$mid){echo json_encode(['ok'=>false,'msg'=>'Falta materia_id.']);exit;}
     if(!$aid){echo json_encode(['ok'=>false,'msg'=>'Falta alumno_id.']);exit;}
-    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tienes permiso sobre esta materia.']);exit;}
     if($cal<0||$cal>20){echo json_encode(['ok'=>false,'msg'=>'Nota debe estar entre 0 y 20. Recibido: '.$nota_raw]);exit;}
     // Upsert
     $ex=mysqli_fetch_assoc(mysqli_query($con,"SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
@@ -378,7 +378,7 @@ if($action==='nota_guardar'){
 }
 if($action==='nota_borrar'){
     $mid=(int)($_POST['materia_id']??0); $aid=(int)($_POST['alumno_id']??0);
-    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tienes permiso sobre esta materia.']);exit;}
     mysqli_query($con,"UPDATE materia_alumno SET nota_final=NULL,nota_fecha=NULL,nota_registrada_por=NULL,nota_actualizada_en=NULL WHERE materia_id=$mid AND alumno_id=$aid");
     log_audit($con,$uid,'NOTA_BORRAR',"materia=$mid alumno=$aid");
     echo json_encode(['ok'=>true,'msg'=>'Nota borrada.']); exit;
@@ -456,7 +456,7 @@ if($action==='materia_inscribir_historico'){
 if($action==='notas_tabla_materia'){
     $mid=(int)($_POST['materia_id']??0);
     if(!$mid){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
-    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tienes permiso sobre esta materia.']);exit;}
     $mat=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM materias WHERE id=$mid"));
     $docs=[]; $rd=mysqli_query($con,"SELECT d.nombre,d.apellido FROM docentes d JOIN materia_docente md ON md.docente_id=d.id WHERE md.materia_id=$mid");
     while($f=mysqli_fetch_assoc($rd)) $docs[]=$f;
@@ -531,10 +531,10 @@ if($action==='docente_create'){
     $pwdErr=ibbs_validar_password($pwdInicial);
     if($pwdErr){echo json_encode(['ok'=>false,'msg'=>$pwdErr]);exit;}
     $st=mysqli_prepare($con,"SELECT id FROM docentes WHERE cedula=?"); mysqli_stmt_bind_param($st,'s',$c); mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
-    if(mysqli_stmt_num_rows($st)){echo json_encode(['ok'=>false,'msg'=>'Cédula ya registrada.']);exit;} mysqli_stmt_close($st);
+    if(mysqli_stmt_num_rows($st)){echo json_encode(['ok'=>false,'msg'=>'ID ya registrado.']);exit;} mysqli_stmt_close($st);
     $stU=mysqli_prepare($con,"SELECT id FROM usuarios WHERE usuario=? OR correo=? OR cedula=?");
     mysqli_stmt_bind_param($stU,'sss',$usuarioLogin,$m,$c); mysqli_stmt_execute($stU); mysqli_stmt_store_result($stU);
-    if(mysqli_stmt_num_rows($stU)>0){echo json_encode(['ok'=>false,'msg'=>'Ese usuario, correo o cédula ya está en uso.']);exit;}
+    if(mysqli_stmt_num_rows($stU)>0){echo json_encode(['ok'=>false,'msg'=>'Ese usuario, correo o ID ya está en uso.']);exit;}
     mysqli_stmt_close($stU);
 
     // 1. Cuenta de acceso — la crea el admin, ya aprobada (a diferencia
@@ -564,7 +564,7 @@ if($action==='docente_update'){
     // Check cedula/correo not used by another docente
     $ck=mysqli_prepare($con,"SELECT id FROM docentes WHERE (cedula=? OR correo=?) AND id!=?");
     mysqli_stmt_bind_param($ck,'ssi',$c,$m,$id); mysqli_stmt_execute($ck); mysqli_stmt_store_result($ck);
-    if(mysqli_stmt_num_rows($ck)>0){echo json_encode(['ok'=>false,'msg'=>'Cédula o correo ya registrado en otro docente.']);exit;}
+    if(mysqli_stmt_num_rows($ck)>0){echo json_encode(['ok'=>false,'msg'=>'ID o correo ya registrado en otro docente.']);exit;}
     mysqli_stmt_close($ck);
     $st=mysqli_prepare($con,"UPDATE docentes SET nombre=?,apellido=?,cedula=?,correo=?,telefono=?,especialidad=?,ciudad=?,activo=? WHERE id=?");
     mysqli_stmt_bind_param($st,'sssssssii',$n,$a,$c,$m,$t,$e,$ci,$ac,$id); mysqli_stmt_execute($st);
@@ -627,7 +627,7 @@ if($action==='alumno_create'){
     $m=trim($_POST['correo']??''); $t=trim($_POST['telefono']??''); $ci=trim($_POST['ciudad']??'');
     if(!$n||!$a||!$c||!$m){echo json_encode(['ok'=>false,'msg'=>'Faltan campos requeridos.']);exit;}
     $st=mysqli_prepare($con,"SELECT id FROM alumnos WHERE cedula=?"); mysqli_stmt_bind_param($st,'s',$c); mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
-    if(mysqli_stmt_num_rows($st)){echo json_encode(['ok'=>false,'msg'=>'Cédula ya registrada.']);exit;} mysqli_stmt_close($st);
+    if(mysqli_stmt_num_rows($st)){echo json_encode(['ok'=>false,'msg'=>'ID ya registrado.']);exit;} mysqli_stmt_close($st);
     $st=mysqli_prepare($con,"INSERT INTO alumnos(nombre,apellido,cedula,correo,telefono,ciudad) VALUES(?,?,?,?,?,?)");
     mysqli_stmt_bind_param($st,'ssssss',$n,$a,$c,$m,$t,$ci); mysqli_stmt_execute($st);
     echo json_encode(['ok'=>true,'msg'=>'Alumno registrado.','id'=>mysqli_insert_id($con)]); exit;
@@ -640,7 +640,7 @@ if($action==='alumno_update'){
     // Check cedula/correo not used by another alumno
     $ck=mysqli_prepare($con,"SELECT id FROM alumnos WHERE (cedula=? OR correo=?) AND id!=?");
     mysqli_stmt_bind_param($ck,'ssi',$c,$m,$id); mysqli_stmt_execute($ck); mysqli_stmt_store_result($ck);
-    if(mysqli_stmt_num_rows($ck)>0){echo json_encode(['ok'=>false,'msg'=>'Cédula o correo ya registrado en otro alumno.']);exit;}
+    if(mysqli_stmt_num_rows($ck)>0){echo json_encode(['ok'=>false,'msg'=>'ID o correo ya registrado en otro alumno.']);exit;}
     mysqli_stmt_close($ck);
     $st=mysqli_prepare($con,"UPDATE alumnos SET nombre=?,apellido=?,cedula=?,correo=?,telefono=?,ciudad=?,activo=? WHERE id=?");
     mysqli_stmt_bind_param($st,'ssssssii',$n,$a,$c,$m,$t,$ci,$ac,$id); mysqli_stmt_execute($st);
@@ -694,7 +694,7 @@ if($action==='alumno_lote'){
             mysqli_query($con,"UPDATE usuarios SET aprobado=1 WHERE id=$uidAlumno");
             mysqli_query($con,"UPDATE alumnos SET regular=1 WHERE id=$id");
             log_audit($con,$uid,'ALUMNO_APROBAR',"alumno=$id usuario=$uidAlumno (lote)");
-            notificar_usuario($con,$uidAlumno,'solicitud_aprobada','¡Tu ingreso fue aprobado!','Ya podés iniciar sesión e inscribirte en tus materias.');
+            notificar_usuario($con,$uidAlumno,'solicitud_aprobada','¡Tu ingreso fue aprobado!','Ya puedes iniciar sesión e inscribirte en tus materias.');
             mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
         } else {
             mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=$uidAlumno");
@@ -735,7 +735,7 @@ if($action==='alumno_aprobar'){
     mysqli_query($con,"UPDATE usuarios SET aprobado=1 WHERE id=$uidAlumno");
     mysqli_query($con,"UPDATE alumnos SET regular=1 WHERE id=$id");
     log_audit($con,$uid,'ALUMNO_APROBAR',"alumno=$id usuario=$uidAlumno");
-    notificar_usuario($con,$uidAlumno,'solicitud_aprobada','¡Tu ingreso fue aprobado!','Ya podés iniciar sesión e inscribirte en tus materias.');
+    notificar_usuario($con,$uidAlumno,'solicitud_aprobada','¡Tu ingreso fue aprobado!','Ya puedes iniciar sesión e inscribirte en tus materias.');
     // Marca como leída la notificación de solicitud original, si existe.
     mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
     echo json_encode(['ok'=>true,'msg'=>"Se aprobó el ingreso de {$al['nombre']} {$al['apellido']}."]); exit;
@@ -810,7 +810,7 @@ if($action==='asistencia_register'){
     // Sin este chequeo, cualquier usuario logueado (un alumno incluso)
     // podía marcarse presente a sí mismo, o a cualquiera, en cualquier
     // materia con solo cambiar materia_id/persona_id.
-    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tienes permiso sobre esta materia.']);exit;}
     if(!asistencia_upsert($con,$mid,$tipo,$pid,$fecha,$estado,$obs,$uid)){
         echo json_encode(['ok'=>false,'msg'=>mysqli_error($con)]); exit;
     }
@@ -829,7 +829,7 @@ if($action==='asistencia_register_lote'){
     $fecha=trim($_POST['fecha']??'');
     $registros=json_decode($_POST['registros']??'[]', true);
     if(!$mid||!$fecha||!is_array($registros)||!$registros){echo json_encode(['ok'=>false,'msg'=>'Datos incompletos.']);exit;}
-    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']);exit;}
+    if(!materia_puede_gestionar($con,$uid,$_rol,$mid)){echo json_encode(['ok'=>false,'msg'=>'No tienes permiso sobre esta materia.']);exit;}
     $ok=0; $err=0;
     foreach($registros as $r){
         $pid=(int)($r['persona_id']??0);
@@ -851,7 +851,7 @@ if($action==='asistencia_list'){
     // asistencia de la institución con cédulas incluidas) sin que
     // nada lo verificara.
     if($_rol==='profesor' && (!$mid || !materia_puede_gestionar($con,$uid,$_rol,$mid))){
-        echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']); exit;
+        echo json_encode(['ok'=>false,'msg'=>'No tienes permiso sobre esta materia.']); exit;
     }
     $w=[]; if($mid) $w[]="a.materia_id=$mid"; if($tipo) $w[]="a.tipo='".esc($con,$tipo)."'"; if($fecha) $w[]="a.fecha='".esc($con,$fecha)."'";
     if($estado && in_array($estado,['presente','ausente','tardanza','justificado'],true)) $w[]="a.estado='".esc($con,$estado)."'";
@@ -908,7 +908,7 @@ if($action==='persona_detalle'){
 // ════ BÚSQUEDA CÉDULA ══════════════════════════════════════════
 if($action==='buscar_cedula'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
-    $ced=trim($_POST['cedula']??''); if(!$ced){echo json_encode(['ok'=>false,'msg'=>'Ingresa una cédula.']);exit;}
+    $ced=trim($_POST['cedula']??''); if(!$ced){echo json_encode(['ok'=>false,'msg'=>'Ingresa un ID.']);exit;}
     $ce=esc($con,$ced);
     $f=mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM alumnos WHERE cedula='$ce' LIMIT 1"));
     if($f){
@@ -950,14 +950,14 @@ if($action==='usuario_create'){
     $usr=trim($_POST['usuario']??''); $mail=trim($_POST['correo']??'');
     $ced=trim($_POST['cedula']??'');
     $pwd=trim($_POST['password']??''); $rol=trim($_POST['rol']??'profesor');
-    if(!$usr||!$mail||!$ced||!$pwd){echo json_encode(['ok'=>false,'msg'=>'Todos los campos son requeridos (incluyendo cédula).']);exit;}
+    if(!$usr||!$mail||!$ced||!$pwd){echo json_encode(['ok'=>false,'msg'=>'Todos los campos son requeridos (incluyendo ID).']);exit;}
     if(strlen($pwd)<6){echo json_encode(['ok'=>false,'msg'=>'La contraseña debe tener al menos 6 caracteres.']);exit;}
     if(!in_array($rol,['admin','profesor','superadmin'])) $rol='profesor';
     // Check duplicates: usuario, correo AND cedula
     $st=mysqli_prepare($con,"SELECT id FROM usuarios WHERE usuario=? OR correo=? OR cedula=?");
     mysqli_stmt_bind_param($st,'sss',$usr,$mail,$ced);
     mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
-    if(mysqli_stmt_num_rows($st)>0){echo json_encode(['ok'=>false,'msg'=>'Ya existe un usuario con ese nombre de usuario, correo o cédula.']);exit;}
+    if(mysqli_stmt_num_rows($st)>0){echo json_encode(['ok'=>false,'msg'=>'Ya existe un usuario con ese nombre de usuario, correo o ID.']);exit;}
     mysqli_stmt_close($st);
     $hash=password_hash($pwd,PASSWORD_BCRYPT); $ac=1;
     $st=mysqli_prepare($con,"INSERT INTO usuarios(usuario,correo,cedula,password_hash,rol,activo) VALUES(?,?,?,?,?,?)");
@@ -1229,7 +1229,7 @@ if($action==='importar_alumnos'){
         if(mysqli_stmt_execute($st)) $ok++; else {$err[]="Fila $i: ".mysqli_error($con);}
     }
     $msg="$ok alumno(s) importado(s).";
-    if($skip) $msg.=" $skip omitido(s) (datos incompletos o cédula duplicada).";
+    if($skip) $msg.=" $skip omitido(s) (datos incompletos o ID duplicado).";
     echo json_encode(['ok'=>true,'msg'=>$msg,'importados'=>$ok,'omitidos'=>$skip,'errores'=>$err]); exit;
 }
 
@@ -1553,7 +1553,7 @@ if($action==='asistencia_editar'){
     if($_rol==='profesor'){
         $am=mysqli_fetch_assoc(mysqli_query($con,"SELECT materia_id FROM asistencias WHERE id=$id LIMIT 1"));
         if(!$am || !materia_puede_gestionar($con,$uid,$_rol,(int)$am['materia_id'])){
-            echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']); exit;
+            echo json_encode(['ok'=>false,'msg'=>'No tienes permiso sobre esta materia.']); exit;
         }
     }
     mysqli_query($con,"UPDATE asistencias SET estado='$estado', observacion='$obs' WHERE id=$id");

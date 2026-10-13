@@ -96,7 +96,7 @@ mysqli_close($con);
         <h3 id="tablaTitle">Calificaciones</h3>
         <span id="docenteChip" style="font-size:.82rem;color:var(--muted);"></span>
       </div>
-      <input type="text" id="fBuscarAlumno" placeholder="Buscar por nombre o cédula…" oninput="filtrarTablaNotas()"
+      <input type="text" id="fBuscarAlumno" placeholder="Buscar por nombre o ID…" oninput="filtrarTablaNotas()"
         style="padding:.5rem .8rem;border:1.5px solid var(--border);border-radius:8px;font-size:.83rem;outline:none;background:var(--cream);min-width:220px;">
     </div>
     <div class="tbl-wrap" id="tablaWrap"></div>
@@ -193,7 +193,7 @@ mysqli_close($con);
 <div class="tab-pane" data-pane-group="notas" data-pane="excel">
   <div style="display:flex;gap:.5rem;margin-bottom:1.2rem;flex-wrap:wrap;">
     <button type="button" class="tab-btn active" id="btnModoCsv" onclick="switchImportMode('csv')">Planilla CSV (fila por nota)</button>
-    <button type="button" class="tab-btn" id="btnModoMatriz" onclick="switchImportMode('matriz')" data-tour="notas-modo-matriz">Sábana Excel (como ya la llevás)</button>
+    <button type="button" class="tab-btn" id="btnModoMatriz" onclick="switchImportMode('matriz')" data-tour="notas-modo-matriz">Sábana Excel (como ya la llevas)</button>
   </div>
 
   <div id="modoCsv">
@@ -201,9 +201,9 @@ mysqli_close($con);
     <div class="card-body" style="padding:1.2rem 1.4rem;">
       <div style="font-weight:800;color:#fff;font-size:.95rem;margin-bottom:.3rem;">¿Cómo funciona?</div>
       <ol style="font-size:.82rem;color:rgba(255,255,255,.92);line-height:1.7;margin:0;padding-left:1.2rem;">
-        <li>Descargá la plantilla y llenala: <b>cédula</b> del alumno, <b>materia</b>, <b>período</b> (tiene que existir ya — creálo en Materias › Períodos) y <b>nota</b> (0-20).</li>
-        <li>Subila acá y revisá la vista previa — te dice qué pasaría con cada fila antes de guardar nada.</li>
-        <li>Si todo se ve bien, confirmá. Si una materia histórica no existe todavía, se crea sola; el alumno tiene que existir de antes.</li>
+        <li>Descarga la plantilla y llénala: <b>ID</b> del alumno, <b>materia</b>, <b>período</b> (tiene que existir ya — créalo en Materias › Períodos) y <b>nota</b> (0-20).</li>
+        <li>Súbela acá y revisa la vista previa — te dice qué pasaría con cada fila antes de guardar nada.</li>
+        <li>Si todo se ve bien, confirma. Si una materia histórica no existe todavía, se crea sola; el alumno tiene que existir de antes.</li>
       </ol>
     </div>
   </div>
@@ -232,7 +232,7 @@ mysqli_close($con);
       </div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>Fila</th><th>Cédula</th><th>Alumno</th><th>Materia</th><th>Período</th><th style="text-align:center;">Nota</th><th>Qué pasaría</th></tr></thead>
+          <thead><tr><th>Fila</th><th>ID</th><th>Alumno</th><th>Materia</th><th>Período</th><th style="text-align:center;">Nota</th><th>Qué pasaría</th></tr></thead>
           <tbody id="tbCsvPreview"></tbody>
         </table>
       </div>
@@ -245,10 +245,10 @@ mysqli_close($con);
     <div class="card-body" style="padding:1.2rem 1.4rem;">
       <div style="font-weight:800;color:#fff;font-size:.95rem;margin-bottom:.3rem;">¿Cómo funciona?</div>
       <ol style="font-size:.82rem;color:rgba(255,255,255,.92);line-height:1.7;margin:0;padding-left:1.2rem;">
-        <li>Subí el Excel tal cual ya lo llevás: alumnos en filas, materias en columnas (como una sábana de notas).</li>
-        <li>Elegí el período al que pertenece esa planilla, y marcá en qué fila están los nombres de las materias y en qué fila/columna empiezan los alumnos — te mostramos la planilla con números de fila/columna para que sea fácil ubicarlos.</li>
-        <li>Revisá la vista previa: cada alumno de la planilla se empareja con un alumno ya existente en el sistema (si no lo encuentra, elegilo vos a mano o marcá "omitir"). Podés corregir cualquier nota antes de guardar.</li>
-        <li>Confirmá — las materias que no existan se crean solas, igual que con la planilla CSV.</li>
+        <li>Sube el Excel tal cual ya lo llevas: alumnos en filas, materias en columnas (como una sábana de notas).</li>
+        <li>Elige el período al que pertenece esa planilla, y marca en qué fila están los nombres de las materias y en qué fila/columna empiezan los alumnos — te mostramos la planilla con números de fila/columna para que sea fácil ubicarlos.</li>
+        <li>Revisa la vista previa: cada alumno de la planilla se empareja con un alumno ya existente en el sistema (si no lo encuentra, elígelo tú a mano o marca "omitir"). Puedes corregir cualquier nota antes de guardar.</li>
+        <li>Confirma — las materias que no existan se crean solas, igual que con la planilla CSV.</li>
       </ol>
     </div>
   </div>
@@ -467,7 +467,7 @@ async function loadTabla() {
       <thead><tr>
         <th style="width:30px;">#</th>
         <th style="text-align:left;">Alumno</th>
-        <th style="text-align:left;width:100px;">Cédula</th>
+        <th style="text-align:left;width:100px;">ID</th>
         <th style="text-align:center;">Nota Final</th>
         <th style="text-align:center;">Estado</th>
         <th style="text-align:center;">Fecha</th>
@@ -909,11 +909,11 @@ function renderDetalleAlumnoMatriz() {
       const nombreGuess = partes.slice(1).join(' ') || '';
       return `
       <div style="border:1.5px dashed var(--border);border-radius:10px;padding:.9rem 1rem;margin-bottom:1rem;max-width:560px;">
-        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;">No está en el sistema — con el nombre, apellido y cédula alcanza para crearlo de una (revisá que el nombre/apellido quedaron bien separados):</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:.6rem;">No está en el sistema — con el nombre, apellido e ID alcanza para crearlo de una (revisa que el nombre/apellido quedaron bien separados):</div>
         <div class="form-grid">
           <div class="field" style="margin:0;"><label>Apellido</label><input type="text" id="matrizNuevoApellido" value="${h(apellidoGuess)}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:7px;width:100%;"></div>
           <div class="field" style="margin:0;"><label>Nombre</label><input type="text" id="matrizNuevoNombre" value="${h(nombreGuess)}" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:7px;width:100%;"></div>
-          <div class="field" style="margin:0;"><label>Cédula</label><input type="text" id="matrizNuevoCedula" placeholder="Solo números" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:7px;width:100%;"></div>
+          <div class="field" style="margin:0;"><label>ID</label><input type="text" id="matrizNuevoCedula" placeholder="Solo números" style="padding:.5rem .7rem;border:1.5px solid var(--border);border-radius:7px;width:100%;"></div>
         </div>
         <button class="btn btn-secondary" style="margin-top:.7rem;" onclick="crearAlumnoDesdeMatriz()"><i class="bx bx-user-plus"></i> Crear alumno nuevo</button>
       </div>`;
@@ -956,7 +956,7 @@ async function crearAlumnoDesdeMatriz() {
   const apellido = document.getElementById('matrizNuevoApellido').value.trim();
   const nombre = document.getElementById('matrizNuevoNombre').value.trim();
   const cedula = document.getElementById('matrizNuevoCedula').value.trim();
-  if (!nombre || !apellido || !cedula) { toast('Completá nombre, apellido y cédula.', 'err'); return; }
+  if (!nombre || !apellido || !cedula) { toast('Completa nombre, apellido e ID.', 'err'); return; }
   const d = await ajax('matriz_crear_alumno', { nombre, apellido, cedula }, 'api/notas_importar.php');
   if (!d?.ok) { toast(d?.msg || 'No se pudo crear el alumno.', 'err'); return; }
   const nuevo = d.data;
@@ -1050,9 +1050,9 @@ async function confirmarCSV() {
 window.IBBS_TOUR_NOTAS = {
   storageKey: 'ibbs_tour_notas_v1',
   steps: [
-    { selector: '[data-tour="notas-tab-materia"]', title: 'Por Materia', text: 'El día a día: elegís una materia y cargás la nota final de cada alumno inscrito, uno por uno.' },
-    { selector: '[data-tour="notas-tab-alumno"]', title: 'Histórico por Alumno — tu carpeta de notas en papel', text: '¿Tenés la carpeta de un alumno con 20 materias ya cursadas? Entrá acá, elegilo en el selector, y por cada materia de su carpeta: si no aparece en la lista, usá "+ Agregar al récord" para sumarla primero; después escribí la nota (0-20) en cada fila. Cuando termines todas, un solo clic en "Guardar todas las notas" las deja registradas en su expediente — no hace falta guardar una por una.' },
-    { selector: '[data-tour="notas-tab-excel"]', title: 'Importar desde Excel/CSV — para muchos alumnos de una', text: 'Si lo que tenés son planillas viejas de Excel con muchos alumnos: 1) "Descargar plantilla .csv" te da el formato exacto (cédula, materia, período, nota). 2) Llenala con tus datos y subila con "Ver vista previa" — te muestra fila por fila qué va a pasar, SIN guardar nada todavía. 3) Si se ve bien, "Confirmar e importar" la deja toda cargada de una. El alumno tiene que existir ya en el sistema; si una materia histórica no existe, se crea sola.' },
+    { selector: '[data-tour="notas-tab-materia"]', title: 'Por Materia', text: 'El día a día: eliges una materia y cargas la nota final de cada alumno inscrito, uno por uno.' },
+    { selector: '[data-tour="notas-tab-alumno"]', title: 'Histórico por Alumno — tu carpeta de notas en papel', text: '¿Tienes la carpeta de un alumno con 20 materias ya cursadas? Entra acá, elígelo en el selector, y por cada materia de su carpeta: si no aparece en la lista, usa "+ Agregar al récord" para sumarla primero; después escribe la nota (0-20) en cada fila. Cuando termines todas, un solo clic en "Guardar todas las notas" las deja registradas en su expediente — no hace falta guardar una por una.' },
+    { selector: '[data-tour="notas-tab-excel"]', title: 'Importar desde Excel/CSV — para muchos alumnos de una', text: 'Si lo que tienes son planillas viejas de Excel con muchos alumnos: 1) "Descargar plantilla .csv" te da el formato exacto (ID, materia, período, nota). 2) Llénala con tus datos y súbela con "Ver vista previa" — te muestra fila por fila qué va a pasar, SIN guardar nada todavía. 3) Si se ve bien, "Confirmar e importar" la deja toda cargada de una. El alumno tiene que existir ya en el sistema; si una materia histórica no existe, se crea sola.' },
   ],
   auto: true,
 };

@@ -59,7 +59,7 @@ mysqli_close($con);
         <div class="form-grid">
           <div class="field"><label>Usuario</label><input id="pU" value="<?=htmlspecialchars($u['usuario'])?>"></div>
           <div class="field"><label>Correo</label><input id="pM" type="email" value="<?=htmlspecialchars($u['correo'])?>"></div>
-          <div class="field"><label>Cédula</label><input id="pCed" value="<?=htmlspecialchars($u['cedula'])?>" readonly style="opacity:.6;cursor:not-allowed;"></div>
+          <div class="field"><label>ID</label><input id="pCed" value="<?=htmlspecialchars($u['cedula'])?>" readonly style="opacity:.6;cursor:not-allowed;"></div>
           <div class="field"><label>Rol actual</label><input value="<?=ucfirst($u['rol'])?>" readonly style="opacity:.6;cursor:not-allowed;"></div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:.5rem;">

@@ -21,7 +21,7 @@ if (!$con) die('Error de conexión a la base de datos.');
 
 $rol = $_SESSION['rol'] ?? 'alumno';
 $uid = (int)($_SESSION['user_id'] ?? 0);
-if (!in_array($rol, ['superadmin', 'admin'])) die('No tenés permiso para generar este reporte.');
+if (!in_array($rol, ['superadmin', 'admin'])) die('No tienes permiso para generar este reporte.');
 
 $tipo = in_array($_GET['tipo'] ?? '', ['asistencias', 'pagos']) ? $_GET['tipo'] : '';
 if (!$tipo) die('Reporte inválido.');

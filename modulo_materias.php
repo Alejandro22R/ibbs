@@ -211,7 +211,7 @@ if(!in_array($_rol,['superadmin','admin'])){
     </div>
     <div class="modal-body">
       <p style="font-size:.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.5;">
-        Un período es un año o semestre (ej. "2025 - I Semestre"). Creá uno por cada año/lapso que quieras poder distinguir en el récord de un alumno — después se lo asignás a cada materia.
+        Un período es un año o semestre (ej. "2025 - I Semestre"). Crea uno por cada año/lapso que quieras poder distinguir en el récord de un alumno — después se lo asignas a cada materia.
       </p>
       <form onsubmit="crearPeriodo(event)" style="display:flex;gap:.5rem;margin-bottom:1.2rem;flex-wrap:wrap;align-items:flex-end;">
         <div class="field" style="flex:1;min-width:160px;margin:0;"><label>Nombre</label><input name="nombre" placeholder="2025 - I Semestre" required></div>
@@ -643,7 +643,7 @@ window.IBBS_TOUR_MATERIAS = {
   steps: [
     { selector: '[data-tour="mat-nueva"]', title: 'Crear una materia', text: 'Acá creás cada materia que se dicta: nombre, código, días/horario y el docente asignado — todo desde un mismo formulario.' },
     { selector: '[data-tour="mat-periodos"]', title: 'Períodos académicos', text: 'Antes de cargar materias de años anteriores, creá acá el período (año/semestre) al que pertenecen — eso permite ver después, en el Récord del alumno, en qué año cursó cada cosa.' },
-    { selector: '[data-tour="mat-tabla"]', title: 'Editar, inscribir, culminar', text: 'Desde "Editar" podés asignar docentes, inscribir alumnos y ver sus calificaciones de esa materia. El botón "Culminar" marca la materia como terminada; la nota final siempre se carga desde Cargar Notas, no desde acá.' },
+    { selector: '[data-tour="mat-tabla"]', title: 'Editar, inscribir, culminar', text: 'Desde "Editar" puedes asignar docentes, inscribir alumnos y ver sus calificaciones de esa materia. El botón "Culminar" marca la materia como terminada; la nota final siempre se carga desde Cargar Notas, no desde acá.' },
   ],
   auto: true,
 };

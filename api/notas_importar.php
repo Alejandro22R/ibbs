@@ -109,7 +109,7 @@ function resolver_fila($con, $uid, $fila, $crear, &$cacheMaterias) {
     }
 
     $al = mysqli_fetch_assoc(mysqli_query($con, "SELECT id,nombre,apellido FROM alumnos WHERE cedula='".esc_ni($con,$fila['cedula'])."' LIMIT 1"));
-    if (!$al) { $out['estado'] = 'error'; $out['mensaje'] = 'Cédula no encontrada — creá primero al alumno en Alumnos.'; return $out; }
+    if (!$al) { $out['estado'] = 'error'; $out['mensaje'] = 'ID no encontrado — crea primero al alumno en Alumnos.'; return $out; }
     $out['alumno_nombre'] = $al['apellido'].', '.$al['nombre'];
     $out['alumno_id'] = (int)$al['id'];
 
@@ -208,11 +208,11 @@ if ($action === 'matriz_crear_alumno') {
     $nombre = trim($_POST['nombre'] ?? '');
     $apellido = trim($_POST['apellido'] ?? '');
     $cedula = trim($_POST['cedula'] ?? '');
-    if ($nombre === '' || $apellido === '' || $cedula === '') { echo json_encode(['ok'=>false,'msg'=>'Nombre, apellido y cédula son obligatorios.']); exit; }
-    if (!preg_match('/^[0-9]{5,15}$/', $cedula)) { echo json_encode(['ok'=>false,'msg'=>'Cédula inválida — solo números (5 a 15 dígitos).']); exit; }
+    if ($nombre === '' || $apellido === '' || $cedula === '') { echo json_encode(['ok'=>false,'msg'=>'Nombre, apellido e ID son obligatorios.']); exit; }
+    if (!preg_match('/^[0-9]{5,15}$/', $cedula)) { echo json_encode(['ok'=>false,'msg'=>'ID inválido — solo números (5 a 15 dígitos).']); exit; }
 
     $ex = mysqli_fetch_assoc(mysqli_query($con, "SELECT id,nombre,apellido,cedula FROM alumnos WHERE cedula='".esc_ni($con,$cedula)."' LIMIT 1"));
-    if ($ex) { echo json_encode(['ok'=>true,'msg'=>'Ya existía un alumno con esa cédula — se usó ese.','data'=>$ex]); exit; }
+    if ($ex) { echo json_encode(['ok'=>true,'msg'=>'Ya existía un alumno con ese ID — se usó ese.','data'=>$ex]); exit; }
 
     $correo = 'alumno-'.$cedula.'@ibbscampus.local';
     $exCorreo = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE correo='".esc_ni($con,$correo)."' LIMIT 1"));

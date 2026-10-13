@@ -32,7 +32,7 @@ if ($rol === 'alumno') {
 } elseif (in_array($rol, ['superadmin', 'admin'])) {
     $aid = (int)($_GET['alumno_id'] ?? 0);
 } else {
-    die('No tenés permiso para generar este documento.');
+    die('No tienes permiso para generar este documento.');
 }
 if(!$aid) die('Alumno no encontrado.');
 log_audit($con, $uid, 'BOLETIN_GENERAR', "alumno=$aid");

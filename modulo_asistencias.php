@@ -376,7 +376,7 @@ mysqli_close($con);
           <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllHist" onchange="toggleAllHist(this)" title="Seleccionar todo (de esta página)"></th>
           <th>Fecha</th>
           <th>Persona</th>
-          <th>Cédula</th>
+          <th>ID</th>
           <th>Materia</th>
           <th style="text-align:center;">Estado</th>
           <th>Observación</th>
@@ -930,7 +930,7 @@ async function eliminarHistSeleccionados(){
 
 function exportarHistorialCSV(){
   IbbsExport.rows(
-    ['Fecha','Persona','Cédula','Materia','Estado','Observación'],
+    ['Fecha','Persona','ID','Materia','Estado','Observación'],
     _hData.map(r => [r.fecha||'', r.persona||'', r.cedula||'', r.materia||'', r.estado||'', r.observacion||'']),
     'historial-asistencias'
   );
@@ -1229,10 +1229,10 @@ document.addEventListener('ibbs:ready',()=>{ loadStatChips(); });
 window.IBBS_TOUR_ASISTENCIAS = {
   storageKey: 'ibbs_tour_asistencias_v1',
   steps: [
-    { selector: '[data-tour="asist-tabs"]', title: 'Asistencias', text: '5 formas de registrar asistencia: "Paso de lista" (marcar materia por materia), "Registro por Foto" (subís la foto de la hoja de papel y el sistema la lee sola), "Registro individual" (uno a la vez), "Resumen" (porcentajes) e "Historial" (todos los registros, con exportar y eliminar en lote).' },
-    { selector: '[data-tour="asist-paso-lista"]', title: 'Paso de lista', text: 'Elegí la materia y la fecha — se carga la lista completa de alumnos inscritos, lista para marcar.' },
-    { selector: '[data-tour="asist-marcar-todos"]', title: 'Marcar todos de una', text: '¿Todos presentes o todos ausentes? Un clic marca a todo el curso — después corregís solo las excepciones una por una.' },
-    { selector: '.ibbs-tab[data-tab="historial"]', title: 'Historial', text: 'Acá ves todos los registros. Podés seleccionar varios (o todos con la casilla del encabezado) y eliminarlos de una, o exportar el historial completo filtrado a Excel o a PDF con el membrete institucional.' },
+    { selector: '[data-tour="asist-tabs"]', title: 'Asistencias', text: '5 formas de registrar asistencia: "Paso de lista" (marcar materia por materia), "Registro por Foto" (subes la foto de la hoja de papel y el sistema la lee sola), "Registro individual" (uno a la vez), "Resumen" (porcentajes) e "Historial" (todos los registros, con exportar y eliminar en lote).' },
+    { selector: '[data-tour="asist-paso-lista"]', title: 'Paso de lista', text: 'Elige la materia y la fecha — se carga la lista completa de alumnos inscritos, lista para marcar.' },
+    { selector: '[data-tour="asist-marcar-todos"]', title: 'Marcar todos de una', text: '¿Todos presentes o todos ausentes? Un clic marca a todo el curso — después corriges solo las excepciones una por una.' },
+    { selector: '.ibbs-tab[data-tab="historial"]', title: 'Historial', text: 'Acá ves todos los registros. Puedes seleccionar varios (o todos con la casilla del encabezado) y eliminarlos de una, o exportar el historial completo filtrado a Excel o a PDF con el membrete institucional.' },
   ],
   auto: true,
 };

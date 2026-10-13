@@ -247,9 +247,9 @@ window.IBBS_TOUR_BACKUP = {
   storageKey: 'ibbs_tour_backup_v1',
   steps: [
     { selector: '[data-tour="bk-resumen"]', title: 'Resumen rápido', text: 'Acá ves de un vistazo cuántos alumnos, docentes y materias hay registrados.' },
-    { selector: '[data-tour="bk-exportar"]', title: 'Exportar (hacer un respaldo)', text: 'Un clic descarga un archivo con TODA la información del sistema. Hacelo seguido, sobre todo antes de cambios importantes, y guardá el archivo en un lugar aparte.' },
+    { selector: '[data-tour="bk-exportar"]', title: 'Exportar (hacer un respaldo)', text: 'Un clic descarga un archivo con TODA la información del sistema. Hazlo seguido, sobre todo antes de cambios importantes, y guarda el archivo en un lugar aparte.' },
     <?php if($_rol==='superadmin'): ?>
-    { selector: '[data-tour="bk-importar"]', title: 'Importar (restaurar)', text: 'Si algo sale mal, podés subir un archivo de respaldo acá para volver todo a como estaba. OJO: esto reemplaza los datos actuales — asegurate de tener un respaldo reciente antes de restaurar otro.' },
+    { selector: '[data-tour="bk-importar"]', title: 'Importar (restaurar)', text: 'Si algo sale mal, puedes subir un archivo de respaldo acá para volver todo a como estaba. OJO: esto reemplaza los datos actuales — asegúrate de tener un respaldo reciente antes de restaurar otro.' },
     <?php endif; ?>
     <?php if(can('all')): ?>
     { selector: '[data-tour="bk-peligro"]', title: 'Zona de Peligro', text: 'Acá solo hay una acción: borrar todo y empezar de cero. Es irreversible, por eso te pide tu contraseña antes de hacerlo. Usala solo si estás completamente seguro(a).' },

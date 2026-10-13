@@ -197,7 +197,7 @@
     box.innerHTML = '<div style="text-align:center;padding:2rem;color:#7a8c72;">Cargando…</div>';
     const d = await postAjax('notif_list');
     if (!d || !d.ok || !d.data.length) {
-      box.innerHTML = '<div style="text-align:center;padding:2rem;color:#7a8c72;font-size:.85rem;">No tenés notificaciones pendientes.</div>';
+      box.innerHTML = '<div style="text-align:center;padding:2rem;color:#7a8c72;font-size:.85rem;">No tienes notificaciones pendientes.</div>';
       return;
     }
     box.innerHTML = d.data.map((n) => {

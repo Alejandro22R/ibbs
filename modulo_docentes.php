@@ -38,7 +38,7 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
       <input type="text" id="fDocNombre" data-only="letters" placeholder="Nombre o apellido…" oninput="filtrarDocentes()"
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:180px;">
-      <input type="text" id="fDocCedula" data-only="cedula" placeholder="Cédula…" oninput="filtrarDocentes()"
+      <input type="text" id="fDocCedula" data-only="cedula" placeholder="ID…" oninput="filtrarDocentes()"
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:140px;">
     </div>
   </div>
@@ -51,7 +51,7 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
     <table id="tblD" class="table-stack">
       <thead><tr>
         <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllDoc" onchange="toggleAllDocentes(this)" title="Seleccionar todo"></th>
-        <th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Especialidad</th><th>Materias</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <th>ID</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Especialidad</th><th>Materias</th><th>Estado</th><th>Acciones</th></tr></thead>
       <tbody id="tbodyD"><tr class="empty-row"><td colspan="9"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
@@ -69,7 +69,7 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre *</label><input name="nombre" data-only="letters" placeholder="Carlos"></div>
           <div class="field"><label>Apellido *</label><input name="apellido" data-only="letters" placeholder="Rodríguez"></div>
-          <div class="field"><label>Cédula *</label><input name="cedula" data-only="cedula" placeholder="V-12345678"></div>
+          <div class="field"><label>ID <span class="field-ast-help"><button type="button" onclick="toggleIdHint(this)" aria-label="¿Qué es el ID?">*</button><span class="field-ast-bubble">Identificación personal del docente: cédula, DNI, pasaporte u otro documento oficial válido en su país.</span></span></label><input name="cedula" data-only="cedula" placeholder="V-12345678"></div>
           <div class="field"><label>Gmail *</label><input type="email" name="correo" placeholder="correo@gmail.com"></div>
           <div class="field"><label>Teléfono</label><input name="telefono" data-only="phone" placeholder="0414-1234567"></div>
           <div class="field"><label>Especialidad</label><input name="especialidad" data-only="letters" placeholder="Matemáticas"></div>
@@ -88,7 +88,7 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
           <button type="button" class="btn btn-secondary btn-sm" onclick="generarPasswordDocente()">🎲 Generar contraseña</button>
-          <span style="font-size:.72rem;color:var(--muted);">Pasásela al docente — él puede cambiarla después desde su perfil.</span>
+          <span style="font-size:.72rem;color:var(--muted);">Pásasela al docente — él puede cambiarla después desde su perfil.</span>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:.6rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('mCD')">Cancelar</button>
@@ -110,7 +110,7 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
       <div class="form-grid" style="margin-bottom:1rem;">
         <div class="field"><label>Nombre</label><input id="eDN"></div>
         <div class="field"><label>Apellido</label><input id="eDA"></div>
-        <div class="field"><label>Cédula</label><input id="eDC"></div>
+        <div class="field"><label>ID</label><input id="eDC"></div>
         <div class="field"><label>Correo</label><input id="eDM" type="email"></div>
         <div class="field"><label>Teléfono</label><input id="eDT"></div>
         <div class="field"><label>Especialidad</label><input id="eDE"></div>
@@ -180,7 +180,7 @@ let _docentesAll = [];
 function filaDocente(r){
   return `<tr>
     <td style="text-align:center;"><input type="checkbox" class="chkDoc" value="${r.id}" onchange="actualizarBarraLoteDocentes()"></td>
-    <td data-label="Cédula"><strong>${h(r.cedula)}</strong></td>
+    <td data-label="ID"><strong>${h(r.cedula)}</strong></td>
     <td data-label="Nombre">${h(r.apellido)}, ${h(r.nombre)}</td>
     <td data-label="Correo" style="font-size:.82rem;">${h(r.correo)}</td>
     <td style="font-size:.82rem;">${h(r.ciudad)||'—'}</td>
@@ -227,7 +227,7 @@ async function createDoc(e){
   if(!validarForm([
     {name:'nombre',   label:'Nombre',   tipo:'texto', min:2},
     {name:'apellido', label:'Apellido', tipo:'texto', min:2},
-    {name:'cedula',   label:'Cédula',   tipo:'cedula'},
+    {name:'cedula',   label:'ID',   tipo:'cedula'},
     {name:'correo',   label:'Correo',   tipo:'email'},
   ])) return;
   const usuarioLogin = document.querySelector('#fCD [name="usuario_login"]').value.trim();
@@ -317,7 +317,7 @@ async function verPerfil(id){
     <div class="profile-card">
       <div class="profile-ava">${ini}</div>
       <div class="profile-name">${h(r.nombre)} ${h(r.apellido)}</div>
-      <div class="profile-meta">Cédula: ${h(r.cedula)} · ${h(r.correo)}</div>
+      <div class="profile-meta">ID: ${h(r.cedula)} · ${h(r.correo)}</div>
       ${r.telefono?`<div class="profile-meta">Tel: ${h(r.telefono)}</div>`:''}
       ${r.ciudad?`<div class="profile-meta">Ciudad: ${h(r.ciudad)}</div>`:''}
       <div class="profile-chips" style="margin-top:.8rem;">
@@ -417,8 +417,8 @@ async function eliminarDocentesSeleccionados(){
 window.IBBS_TOUR_DOCENTES = {
   storageKey: 'ibbs_tour_docentes_v1',
   steps: [
-    { selector: '[data-tour="doc-nuevo"]', title: 'Registrar un docente', text: 'Carga el docente y le creás de una su cuenta de acceso (foro, aula virtual, tareas) con una contraseña inicial.' },
-    { selector: '[data-tour="doc-tabla"]', title: 'Gestionar docentes', text: 'Asigná materias, mirá el "Perfil" (incluye su expediente: cuántas materias dictó desde que se activó el seguimiento), generá la Constancia de Trabajo o eliminá. Marcando varios (o todos con la casilla del encabezado) podés eliminar en lote.' },
+    { selector: '[data-tour="doc-nuevo"]', title: 'Registrar un docente', text: 'Carga el docente y le creas de una su cuenta de acceso (foro, aula virtual, tareas) con una contraseña inicial.' },
+    { selector: '[data-tour="doc-tabla"]', title: 'Gestionar docentes', text: 'Asigna materias, mira el "Perfil" (incluye su expediente: cuántas materias dictó desde que se activó el seguimiento), genera la Constancia de Trabajo o elimina. Marcando varios (o todos con la casilla del encabezado) puedes eliminar en lote.' },
   ],
   auto: true,
 };

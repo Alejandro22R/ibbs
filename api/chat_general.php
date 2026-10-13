@@ -112,7 +112,7 @@ if ($action === 'delete_mensaje' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $esAutor  = $fila['usuario_id'] !== null && (int)$fila['usuario_id'] === $uid;
     $esModera = in_array($_rol, ['superadmin', 'admin']);
     if (!$esAutor && !$esModera) {
-        echo json_encode(['success' => false, 'error' => 'No tenés permiso para borrar este mensaje.']); exit;
+        echo json_encode(['success' => false, 'error' => 'No tienes permiso para borrar este mensaje.']); exit;
     }
 
     $stD = mysqli_prepare($con, "DELETE FROM chat_staff WHERE id=?");

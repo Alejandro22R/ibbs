@@ -179,7 +179,7 @@ mysqli_close($con);
       <button class="modal-close" onclick="closeModal('modal-revisar-notas')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
-      <p style="font-size:.8rem;color:var(--muted);margin-bottom:.8rem;">Tal como lo envió el profesor — podés ajustar cualquier nota antes de aprobar.</p>
+      <p style="font-size:.8rem;color:var(--muted);margin-bottom:.8rem;">Tal como lo envió el profesor — puedes ajustar cualquier nota antes de aprobar.</p>
       <div class="tbl-wrap" style="max-height:360px;overflow-y:auto;">
         <table>
           <thead><tr><th style="text-align:left;">Alumno</th><th style="text-align:center;">Actividades</th><th style="text-align:center;">Nota a registrar</th></tr></thead>
@@ -187,7 +187,7 @@ mysqli_close($con);
         </table>
       </div>
       <div class="field" style="margin-top:1rem;">
-        <label>Comentario (opcional si aprobás, obligatorio si rechazás)</label>
+        <label>Comentario (opcional si apruebas, obligatorio si rechazas)</label>
         <textarea id="rnComentario" rows="2" placeholder="Ej: falta corregir la nota de Juan Pérez…"></textarea>
       </div>
     </div>
@@ -210,7 +210,7 @@ mysqli_close($con);
           <div class="cert-search-box">
             <div class="cert-search-inputs">
               <input type="text" id="fCertNombre" placeholder="Nombre o apellido…" oninput="filtrarCertAlumno()">
-              <input type="text" id="fCertCedula" placeholder="Cédula…" style="max-width:110px;" oninput="filtrarCertAlumno()">
+              <input type="text" id="fCertCedula" placeholder="ID…" style="max-width:110px;" oninput="filtrarCertAlumno()">
             </div>
             <div class="cert-alumno-list" id="certAlumnoList">
               <?php if(!$lista_alumnos): ?>
@@ -751,8 +751,8 @@ async function generarCert() {
   
   // Párrafo introductorio oficial con jerga jurídica
   const cuerpoTexto=tipo==='estudio'
-    ? `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la cédula de identidad N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes.`
-    : `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la cédula de identidad N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:`;
+    ? `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la identificación N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes.`
+    : `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la identificación N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:`;
 
   const html=`<!DOCTYPE html>
   <html>
@@ -964,7 +964,7 @@ async function generarCert() {
       <div class="signature-block">
         <div class="signature-line"></div>
         <p class="signature-title">Firma del Estudiante</p>
-        <p class="signature-sub">Titular de la Cédula</p>
+        <p class="signature-sub">Titular de la Identificación</p>
       </div>
       <div class="signature-block">
         <div class="signature-line"></div>

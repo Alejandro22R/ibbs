@@ -118,7 +118,7 @@ if ($action === 'delete_mensaje' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $esAutor  = $fila['usuario_id'] !== null && (int)$fila['usuario_id'] === $uid;
     $esModera = materia_puede_gestionar($con, $uid, $_rol, $materia_id);
     if (!$esAutor && !$esModera) {
-        echo json_encode(['success' => false, 'error' => 'No tenés permiso para borrar este mensaje.']); exit;
+        echo json_encode(['success' => false, 'error' => 'No tienes permiso para borrar este mensaje.']); exit;
     }
 
     $stD = mysqli_prepare($con, "DELETE FROM foro_mensajes WHERE id=? AND materia_id=?");

@@ -1,6 +1,6 @@
 <?php
 $page_title = 'Buscar Personal';
-$page_sub   = 'Alumno o docente — por nombre o cédula';
+$page_sub   = 'Alumno o docente — por nombre o ID';
 $active_link = 'buscar';
 include __DIR__.'/layout/head.php';
 // Acceso admin o superadmin
@@ -19,7 +19,7 @@ if(!in_array($_rol,['superadmin','admin'])){
   <div class="card-body">
     <div style="display:flex;gap:.7rem;">
       <div class="field" style="flex:1;margin:0;">
-        <label>Nombre, apellido o cédula</label>
+        <label>Nombre, apellido o ID</label>
         <input id="inputBusqueda" placeholder="Ej. María Pérez, o V-12345678" oninput="buscarEnVivo()" onkeydown="if(event.key==='Enter')buscarEnVivo(true)">
       </div>
       <button class="btn btn-primary" style="align-self:flex-end;" onclick="buscarEnVivo(true)" id="btnBuscar">
@@ -36,8 +36,8 @@ if(!in_array($_rol,['superadmin','admin'])){
 
 <div id="emptyState" style="text-align:center;padding:4rem 1rem;color:var(--muted);">
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:1rem;opacity:.4;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-  <p style="font-family:'DM Serif Display',serif;font-size:1.4rem;margin-bottom:.4rem;">Buscá por nombre o cédula</p>
-  <p style="font-size:.84rem;">Escribí al menos 2 letras del nombre, apellido o la cédula de un alumno o docente.</p>
+  <p style="font-family:'DM Serif Display',serif;font-size:1.4rem;margin-bottom:.4rem;">Busca por nombre o ID</p>
+  <p style="font-size:.84rem;">Escribe al menos 2 letras del nombre, apellido o el ID de un alumno o docente.</p>
 </div>
 
 <!-- MODAL: actividades de una materia (Plan de Notas) para el alumno elegido -->
@@ -115,7 +115,7 @@ async function verPersona(id, tipo) {
         <div class="profile-ava">${h(ini)}</div>
         <div style="flex:1;">
           <div class="profile-name">${h(r.nombre)} ${h(r.apellido)}</div>
-          <div class="profile-meta" style="margin-bottom:.3rem;">Cédula: <strong style="color:rgba(255,255,255,.7)">${h(r.cedula)}</strong></div>
+          <div class="profile-meta" style="margin-bottom:.3rem;">ID: <strong style="color:rgba(255,255,255,.7)">${h(r.cedula)}</strong></div>
           <div class="profile-meta">📧 ${h(r.correo)}${r.telefono ? ' · 📞 ' + h(r.telefono) : ''}</div>
           <div class="profile-chips" style="margin-top:.8rem;">
             <span class="profile-chip lime">${tipo === 'alumno' ? 'Alumno' : 'Docente'}</span>
@@ -242,7 +242,7 @@ async function verPlanAlumnoMateria(materiaId, materiaNombre) {
 window.IBBS_TOUR_BUSCAR = {
   storageKey: 'ibbs_tour_buscar_v1',
   steps: [
-    { selector: '[data-tour="buscar-card"]', title: 'Buscar Personal', text: 'Escribí nombre, apellido o cédula (mín. 2 letras) y elegí de la lista — vas a ver el perfil completo del alumno o docente: sus materias, notas y asistencias, sin tener que ir módulo por módulo.' },
+    { selector: '[data-tour="buscar-card"]', title: 'Buscar Personal', text: 'Escribe nombre, apellido o ID (mín. 2 letras) y elige de la lista — vas a ver el perfil completo del alumno o docente: sus materias, notas y asistencias, sin tener que ir módulo por módulo.' },
   ],
   auto: true,
 };

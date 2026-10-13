@@ -65,7 +65,7 @@ function ibbs_plan_notas_snapshot($con, $materia_id) {
 if ($action === 'crear') {
     $mid = (int)($_POST['materia_id'] ?? 0);
     if (!$mid) json_fail_ne('Falta la materia.');
-    if (!materia_puede_gestionar($con, $uid, $rol, $mid)) json_fail_ne('No tenés permiso sobre esta materia.');
+    if (!materia_puede_gestionar($con, $uid, $rol, $mid)) json_fail_ne('No tienes permiso sobre esta materia.');
 
     $pendiente = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM notas_envios WHERE materia_id=$mid AND estado='pendiente' LIMIT 1"));
     if ($pendiente) json_fail_ne('Ya enviaste las notas de esta materia y están pendientes de aprobación — esperá la revisión del administrador antes de volver a enviar.');
@@ -82,7 +82,7 @@ if ($action === 'crear') {
     $limpio = [];
     foreach ($alumnosMateria as $aid) {
         if (!isset($propuestas[$aid]) || $propuestas[$aid] === '' || $propuestas[$aid] === null) {
-            json_fail_ne('Falta cargar la nota de uno o más alumnos — tenés que registrar la nota de todos antes de enviar.');
+            json_fail_ne('Falta cargar la nota de uno o más alumnos — tienes que registrar la nota de todos antes de enviar.');
         }
         $n = (float)$propuestas[$aid];
         if ($n < 0 || $n > 20) json_fail_ne('Las notas deben estar entre 0 y 20.');
@@ -115,7 +115,7 @@ if ($action === 'crear') {
 if ($action === 'estado_materia') {
     $mid = (int)($_POST['materia_id'] ?? 0);
     if (!$mid) json_fail_ne('Falta la materia.');
-    if (!materia_puede_gestionar($con, $uid, $rol, $mid)) json_fail_ne('No tenés permiso sobre esta materia.');
+    if (!materia_puede_gestionar($con, $uid, $rol, $mid)) json_fail_ne('No tienes permiso sobre esta materia.');
     $envio = mysqli_fetch_assoc(mysqli_query($con, "SELECT id,estado,comentario_admin,creado_en,revisado_en
                                                      FROM notas_envios WHERE materia_id=$mid ORDER BY id DESC LIMIT 1"));
     echo json_encode(['ok'=>true,'data'=>$envio ?: null]); exit;
@@ -189,7 +189,7 @@ if ($action === 'rechazar') {
     if (!in_array($rol, ['superadmin','admin'])) json_fail_ne('Sin permiso.');
     $id = (int)($_POST['id'] ?? 0);
     $comentario = mb_substr(trim($_POST['comentario'] ?? ''), 0, 500);
-    if ($comentario === '') json_fail_ne('Explicá por qué rechazás este envío, para que el profesor sepa qué corregir.');
+    if ($comentario === '') json_fail_ne('Explica por qué rechazas este envío, para que el profesor sepa qué corregir.');
 
     $envio = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM notas_envios WHERE id=$id LIMIT 1"));
     if (!$envio) json_fail_ne('Envío no encontrado.');

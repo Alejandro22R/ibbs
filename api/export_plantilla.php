@@ -11,7 +11,7 @@ if(empty($_SESSION['loggedin'])){ header('Location: ../login.php'); exit; }
 // directo por URL. Las páginas que lo enlazan (Alumnos, Docentes,
 // Materias) ya son admin/superadmin-only; el backend tiene que
 // exigir lo mismo.
-if(!in_array($_SESSION['rol']??'', ['superadmin','admin'])){ die('No tenés permiso para generar este reporte.'); }
+if(!in_array($_SESSION['rol']??'', ['superadmin','admin'])){ die('No tienes permiso para generar este reporte.'); }
 function esc($c,$v){return mysqli_real_escape_string($c,$v);}
 
 $con     = db();
@@ -27,14 +27,14 @@ switch($tipo){
   case 'alumnos':
     $titulo='Listado de Alumnos';
     $reporte=$reporte?:'Reporte General de Alumnos';
-    $headers=['N°','Apellido, Nombre','Cédula','Correo','Ciudad','Estado'];
+    $headers=['N°','Apellido, Nombre','ID','Correo','Ciudad','Estado'];
     $r=mysqli_query($con,"SELECT nombre,apellido,cedula,correo,ciudad,activo FROM alumnos WHERE activo=1 ORDER BY apellido,nombre");
     $i=1; while($f=mysqli_fetch_assoc($r)) $rows[]=[$i++,htmlspecialchars($f['apellido'].', '.$f['nombre']),htmlspecialchars($f['cedula']),htmlspecialchars($f['correo']),htmlspecialchars($f['ciudad']??'—'),$f['activo']?'Activo':'Inactivo'];
     break;
   case 'docentes':
     $titulo='Listado de Docentes';
     $reporte=$reporte?:'Reporte General de Docentes';
-    $headers=['N°','Apellido, Nombre','Cédula','Especialidad','Correo','Estado'];
+    $headers=['N°','Apellido, Nombre','ID','Especialidad','Correo','Estado'];
     $r=mysqli_query($con,"SELECT nombre,apellido,cedula,especialidad,correo,activo FROM docentes WHERE activo=1 ORDER BY apellido,nombre");
     $i=1; while($f=mysqli_fetch_assoc($r)) $rows[]=[$i++,htmlspecialchars($f['apellido'].', '.$f['nombre']),htmlspecialchars($f['cedula']),htmlspecialchars($f['especialidad']??'—'),htmlspecialchars($f['correo']),$f['activo']?'Activo':'Inactivo'];
     break;

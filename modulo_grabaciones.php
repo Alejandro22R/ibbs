@@ -27,7 +27,7 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
   <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem;">
     <div>
       <div style="font-weight:700;font-size:.92rem;">Clases Grabadas</div>
-      <div style="font-size:.8rem;color:var(--muted);">Elegí una materia para ver sus videos de clase. Si sos el docente o un admin, de ahí también podés subir, editar o eliminar clases grabadas.</div>
+      <div style="font-size:.8rem;color:var(--muted);">Elige una materia para ver sus videos de clase. Si eres el docente o un admin, de ahí también puedes subir, editar o eliminar clases grabadas.</div>
     </div>
     <button class="btn btn-secondary btn-sm" onclick="IbbsTour.replay(window.IBBS_TOUR_GRABACIONES)" title="Ver el tutorial de esta página otra vez">
       <i class="bx bx-play-circle"></i> Tutorial

@@ -208,7 +208,7 @@ async function editarLibro(id){
   document.getElementById('lCategoria').value = r.categoria||'';
   document.getElementById('lDescripcion').value = r.descripcion||'';
   document.getElementById('lPrecio').value = r.precio;
-  document.getElementById('lArchivoReq').textContent = '(ya cargado — subí uno nuevo solo si querés reemplazarlo)';
+  document.getElementById('lArchivoReq').textContent = '(ya cargado — sube uno nuevo solo si quieres reemplazarlo)';
   document.getElementById('mLibroTitulo').textContent = 'Editar Libro';
   openModal('mLibro');
 }
@@ -286,7 +286,7 @@ window.IBBS_TOUR_BIBLIOTECA = {
   storageKey: 'ibbs_tour_biblioteca_v1',
   steps: [
     { selector: '[data-tour="bib-nuevo"]', title: 'Subir un libro', text: 'Cargá el archivo (PDF o EPUB), portada y precio — si el precio es 0 queda gratis para quien lo descargue.' },
-    { selector: '[data-tour="bib-tabla"]', title: 'Gestionar el catálogo', text: 'Editá, ocultá o eliminá cada libro. Marcando varios (o todos con la casilla del encabezado) podés eliminarlos de una.' },
+    { selector: '[data-tour="bib-tabla"]', title: 'Gestionar el catálogo', text: 'Edita, oculta o elimina cada libro. Marcando varios (o todos con la casilla del encabezado) puedes eliminarlos de una.' },
   ],
   auto: true,
 };

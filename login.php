@@ -74,11 +74,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $st = mysqli_prepare($con,"SELECT id FROM usuarios WHERE usuario=? OR correo=? OR cedula=?");
         mysqli_stmt_bind_param($st,'sss',$u,$mail,$ced);
         mysqli_stmt_execute($st); mysqli_stmt_store_result($st);
-        if (mysqli_stmt_num_rows($st)>0) { echo json_encode(['ok'=>false,'msg'=>'Usuario, correo o cédula ya registrado.']); exit; }
+        if (mysqli_stmt_num_rows($st)>0) { echo json_encode(['ok'=>false,'msg'=>'Usuario, correo o ID ya registrado.']); exit; }
         $stA = mysqli_prepare($con,"SELECT id FROM alumnos WHERE cedula=? OR correo=?");
         mysqli_stmt_bind_param($stA,'ss',$ced,$mail);
         mysqli_stmt_execute($stA); mysqli_stmt_store_result($stA);
-        if (mysqli_stmt_num_rows($stA)>0) { echo json_encode(['ok'=>false,'msg'=>'Ya existe un alumno registrado con esa cédula o correo.']); exit; }
+        if (mysqli_stmt_num_rows($stA)>0) { echo json_encode(['ok'=>false,'msg'=>'Ya existe un alumno registrado con ese ID o correo.']); exit; }
         // Store in session temp
         $_SESSION['reg_tmp'] = ['nom'=>$nom,'ape'=>$ape,'u'=>$u,'mail'=>$mail,'ced'=>$ced,'pwd'=>$pwd];
         echo json_encode(['ok'=>true]); exit;
@@ -161,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $nombreCompleto = trim($tmp['nom'].' '.$tmp['ape']);
         $stN = mysqli_prepare($con,"INSERT INTO notificaciones(tipo,titulo,mensaje,para_rol,referencia_id) VALUES('solicitud_alumno',?,?,'admin',?)");
         $tituloN = "Nueva solicitud de ingreso: $nombreCompleto";
-        $mensajeN = "$nombreCompleto (usuario: {$tmp['u']}, cédula: {$tmp['ced']}) se registró y espera aprobación para poder ingresar.";
+        $mensajeN = "$nombreCompleto (usuario: {$tmp['u']}, ID: {$tmp['ced']}) se registró y espera aprobación para poder ingresar.";
         mysqli_stmt_bind_param($stN,'ssi',$tituloN,$mensajeN,$nuevoUid);
         mysqli_stmt_execute($stN);
         $notifId = mysqli_insert_id($con);
@@ -183,10 +183,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         exit;
     }
 
-    // ── RECUPERAR PASO 1: verificar cédula ───────────────────
+    // ── RECUPERAR PASO 1: verificar ID ───────────────────
     if ($action==='rec_cedula') {
         if (rec_cedula_throttle_blocked()) {
-            echo json_encode(['ok'=>false,'msg'=>'Demasiados intentos. Esperá unos minutos e intentá de nuevo.']); exit;
+            echo json_encode(['ok'=>false,'msg'=>'Demasiados intentos. Espera unos minutos e intenta de nuevo.']); exit;
         }
         rec_cedula_throttle_hit();
         $con = db();
@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $st = mysqli_prepare($con,"SELECT id,usuario,preg1,preg2 FROM usuarios WHERE cedula=? AND activo=1 LIMIT 1");
         mysqli_stmt_bind_param($st,'s',$ced); mysqli_stmt_execute($st);
         $r = mysqli_stmt_get_result($st); $row = mysqli_fetch_assoc($r);
-        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'Cédula no registrada.']); exit; }
+        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'ID no registrado.']); exit; }
         if (!$row['preg1']) { echo json_encode(['ok'=>false,'msg'=>'Esta cuenta no tiene preguntas de seguridad.']); exit; }
         echo json_encode(['ok'=>true,'data'=>['uid'=>$row['id'],'usuario'=>$row['usuario'],'preg1'=>$row['preg1'],'preg2'=>$row['preg2']]]);
         exit;
@@ -246,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     // usar este formulario para averiguar qué correos están
     // registrados con solo mirar si la respuesta cambia.
     if ($action==='rec_email_solicitar') {
-        $generico = ['ok'=>true,'msg'=>'Si ese usuario, cédula o correo está registrado, te enviamos un enlace para recuperar tu cuenta. Revisá también la carpeta de spam.'];
+        $generico = ['ok'=>true,'msg'=>'Si ese usuario, ID o correo está registrado, te enviamos un enlace para recuperar tu cuenta. Revisa también la carpeta de spam.'];
         if (reset_email_throttle_blocked()) {
             // Igual respuesta genérica — no delatar que existe un freno.
             echo json_encode($generico); exit;
@@ -280,8 +280,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
                       . '<h2 style="color:#1a4d2e;">Recuperar tu contraseña — IBBS</h2>'
                       . '<p>Hola ' . htmlspecialchars($row['usuario']) . ', pediste recuperar el acceso a tu cuenta.</p>'
                       . '<p><a href="' . htmlspecialchars($link) . '" style="display:inline-block;background:#1a4d2e;color:#39ff14;padding:.8rem 1.6rem;border-radius:8px;text-decoration:none;font-weight:bold;">Elegir una nueva contraseña</a></p>'
-                      . '<p style="font-size:.85rem;color:#666;">Este enlace vence en 1 hora. Si no fuiste vos, podés ignorar este correo — tu contraseña actual sigue funcionando.</p>'
-                      . '<p style="font-size:.8rem;color:#999;">¿El botón no funciona? Copiá y pegá este enlace en tu navegador:<br>' . htmlspecialchars($link) . '</p>'
+                      . '<p style="font-size:.85rem;color:#666;">Este enlace vence en 1 hora. Si no fuiste tú, puedes ignorar este correo — tu contraseña actual sigue funcionando.</p>'
+                      . '<p style="font-size:.8rem;color:#999;">¿El botón no funciona? Copia y pega este enlace en tu navegador:<br>' . htmlspecialchars($link) . '</p>'
                       . '</div>';
                 ibbs_send_mail($row['correo'], 'Recuperar tu contraseña — IBBS', $html);
                 log_audit($con, $row['id'], 'PASSWORD_RESET_SOLICITADO', "correo={$row['correo']}");
@@ -332,7 +332,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         mysqli_stmt_bind_param($stM, 'i', $row['id']); mysqli_stmt_execute($stM);
         log_audit($con, $uid, 'PASSWORD_RESET_COMPLETADO', '');
         unset($_SESSION['rec_email_uid'], $_SESSION['rec_email_token']);
-        echo json_encode(['ok'=>true,'msg'=>'Contraseña actualizada correctamente. Ya podés iniciar sesión.']); exit;
+        echo json_encode(['ok'=>true,'msg'=>'Contraseña actualizada correctamente. Ya puedes iniciar sesión.']); exit;
     }
 
     echo json_encode(['ok'=>false,'msg'=>'Acción no reconocida.']); exit;
@@ -404,6 +404,11 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 .field label{display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#555;margin-bottom:.4rem;}
 .field input,.field select{width:100%;padding:.8rem 1rem;border:1.5px solid #ddd;border-radius:10px;font-size:.92rem;font-family:'Nunito',sans-serif;background:#fff;outline:none;transition:border .2s,box-shadow .2s;color:#1a4d2e;}
 .field input:focus,.field select:focus{border-color:#39ff14;box-shadow:0 0 0 3px rgba(57,255,20,.12);}
+.field-ast-help{position:relative;display:inline-block;}
+.field-ast-help>button{background:none;border:none;padding:0 0 0 .2rem;margin:0;color:#f59e0b;font-weight:800;cursor:pointer;font-size:1em;line-height:1;font-family:inherit;text-transform:none;letter-spacing:normal;}
+.field-ast-help .field-ast-bubble{display:none;position:absolute;z-index:60;bottom:calc(100% + 10px);left:0;width:235px;max-width:64vw;background:#1a4d2e;color:#f5f0e8;font-size:.72rem;font-weight:400;line-height:1.45;letter-spacing:normal;text-transform:none;padding:.65rem .75rem;border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,.28);}
+.field-ast-help .field-ast-bubble::after{content:'';position:absolute;top:100%;left:14px;border:6px solid transparent;border-top-color:#1a4d2e;}
+.field-ast-help.open .field-ast-bubble{display:block;}
 .ibbs-pw-wrap{position:relative;width:100%;}
 .ibbs-pw-wrap input{padding-right:2.6rem !important;width:100%;}
 .ibbs-pw-eye{position:absolute;top:50%;right:.6rem;transform:translateY(-50%);background:none;border:none;padding:.25rem;cursor:pointer;color:#999;opacity:.7;display:flex;align-items:center;justify-content:center;line-height:0;}
@@ -466,7 +471,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       <p class="sub">Inicia sesión en tu cuenta</p>
       <div id="errLogin" class="err"></div>
       <div class="field"><label>Usuario</label>
-        <input id="lUser" type="text" autocomplete="username" placeholder="usuario, correo o cédula"></div>
+        <input id="lUser" type="text" autocomplete="username" placeholder="usuario, correo o ID"></div>
       <div class="field"><label>Contraseña</label>
         <input id="lPwd" type="password" autocomplete="current-password" placeholder="••••••••"></div>
       <button class="btn btn-primary" id="btnLogin" onclick="doLogin()">Iniciar sesión</button>
@@ -492,7 +497,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       </div>
       <div class="field-row">
         <div class="field"><label>Usuario *</label><input id="rU" data-only="username" placeholder="ej. jperez" autocomplete="off"></div>
-        <div class="field"><label>Cédula *</label><input id="rCed" data-only="cedula" placeholder="12345678" autocomplete="off"></div>
+        <div class="field"><label>ID <span class="field-ast-help"><button type="button" onclick="toggleIdHint(this)" aria-label="¿Qué es el ID?">*</button><span class="field-ast-bubble">Tu número de identificación personal: cédula, DNI, pasaporte u otro documento oficial válido en tu país.</span></span></label><input id="rCed" data-only="cedula" placeholder="12345678" autocomplete="off"></div>
       </div>
       <div class="field"><label>Correo electrónico *</label><input id="rM" type="email" placeholder="correo@gmail.com"></div>
       <div class="field-row">
@@ -594,13 +599,13 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
     <!-- ══ RECUPERAR — Paso 1 ══════════════════════════════ -->
     <div id="pRec1" class="pane">
       <h2>Recuperar contraseña</h2>
-      <p class="sub">Ingresa tu cédula para comenzar</p>
+      <p class="sub">Ingresa tu ID para comenzar</p>
       <div class="step-dots"><div class="step-dot active"></div><div class="step-dot"></div><div class="step-dot"></div></div>
       <div id="errRec1" class="err"></div>
-      <div class="field"><label>Cédula registrada</label><input id="recCed" placeholder="ej. 12345678"></div>
+      <div class="field"><label>ID registrado</label><input id="recCed" placeholder="ej. 12345678"></div>
       <button class="btn btn-primary" onclick="doRec1()">Continuar →</button>
       <hr class="divider">
-      <p style="font-size:.8rem;color:#888;text-align:center;margin-bottom:.6rem;">¿No te acordás las respuestas de seguridad?</p>
+      <p style="font-size:.8rem;color:#888;text-align:center;margin-bottom:.6rem;">¿No te acuerdas las respuestas de seguridad?</p>
       <button type="button" class="btn btn-outline" onclick="show('pRecEmail1')">📧 Enviarme un enlace por correo</button>
       <div class="link-row"><a onclick="show('pLogin')">← Volver al login</a></div>
     </div>
@@ -610,7 +615,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       <h2>Recuperar por correo</h2>
       <p class="sub">Te enviamos un enlace para elegir una nueva contraseña</p>
       <div id="errRecEmail1" class="err"></div>
-      <div class="field"><label>Usuario, cédula o correo</label><input id="recEmailId" placeholder="Cualquiera de los tres"></div>
+      <div class="field"><label>Usuario, ID o correo</label><input id="recEmailId" placeholder="Cualquiera de los tres"></div>
       <button class="btn btn-primary" id="btnRecEmail1" onclick="doRecEmail1()">Enviar enlace</button>
       <div class="link-row"><a onclick="show('pRec1')">← Volver</a></div>
     </div>
@@ -619,7 +624,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
     <div id="pRecEmail2" class="pane">
       <div class="info-box">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 6L12 13 2 6"/><path d="M2 6h20v12H2z"/></svg>
-        <span>Revisá tu bandeja de entrada (y la carpeta de spam, por si acaso). El enlace vence en 1 hora.</span>
+        <span>Revisa tu bandeja de entrada (y la carpeta de spam, por si acaso). El enlace vence en 1 hora.</span>
       </div>
       <h2 style="margin-top:1.2rem;">Listo</h2>
       <p class="sub" id="recEmail2Msg">Si esos datos están registrados, ya te enviamos el enlace.</p>
@@ -670,6 +675,18 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 <script src="assets/ibbs-password-toggle.js"></script>
 <script>
 function show(id){document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));document.getElementById(id).classList.add('active');window.scrollTo(0,0);}
+
+// Burbuja de ayuda del asterisco en el campo "ID" (ver .field-ast-help)
+function toggleIdHint(btn){
+  const wrap=btn.closest('.field-ast-help'); if(!wrap) return;
+  const abrir=!wrap.classList.contains('open');
+  document.querySelectorAll('.field-ast-help.open').forEach(w=>w.classList.remove('open'));
+  if(abrir) wrap.classList.add('open');
+}
+document.addEventListener('click',e=>{
+  if(e.target.closest('.field-ast-help')) return;
+  document.querySelectorAll('.field-ast-help.open').forEach(w=>w.classList.remove('open'));
+});
 
 async function post(action,data){
   // Nunca dejar tirando una excepción: un botón "Entrando…" que queda
@@ -821,7 +838,7 @@ async function doRec3(){
 async function doRecEmail1(){
   setErr('errRecEmail1','');
   const id = document.getElementById('recEmailId').value.trim();
-  if(!id){ setErr('errRecEmail1','Escribí tu usuario, cédula o correo.'); return; }
+  if(!id){ setErr('errRecEmail1','Escribe tu usuario, ID o correo.'); return; }
   const btn = document.getElementById('btnRecEmail1');
   btn.disabled = true; btn.textContent = 'Enviando…';
   const d = await post('rec_email_solicitar',{identificador:id});
@@ -873,6 +890,7 @@ async function doRecEmailConfirmar(){
 })();
 
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&document.getElementById('pLogin').classList.contains('active'))doLogin();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.field-ast-help.open').forEach(w=>w.classList.remove('open'));});
 </script>
 </body>
 </html>

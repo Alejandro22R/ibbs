@@ -12,7 +12,7 @@ if (!$con) die('Error de conexión a la base de datos.');
 
 $uid = (int)($_SESSION['user_id'] ?? 0);
 $rol = $_SESSION['rol'] ?? 'profesor';
-if (!materia_puede_gestionar($con, $uid, $rol, $mid)) die('No tenés permiso sobre esta materia.');
+if (!materia_puede_gestionar($con, $uid, $rol, $mid)) die('No tienes permiso sobre esta materia.');
 
 $mat      = mysqli_fetch_assoc(mysqli_query($con,"SELECT * FROM materias WHERE id=$mid"));
 if (!$mat) die('Materia no encontrada.');
@@ -226,7 +226,7 @@ tr:last-child td { border-bottom: 2px solid #1a4d2e; }
     <tr>
       <th class="left" style="width:28px;">#</th>
       <th class="left" style="min-width:160px;">Apellido, Nombre</th>
-      <th class="left" style="width:90px;">Cédula</th>
+      <th class="left" style="width:90px;">ID</th>
       <th class="left" style="width:80px;">Ciudad</th>
       <th style="width:70px;">Nota Final</th>
       <th style="width:80px;">Estado</th>

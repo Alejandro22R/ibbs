@@ -484,7 +484,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <i class="fas fa-exclamation-triangle"></i>
                 <div>
                     <strong style="color:var(--amber); font-size:.9rem; display:block; margin-bottom:.2rem;">Perfil de Docente Incompleto</strong>
-                    <p style="font-size:.8rem; color:var(--muted);">No tienes un perfil en la tabla de docentes vinculado a ti. Solicita al administrador que te registre con tu cédula (<b><?= htmlspecialchars($usuario_db['cedula']) ?></b>) para vincular correctamente las entregas.</p>
+                    <p style="font-size:.8rem; color:var(--muted);">No tienes un perfil en la tabla de docentes vinculado a ti. Solicita al administrador que te registre con tu ID (<b><?= htmlspecialchars($usuario_db['cedula']) ?></b>) para vincular correctamente las entregas.</p>
                 </div>
             </div>
             <?php endif; ?>
@@ -720,7 +720,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <i class="fas fa-exclamation-triangle"></i>
                 <div>
                     <strong style="color:var(--amber); font-size:.9rem; display:block; margin-bottom:.2rem;">Perfil Incompleto</strong>
-                    <p style="font-size:.8rem; color:var(--muted);">El sistema no encuentra tus materias porque falta tu registro oficial en la tabla de <b>docentes</b> con la cédula <b><?= htmlspecialchars($usuario_db['cedula']) ?></b>.</p>
+                    <p style="font-size:.8rem; color:var(--muted);">El sistema no encuentra tus materias porque falta tu registro oficial en la tabla de <b>docentes</b> con el ID <b><?= htmlspecialchars($usuario_db['cedula']) ?></b>.</p>
                 </div>
             </div>
             <?php endif; ?>
@@ -761,7 +761,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <h2 style="font-family:'Playfair Display',serif;font-size:1.6rem;color:var(--ink);margin:0;">Mi Biblioteca</h2>
                 <button onclick="abrirNuevoLibroDocente()" class="btn btn-primary"><i class="fas fa-plus"></i> Nuevo Libro</button>
             </div>
-            <p style="font-size:.82rem;color:var(--muted);margin-bottom:1.2rem;">Los libros que subís acá aparecen en el catálogo que ven los alumnos en su portal. Solo vos podés editar o quitar los tuyos.</p>
+            <p style="font-size:.82rem;color:var(--muted);margin-bottom:1.2rem;">Los libros que subes acá aparecen en el catálogo que ven los alumnos en su portal. Solo tú puedes editar o quitar los tuyos.</p>
 
             <div id="libDocenteEmpty" style="display:none;text-align:center;padding:3rem 1rem;color:var(--muted);">
                 <i class="fas fa-book" style="font-size:2.2rem;opacity:.3;margin-bottom:.8rem;display:block;"></i>
@@ -1012,7 +1012,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                                 <input type="text" name="usuario" value="<?= htmlspecialchars($usuario_db['usuario'] ?? '') ?>" required>
                             </div>
                             <div class="field">
-                                <label>Cédula (Solo lectura)</label>
+                                <label>ID (Solo lectura)</label>
                                 <input type="text" value="<?= htmlspecialchars($usuario_db['cedula'] ?? '') ?>" readonly style="background: var(--cream); opacity: .8; border-color: transparent;">
                             </div>
                             <div class="field field-full">
@@ -1145,11 +1145,11 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 
                     <div class="field" style="margin-bottom: .5rem;">
                         <label>Mensaje para el alumno (opcional)</label>
-                        <textarea id="modal-cal-obs" name="observacion" rows="3" maxlength="1000" placeholder="Felicitalo, corregilo, o dejale una observación sobre su trabajo…"></textarea>
+                        <textarea id="modal-cal-obs" name="observacion" rows="3" maxlength="1000" placeholder="Felicítalo, corrígelo, o déjale una observación sobre su trabajo…"></textarea>
                     </div>
                     <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1.5rem;">
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="rellenarObsCalificar('¡Excelente trabajo! Seguí así.')">👏 Felicitar</button>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="rellenarObsCalificar('Buen trabajo, pero revisá nuevamente este tema antes del próximo examen.')">✏️ A corregir</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="rellenarObsCalificar('¡Excelente trabajo! Sigue así.')">👏 Felicitar</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="rellenarObsCalificar('Buen trabajo, pero revisa nuevamente este tema antes del próximo examen.')">✏️ A corregir</button>
                         <button type="button" class="btn btn-secondary btn-sm" onclick="rellenarObsCalificar('Entrega incompleta — faltan puntos por desarrollar.')">⚠️ Incompleto</button>
                     </div>
 
@@ -1204,7 +1204,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <input type="datetime-local" name="fecha_limite" id="nt-fecha-entrega" required onchange="validarFechasNuevaTarea()">
                         </div>
                         <div class="field">
-                            <label>Fecha Límite de Corrección (vos)</label>
+                            <label>Fecha Límite de Corrección (tú)</label>
                             <input type="datetime-local" name="fecha_limite_correccion" id="nt-fecha-correccion" required onchange="validarFechasNuevaTarea()">
                         </div>
                         <p id="nt-fechas-error" style="display:none;grid-column:1/-1;margin:0;color:var(--red);font-size:.8rem;">La fecha de corrección debe ser posterior a la de entrega.</p>
@@ -2129,7 +2129,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             document.getElementById('libD-categoria').value = lib.categoria || '';
             document.getElementById('libD-descripcion').value = lib.descripcion || '';
             document.getElementById('libD-precio').value = lib.precio;
-            document.getElementById('libD-archivoReq').textContent = '(ya cargado — subí uno nuevo solo si querés reemplazarlo)';
+            document.getElementById('libD-archivoReq').textContent = '(ya cargado — sube uno nuevo solo si quieres reemplazarlo)';
             document.getElementById('libDocenteModalTitulo').textContent = 'Editar Libro';
             openModal('modal-libro-docente');
         }
@@ -2529,7 +2529,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 html += '</tr>';
             });
             html += '</tbody></table></div>';
-            html += `<div style="padding:.8rem 1.2rem;font-size:.78rem;color:var(--muted);border-top:1px solid var(--border);">"Nota a registrar" es la que se envía para aprobación — podés cargarla aunque el alumno no haya entregado nada, poniéndola vos directamente. Se llena sola con el promedio ponderado, pero la podés cambiar.</div>`;
+            html += `<div style="padding:.8rem 1.2rem;font-size:.78rem;color:var(--muted);border-top:1px solid var(--border);">"Nota a registrar" es la que se envía para aprobación — puedes cargarla aunque el alumno no haya entregado nada, poniéndola tú directamente. Se llena sola con el promedio ponderado, pero la puedes cambiar.</div>`;
 
             if (sumaPorcentajes !== 100 && sumaPorcentajes !== 0) {
                 html = `<div style="padding:.7rem 1.2rem;background:rgba(217,119,6,.08);color:var(--amber);font-size:.78rem;font-weight:600;border-bottom:1px solid var(--border);"><i class="fas fa-triangle-exclamation"></i> Los % de las actividades suman ${sumaPorcentajes}% (debería sumar 100%) — el promedio de arriba se calcula igual, mejor pero conviene revisar los %.</div>` + html;
@@ -2558,9 +2558,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             if (e.estado === 'pendiente') {
                 box.innerHTML = `<div style="padding:.8rem 1.2rem;background:rgba(217,119,6,.08);border:1px solid var(--amber);border-radius:10px;margin-bottom:1rem;color:var(--amber);font-size:.85rem;font-weight:600;"><i class="fas fa-clock"></i> Ya enviaste estas notas y están pendientes de aprobación del administrador.</div>`;
             } else if (e.estado === 'rechazado') {
-                box.innerHTML = `<div style="padding:.8rem 1.2rem;background:rgba(220,38,38,.08);border:1px solid var(--red);border-radius:10px;margin-bottom:1rem;color:var(--red);font-size:.85rem;"><strong><i class="fas fa-circle-xmark"></i> El administrador rechazó tu último envío:</strong> ${hPN(e.comentario_admin || '')}<br><span style="font-weight:600;">Corregí lo que haga falta y volvé a enviar cuando quieras.</span></div>`;
+                box.innerHTML = `<div style="padding:.8rem 1.2rem;background:rgba(220,38,38,.08);border:1px solid var(--red);border-radius:10px;margin-bottom:1rem;color:var(--red);font-size:.85rem;"><strong><i class="fas fa-circle-xmark"></i> El administrador rechazó tu último envío:</strong> ${hPN(e.comentario_admin || '')}<br><span style="font-weight:600;">Corrige lo que haga falta y vuelve a enviar cuando quieras.</span></div>`;
             } else if (e.estado === 'aprobado') {
-                box.innerHTML = `<div style="padding:.8rem 1.2rem;background:rgba(46,204,16,.08);border:1px solid var(--lime2);border-radius:10px;margin-bottom:1rem;color:var(--lime2);font-size:.85rem;font-weight:600;"><i class="fas fa-circle-check"></i> Tus últimas notas fueron aprobadas y ya las ven tus alumnos. Si cambió algo, podés volver a cargar y enviar.</div>`;
+                box.innerHTML = `<div style="padding:.8rem 1.2rem;background:rgba(46,204,16,.08);border:1px solid var(--lime2);border-radius:10px;margin-bottom:1rem;color:var(--lime2);font-size:.85rem;font-weight:600;"><i class="fas fa-circle-check"></i> Tus últimas notas fueron aprobadas y ya las ven tus alumnos. Si cambió algo, puedes volver a cargar y enviar.</div>`;
             }
         }
 
@@ -2569,7 +2569,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const propuestas = {};
             for (const inp of inputs) {
                 const v = inp.value.trim();
-                if (v === '') { Ibbs.warn('Tenés que cargar la nota de todos los alumnos antes de enviar.'); inp.focus(); return; }
+                if (v === '') { Ibbs.warn('Tienes que cargar la nota de todos los alumnos antes de enviar.'); inp.focus(); return; }
                 const n = parseFloat(v);
                 if (isNaN(n) || n < 0 || n > 20) { Ibbs.warn('Las notas deben estar entre 0 y 20.'); inp.focus(); return; }
                 propuestas[inp.dataset.alumnoId] = n;
@@ -2594,21 +2594,21 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         window.IBBS_TOUR_DOCENTE = {
             storageKey: 'ibbs_tour_docente_v2',
             steps: [
-                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un vistazo rápido a tus materias, las entregas de tus alumnos pendientes de revisar y los avisos de la institución. Vamos a recorrer juntos todo lo que podés hacer — cerrá esta tarjeta con la "×" para seguir.' },
-                { selector: '[data-tour="nav-materias"]', title: 'Mis Cursos', text: 'Mirá las materias que tenés asignadas este período y la lista de alumnos inscritos en cada una, con su horario.' },
-                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Subí el material de cada materia (documentos, presentaciones, videos, clases grabadas o en vivo) para que tus alumnos lo vean cuando quieran.' },
-                { selector: '[data-tour="nav-asistencia"]', title: 'Asistencia por Foto', text: 'Subí la foto de la hoja de asistencia en papel de tu clase — el sistema la lee y precarga la tabla de presentes/ausentes, vos la revisás y confirmás.' },
-                { selector: '[data-tour="nav-entregas"]', title: 'Cargar Notas', text: 'Revisá las tareas que entregaron tus alumnos, dejales una observación si hace falta y cargá la calificación — la ven reflejada al instante en su portal.' },
+                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un vistazo rápido a tus materias, las entregas de tus alumnos pendientes de revisar y los avisos de la institución. Vamos a recorrer juntos todo lo que puedes hacer — cierra esta tarjeta con la "×" para seguir.' },
+                { selector: '[data-tour="nav-materias"]', title: 'Mis Cursos', text: 'Mira las materias que tienes asignadas este período y la lista de alumnos inscritos en cada una, con su horario.' },
+                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Sube el material de cada materia (documentos, presentaciones, videos, clases grabadas o en vivo) para que tus alumnos lo vean cuando quieran.' },
+                { selector: '[data-tour="nav-asistencia"]', title: 'Asistencia por Foto', text: 'Sube la foto de la hoja de asistencia en papel de tu clase — el sistema la lee y precarga la tabla de presentes/ausentes, tú la revisas y confirmas.' },
+                { selector: '[data-tour="nav-entregas"]', title: 'Cargar Notas', text: 'Revisa las tareas que entregaron tus alumnos, déjales una observación si hace falta y carga la calificación — la ven reflejada al instante en su portal.' },
                 { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'La planilla completa de una materia: cada alumno, cada actividad con su %, y el promedio ponderado. Tus alumnos ven su propio Plan de Notas con el mismo promedio, calculado solo con sus actividades.' },
-                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Respondé las dudas de tus alumnos sobre cada materia y compartí avisos importantes del curso.' },
+                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Responde las dudas de tus alumnos sobre cada materia y comparte avisos importantes del curso.' },
                 { selector: '[data-tour="nav-chat-staff"]', title: 'Chat del Staff', text: 'Canal privado para coordinar con administración y otros docentes de la institución, sin depender de ninguna materia en particular.' },
-                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Subí tus propios libros, gratuitos o de pago, con portada y descripción — aparecen automáticamente en el catálogo que ven tus alumnos.' },
+                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Sube tus propios libros, gratuitos o de pago, con portada y descripción — aparecen automáticamente en el catálogo que ven tus alumnos.' },
                 <?php if (in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
-                { selector: '[data-tour="nav-admin-docentes"]', title: 'Asignar Materias', text: 'Como administrador, desde acá asignás qué materias imparte cada docente de la institución.' },
+                { selector: '[data-tour="nav-admin-docentes"]', title: 'Asignar Materias', text: 'Como administrador, desde acá asignas qué materias imparte cada docente de la institución.' },
                 <?php endif; ?>
-                { selector: '#themeToggle', title: 'Modo claro / oscuro', text: 'Si preferís una vista con fondo oscuro (útil de noche o para cuidar la vista), tocá este interruptor. Tu elección se guarda y la vas a ver así la próxima vez que entres.' },
-                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tu foto, tus datos personales y tu contraseña. Al escribir una contraseña vas a ver un ícono de ojo al lado del campo — tocalo si querés revisar lo que escribiste.' },
-                { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras volver a ver este recorrido completo, tocá acá. ¡Éxitos con tus cursos!' }
+                { selector: '#themeToggle', title: 'Modo claro / oscuro', text: 'Si prefieres una vista con fondo oscuro (útil de noche o para cuidar la vista), toca este interruptor. Tu elección se guarda y la vas a ver así la próxima vez que entres.' },
+                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualiza tu foto, tus datos personales y tu contraseña. Al escribir una contraseña vas a ver un ícono de ojo al lado del campo — tócalo si quieres revisar lo que escribiste.' },
+                { selector: '[data-tour="nav-replay"]', title: '¿Necesitas repasar esto?', text: 'Cuando quieras volver a ver este recorrido completo, toca acá. ¡Éxitos con tus cursos!' }
             ]
         };
         document.addEventListener('DOMContentLoaded', function () {

@@ -44,7 +44,7 @@ if ($action === 'crear') {
     $ex = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
     if ($ex) { echo json_encode(['ok'=>false,'msg'=>'Ya estás inscrito en esta materia.']); exit; }
     $pend = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materia_solicitudes WHERE materia_id=$mid AND alumno_id=$aid AND estado='pendiente' LIMIT 1"));
-    if ($pend) { echo json_encode(['ok'=>false,'msg'=>'Ya tenés una solicitud pendiente para esta materia. Esperá a que la administración la revise.']); exit; }
+    if ($pend) { echo json_encode(['ok'=>false,'msg'=>'Ya tienes una solicitud pendiente para esta materia. Espera a que la administración la revise.']); exit; }
 
     // La UI (portal_alumno.php) ya filtra qué materias se le muestran como
     // "disponibles" usando estas mismas funciones, pero esa pantalla es
@@ -55,7 +55,7 @@ if ($action === 'crear') {
     // aprobada o no) y quedar "pendiente" a la espera de que un admin
     // la apruebe sin tener cómo notar el problema.
     if (!materia_puede_recursar($con, $aid, $mid, $mat['nombre'])) {
-        echo json_encode(['ok'=>false,'msg'=>'Ya tenés un registro para esta materia — no se puede volver a solicitar.']); exit;
+        echo json_encode(['ok'=>false,'msg'=>'Ya tienes un registro para esta materia — no se puede volver a solicitar.']); exit;
     }
     if (!materia_cumple_prerequisito($con, $aid, $mid)) {
         $faltan = materia_prerequisitos_faltantes($con, $aid, $mid);
@@ -158,7 +158,7 @@ if ($action === 'aprobar' || $action === 'rechazar') {
         // la solicitud — si falla, la solicitud se queda "pendiente".
         if (!materia_puede_recursar($con, (int)$sol['alumno_id'], (int)$sol['materia_id'], $sol['materia_nombre'])
             || !materia_cumple_prerequisito($con, (int)$sol['alumno_id'], (int)$sol['materia_id'])) {
-            echo json_encode(['ok'=>false,'msg'=>'No se puede aprobar: este alumno no cumple los prerequisitos de esta materia o ya tiene un registro de ella. Si igual querés dejarlo avanzar, primero dale un desbloqueo individual en su ficha (Alumnos > Editar) y volvé a intentar.']); exit;
+            echo json_encode(['ok'=>false,'msg'=>'No se puede aprobar: este alumno no cumple los prerequisitos de esta materia o ya tiene un registro de ella. Si igual quieres dejarlo avanzar, primero dale un desbloqueo individual en su ficha (Alumnos > Editar) y vuelve a intentar.']); exit;
         }
     }
 
@@ -179,7 +179,7 @@ if ($action === 'aprobar' || $action === 'rechazar') {
         }
         log_audit($con, $uid, 'MATERIA_SOLICITUD_APROBAR', "solicitud=$id materia={$sol['materia_id']} alumno={$sol['alumno_id']}");
         if ($sol['usuario_id']) {
-            notificar_usuario($con, (int)$sol['usuario_id'], 'solicitud_materia_aprobada', '¡Tu inscripción fue aprobada!', "Quedaste inscrito(a) en \"{$sol['materia_nombre']}\". Ya podés ver su contenido.");
+            notificar_usuario($con, (int)$sol['usuario_id'], 'solicitud_materia_aprobada', '¡Tu inscripción fue aprobada!', "Quedaste inscrito(a) en \"{$sol['materia_nombre']}\". Ya puedes ver su contenido.");
         }
         $msg = "Se aprobó la inscripción de {$sol['alumno_nombre']} {$sol['alumno_apellido']} en \"{$sol['materia_nombre']}\".";
     } else {

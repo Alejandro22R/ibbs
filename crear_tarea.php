@@ -53,7 +53,7 @@ if ($porcentaje !== null && ($porcentaje < 0 || $porcentaje > 100)) {
 // Un profesor solo puede publicar tareas en las materias donde está
 // asignado — admin/superadmin puede en cualquiera.
 if (!materia_puede_gestionar($con, $uid, $rol, $materia_id)) {
-    echo json_encode(['ok' => false, 'msg' => 'No tenés permiso para publicar tareas en esta materia.']);
+    echo json_encode(['ok' => false, 'msg' => 'No tienes permiso para publicar tareas en esta materia.']);
     exit;
 }
 

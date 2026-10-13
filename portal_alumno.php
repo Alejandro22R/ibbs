@@ -566,7 +566,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     </p>
                     <?php else: ?>
                         <p class="text-sm text-ibbs-muted mb-3">
-                            Sos alumno(a) regular: podés inscribirte directamente. Una vez inscrito(a), solo la administración puede quitarte de la materia.
+                            Eres alumno(a) regular: puedes inscribirte directamente. Una vez inscrito(a), solo la administración puede quitarte de la materia.
                         </p>
                         <?php if ($solicitudes_pendientes): ?>
                         <div class="mb-4">
@@ -583,7 +583,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         <?php endif; ?>
                         <?php if ($materias_ya_vistas_otras): ?>
                         <div class="mb-4">
-                            <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider mb-2">Materias que ya tenés registradas (no disponibles para autoinscripción)</div>
+                            <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider mb-2">Materias que ya tienes registradas (no disponibles para autoinscripción)</div>
                             <div class="flex flex-col gap-2">
                                 <?php foreach ($materias_ya_vistas_otras as $yv): ?>
                                 <div class="flex items-center justify-between bg-ibbs-cream border border-ibbs-border rounded-lg px-3 py-2">
@@ -602,7 +602,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         <?php endif; ?>
                         <?php if ($materias_bloqueadas_prerequisito): ?>
                         <div class="mb-4">
-                            <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider mb-2">Materias que todavía no podés cursar (te falta aprobar antes)</div>
+                            <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider mb-2">Materias que todavía no puedes cursar (te falta aprobar antes)</div>
                             <div class="flex flex-col gap-2">
                                 <?php foreach ($materias_bloqueadas_prerequisito as $bq): ?>
                                 <div class="bg-ibbs-cream border border-ibbs-border rounded-lg px-3 py-2">
@@ -611,7 +611,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                         <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-ink/5 text-ibbs-muted whitespace-nowrap">🔒 Bloqueada</span>
                                     </div>
                                     <?php if ($bq['faltan']): ?>
-                                    <div class="text-xs text-ibbs-muted mt-1">Tenés que aprobar primero: <?= htmlspecialchars(implode(', ', $bq['faltan'])) ?></div>
+                                    <div class="text-xs text-ibbs-muted mt-1">Tienes que aprobar primero: <?= htmlspecialchars(implode(', ', $bq['faltan'])) ?></div>
                                     <?php endif; ?>
                                 </div>
                                 <?php endforeach; ?>
@@ -623,7 +623,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         <?php else: ?>
                         <div class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 mb-3 text-xs text-ibbs-ink flex items-start gap-2">
                             <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
-                            <div>Para inscribirte tenés que adjuntar la captura de tu pago móvil o transferencia a la institución. La administración la revisa antes de dejarte adentro de la materia.</div>
+                            <div>Para inscribirte tienes que adjuntar la captura de tu pago móvil o transferencia a la institución. La administración la revisa antes de dejarte adentro de la materia.</div>
                         </div>
                         <div class="flex flex-col gap-4">
                             <input type="hidden" id="selAutoInsc" value="">
@@ -929,7 +929,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 
                 <?php if(empty($materias_con_aula)): ?>
                 <div class="text-center py-10 text-ibbs-muted border-2 border-dashed border-ibbs-border rounded-[14px]">
-                    <?= empty($materias) ? 'Aún no estás inscrito en ninguna materia.' : 'Ves tus materias de forma presencial — por ahora ningún profesor activó el Aula Virtual para vos. Si lo hace, va a aparecer acá.' ?>
+                    <?= empty($materias) ? 'Aún no estás inscrito en ninguna materia.' : 'Ves tus materias de forma presencial — por ahora ningún profesor activó el Aula Virtual para ti. Si lo hace, va a aparecer acá.' ?>
                 </div>
                 <?php else: ?>
 
@@ -961,7 +961,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 
                 <div class="bg-ibbs-cream border border-ibbs-border rounded-[14px] p-5 text-sm text-ibbs-ink flex items-start gap-3">
                     <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
-                    <div>Estos documentos son gratuitos: los generás y descargás vos mismo(a), cuando quieras. La Constancia de Notas solo incluye las materias que ya culminaron con el 100% de las calificaciones cargadas y confirmadas.</div>
+                    <div>Estos documentos son gratuitos: los generas y descargas tú mismo(a), cuando quieras. La Constancia de Notas solo incluye las materias que ya culminaron con el 100% de las calificaciones cargadas y confirmadas.</div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1538,7 +1538,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Cargando…</p>';
             const r = await fetch('api/biblioteca.php', { method: 'POST', body: (() => { const fd = new FormData(); fd.append('action', 'mis_libros'); const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : ''); return fd; })() });
             const d = await r.json();
-            if (!d.ok || !d.data.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Todavía no tenés libros activados en tu biblioteca.</p>'; return; }
+            if (!d.ok || !d.data.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Todavía no tienes libros activados en tu biblioteca.</p>'; return; }
             cont.innerHTML = d.data.map(l => `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden flex flex-col">
                 <div class="h-40 bg-ibbs-ink flex items-center justify-center overflow-hidden">
                     ${l.portada ? `<img src="${l.portada}" class="w-full h-full object-cover">` : `<i class="fas fa-book text-4xl text-ibbs-lime"></i>`}
@@ -1627,7 +1627,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             if (pendientes > 0) { badge.textContent = pendientes; badge.classList.remove('hidden'); }
             else badge.classList.add('hidden');
 
-            if (!_misPagos.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">No tenés cobros registrados todavía.</p>'; return; }
+            if (!_misPagos.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">No tienes cobros registrados todavía.</p>'; return; }
             const estadoInfo = {
                 pendiente:  { label: 'Pendiente de pago', cls: 'bg-amber-100 text-amber-700' },
                 en_revision:{ label: 'Comprobante en revisión', cls: 'bg-blue-100 text-blue-700' },
@@ -1886,18 +1886,18 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         window.IBBS_TOUR_ALUMNO = {
             storageKey: 'ibbs_tour_alumno_v2',
             steps: [
-                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un resumen rápido de tus materias, tus tareas pendientes y los avisos importantes de la institución, cada vez que entrás. Vamos a recorrer juntos todo lo que podés hacer en el sistema — cerrá esta tarjeta con la "×" para pasar al siguiente punto.' },
-                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Acá tus profesores suben el material de cada materia: documentos, presentaciones, videos y clases grabadas o en vivo. Podés descargarlo o verlo cuantas veces necesites para repasar.' },
-                { selector: '[data-tour="nav-materias"]', title: 'Mis Materias', text: 'Mirá el detalle de cada materia en la que estás inscrito/a este período: el profesor a cargo, el horario y el estado de tu inscripción.' },
-                { selector: '[data-tour="nav-tareas"]', title: 'Tareas', text: 'Subí tus trabajos y tareas antes de la fecha límite adjuntando el archivo pedido. El número en rojo te avisa cuántas tenés pendientes por entregar; una vez el profesor la revise, la nota aparece junto a la tarea.' },
-                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Espacio de preguntas y respuestas por cada materia: escribile a tu profesor o a tus compañeros si tenés dudas sobre un tema de clase.' },
-                { selector: '[data-tour="nav-notas"]', title: 'Calificaciones', text: 'Consultá tus notas por materia y por corte apenas el profesor las publique, sin tener que esperar el boletín oficial.' },
-                { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'Mirá todas las actividades de cada materia, su fecha límite y cuánto vale, para no perderte de nada — las notas en sí las ves en "Calificaciones".' },
-                { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Descargá tu Constancia de Estudio o de Notas cuando quieras, gratis y al instante — la de Notas solo incluye las materias ya culminadas y 100% calificadas.' },
-                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explorá los libros que tus profesores fueron subiendo: los gratuitos se descargan directo, y en los de pago te vamos a pedir tu comprobante antes de darte acceso.' },
-                { selector: '[data-tour="nav-pagos"]', title: 'Mis Pagos', text: 'Acá vas a ver tus cobros de mensualidad e inscripción. Cuando tengas uno pendiente, subí la captura de tu pago móvil o transferencia y quedará en revisión hasta que administración lo confirme.' },
-                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualizá tu foto, tus datos personales y tu contraseña. Al escribir una contraseña en cualquier parte del sistema vas a ver un ícono de ojo al lado — tocalo si querés revisar lo que escribiste antes de guardar.' },
-                { selector: '[data-tour="nav-replay"]', title: '¿Necesitás repasar esto?', text: 'Cuando quieras volver a ver este recorrido completo, tocá acá. ¡Éxitos en tus estudios!' }
+                { selector: '[data-tour="nav-dashboard"]', title: '¡Bienvenido/a a IBBS!', text: 'Este es tu Inicio: un resumen rápido de tus materias, tus tareas pendientes y los avisos importantes de la institución, cada vez que entras. Vamos a recorrer juntos todo lo que puedes hacer en el sistema — cierra esta tarjeta con la "×" para pasar al siguiente punto.' },
+                { selector: '[data-tour="nav-aula"]', title: 'Aula Virtual', text: 'Acá tus profesores suben el material de cada materia: documentos, presentaciones, videos y clases grabadas o en vivo. Puedes descargarlo o verlo cuantas veces necesites para repasar.' },
+                { selector: '[data-tour="nav-materias"]', title: 'Mis Materias', text: 'Mira el detalle de cada materia en la que estás inscrito/a este período: el profesor a cargo, el horario y el estado de tu inscripción.' },
+                { selector: '[data-tour="nav-tareas"]', title: 'Tareas', text: 'Sube tus trabajos y tareas antes de la fecha límite adjuntando el archivo pedido. El número en rojo te avisa cuántas tienes pendientes por entregar; una vez el profesor la revise, la nota aparece junto a la tarea.' },
+                { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Espacio de preguntas y respuestas por cada materia: escríbele a tu profesor o a tus compañeros si tienes dudas sobre un tema de clase.' },
+                { selector: '[data-tour="nav-notas"]', title: 'Calificaciones', text: 'Consulta tus notas por materia y por corte apenas el profesor las publique, sin tener que esperar el boletín oficial.' },
+                { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'Mira todas las actividades de cada materia, su fecha límite y cuánto vale, para no perderte de nada — las notas en sí las ves en "Calificaciones".' },
+                { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Descarga tu Constancia de Estudio o de Notas cuando quieras, gratis y al instante — la de Notas solo incluye las materias ya culminadas y 100% calificadas.' },
+                { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explora los libros que tus profesores fueron subiendo: los gratuitos se descargan directo, y en los de pago te vamos a pedir tu comprobante antes de darte acceso.' },
+                { selector: '[data-tour="nav-pagos"]', title: 'Mis Pagos', text: 'Acá vas a ver tus cobros de mensualidad e inscripción. Cuando tengas uno pendiente, sube la captura de tu pago móvil o transferencia y quedará en revisión hasta que administración lo confirme.' },
+                { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualiza tu foto, tus datos personales y tu contraseña. Al escribir una contraseña en cualquier parte del sistema vas a ver un ícono de ojo al lado — tócalo si quieres revisar lo que escribiste antes de guardar.' },
+                { selector: '[data-tour="nav-replay"]', title: '¿Necesitas repasar esto?', text: 'Cuando quieras volver a ver este recorrido completo, toca acá. ¡Éxitos en tus estudios!' }
             ]
         };
         document.addEventListener('DOMContentLoaded', function () {

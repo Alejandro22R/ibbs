@@ -53,7 +53,7 @@ if ($tipo === 'trabajo') {
     } elseif (in_array($rol, ['superadmin', 'admin'])) {
         $did = (int)($_GET['docente_id'] ?? 0);
     } else {
-        die('No tenés permiso para generar este documento.');
+        die('No tienes permiso para generar este documento.');
     }
     if (!$did) die('Docente no encontrado.');
     $docente = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM docentes WHERE id=$did LIMIT 1"));
@@ -67,7 +67,7 @@ if ($tipo === 'trabajo') {
     } elseif (in_array($rol, ['superadmin', 'admin'])) {
         $aid = (int)($_GET['alumno_id'] ?? 0);
     } else {
-        die('No tenés permiso para generar este documento.');
+        die('No tienes permiso para generar este documento.');
     }
     if (!$aid) die('Alumno no encontrado.');
     $alumno = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM alumnos WHERE id=$aid LIMIT 1"));
@@ -99,7 +99,7 @@ if ($tipo === 'trabajo') {
                                     )
                                   ORDER BY m.nombre");
         while ($f = mysqli_fetch_assoc($r)) $materias[] = $f;
-        if (!$materias) die('Todavía no tenés ninguna materia culminada con notas aprobadas por la administración para incluir en tu Constancia de Notas. Una vez que tu profesor cargue las notas y el administrador las apruebe, vas a poder generarla acá.');
+        if (!$materias) die('Todavía no tienes ninguna materia culminada con notas aprobadas por la administración para incluir en tu Constancia de Notas. Una vez que tu profesor cargue las notas y el administrador las apruebe, vas a poder generarla acá.');
     }
 }
 
@@ -127,7 +127,7 @@ if ($tipo === 'trabajo') {
     $cedulaFmt  = 'V-'.number_format((int)$cedulaDig, 0, ',', '.');
     $especialidadUp = htmlspecialchars(mb_strtoupper($docente['especialidad'] ?? 'Docente'));
     $desdeFecha = $docente['creado_en'] ? (new DateTime($docente['creado_en']))->format('d/m/Y') : '—';
-    $cuerpoTexto = "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que el Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la cédula de identidad N°: <strong>$cedulaFmt</strong>, presta sus servicios como <strong>Docente</strong> en esta Casa de Estudios Teológicos desde el <strong>$desdeFecha</strong>, desempeñándose en el área de <strong>$especialidadUp</strong>, encontrándose activo a la fecha de expedición de la presente constancia.";
+    $cuerpoTexto = "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que el Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la identificación N°: <strong>$cedulaFmt</strong>, presta sus servicios como <strong>Docente</strong> en esta Casa de Estudios Teológicos desde el <strong>$desdeFecha</strong>, desempeñándose en el área de <strong>$especialidadUp</strong>, encontrándose activo a la fecha de expedición de la presente constancia.";
 } else {
     $conNota    = array_filter($materias, fn($m) => $m['nota_final'] !== null);
     $aprobadas  = count(array_filter($conNota, fn($m) => (float)$m['nota_final'] >= 15));
@@ -142,8 +142,8 @@ if ($tipo === 'trabajo') {
     $ciudadUp  = htmlspecialchars(mb_strtoupper($alumno['ciudad'] ?? '—'));
 
     $cuerpoTexto = $tipo === 'estudio'
-        ? "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la cédula de identidad N°: <strong>$cedulaFmt</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes."
-        : "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la cédula de identidad N°: <strong>$cedulaFmt</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:";
+        ? "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la identificación N°: <strong>$cedulaFmt</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes."
+        : "Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style=\"text-transform:uppercase;\">$nombreUp</strong>, titular de la identificación N°: <strong>$cedulaFmt</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:";
 }
 ?>
 <!DOCTYPE html>
@@ -270,7 +270,7 @@ body{
   <div class="signature-block">
     <div class="signature-line"></div>
     <p class="signature-title">Firma <?= $tipo === 'trabajo' ? 'del Docente' : 'del Estudiante' ?></p>
-    <p class="signature-sub">Titular de la Cédula</p>
+    <p class="signature-sub">Titular de la Identificación</p>
   </div>
   <div class="signature-block">
     <div class="signature-line"></div>

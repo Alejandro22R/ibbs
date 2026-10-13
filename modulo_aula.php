@@ -321,7 +321,7 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
       <input type="hidden" id="calActividadId">
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th style="text-align:left;">Alumno</th><th style="text-align:left;">Cédula</th><th style="width:110px;">Nota</th><th>Observación</th></tr></thead>
+          <thead><tr><th style="text-align:left;">Alumno</th><th style="text-align:left;">ID</th><th style="width:110px;">Nota</th><th>Observación</th></tr></thead>
           <tbody id="tbodyCalificar"><tr class="empty-row"><td colspan="4"><span class="spin"></span></td></tr></tbody>
         </table>
       </div>

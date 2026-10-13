@@ -121,7 +121,7 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
       <input type="hidden" id="gvVivoId">
       <div class="info-box" style="background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:.7rem 1rem;font-size:.8rem;color:var(--muted);display:flex;gap:.5rem;align-items:flex-start;margin-bottom:1rem;">
         <span>ℹ️</span>
-        <span>Subí el video grabado a YouTube, Google Drive o Vimeo y pegá acá el link. Queda disponible en <strong>Clases Grabadas</strong> para todos los inscritos en esta materia, puedan verlo o no en vivo. <strong>Ojo:</strong> si en YouTube/Drive lo subís como "Público", cualquiera con el link lo ve, esté o no en la app — para que solo lo vean tus alumnos, subilo como <strong>"No listado"</strong> o <strong>"Privado"</strong> en esa plataforma.</span>
+        <span>Sube el video grabado a YouTube, Google Drive o Vimeo y pega acá el link. Queda disponible en <strong>Clases Grabadas</strong> para todos los inscritos en esta materia, puedan verlo o no en vivo. <strong>Ojo:</strong> si en YouTube/Drive lo subes como "Público", cualquiera con el link lo ve, esté o no en la app — para que solo lo vean tus alumnos, súbelo como <strong>"No listado"</strong> o <strong>"Privado"</strong> en esa plataforma.</span>
       </div>
       <div class="form-grid" style="margin-bottom:1rem;">
         <div class="field field-full"><label>Título *</label><input id="gvTitulo" placeholder="Ej. Clase en vivo — Repaso general"></div>
@@ -341,9 +341,9 @@ async function guardarGrabacionVivo() {
 window.IBBS_TOUR_VIVO = {
   storageKey: 'ibbs_tour_vivo_v1',
   steps: [
-    { selector: '[data-tour="vivo-intro"]', title: '1. Crear tu sala virtual', text: 'Elegí una materia y tocá "Nueva clase en vivo". Para Google Meet o Zoom, creá la reunión vos mismo en esa app y pegá acá el link; para Jitsi Meet el sistema genera una sala gratis sin necesitar cuenta. Ponele fecha y hora — toda la materia ve esta clase programada.' },
-    { selector: '[data-tour="vivo-intro"]', title: '2. Marcar el estado', text: 'Cuando arranques la clase, cambiale el estado a "En curso" en el selector de esa fila — ahí se les avisa a todos los inscritos que ya pueden entrar. Al terminar, pasalo a "Finalizada".' },
-    { selector: '[data-tour="vivo-intro"]', title: '3. Guardar la grabación', text: 'Grabaste la clase (Meet, Zoom y Jitsi permiten grabar) y ya la subiste a YouTube, Drive o Vimeo: tocá "🎥 Guardar grabación" en esa fila y pegá el link. Queda sola en el repositorio de Clases Grabadas — cualquier alumno inscrito la puede ver cuando quiera, haya entrado en vivo o no. Subila como "No listado" o "Privado" en YouTube/Drive si no querés que se pueda ver fuera de la app.' },
+    { selector: '[data-tour="vivo-intro"]', title: '1. Crear tu sala virtual', text: 'Elige una materia y toca "Nueva clase en vivo". Para Google Meet o Zoom, crea la reunión tú mismo en esa app y pega acá el link; para Jitsi Meet el sistema genera una sala gratis sin necesitar cuenta. Ponle fecha y hora — toda la materia ve esta clase programada.' },
+    { selector: '[data-tour="vivo-intro"]', title: '2. Marcar el estado', text: 'Cuando arranques la clase, cámbiale el estado a "En curso" en el selector de esa fila — ahí se les avisa a todos los inscritos que ya pueden entrar. Al terminar, pásalo a "Finalizada".' },
+    { selector: '[data-tour="vivo-intro"]', title: '3. Guardar la grabación', text: 'Grabaste la clase (Meet, Zoom y Jitsi permiten grabar) y ya la subiste a YouTube, Drive o Vimeo: toca "🎥 Guardar grabación" en esa fila y pega el link. Queda sola en el repositorio de Clases Grabadas — cualquier alumno inscrito la puede ver cuando quiera, haya entrado en vivo o no. Súbela como "No listado" o "Privado" en YouTube/Drive si no quieres que se pueda ver fuera de la app.' },
   ],
   auto: true,
 };

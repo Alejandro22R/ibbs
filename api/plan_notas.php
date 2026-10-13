@@ -37,7 +37,7 @@ if (!$materia_id) { echo json_encode(['ok'=>false,'msg'=>'Falta la materia.']); 
 
 if ($accion === 'docente') {
     if (!in_array($rol, ['superadmin','admin','profesor'])) { echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']); exit; }
-    if (!materia_puede_gestionar($con, $uid, $rol, $materia_id)) { echo json_encode(['ok'=>false,'msg'=>'No tenés permiso sobre esta materia.']); exit; }
+    if (!materia_puede_gestionar($con, $uid, $rol, $materia_id)) { echo json_encode(['ok'=>false,'msg'=>'No tienes permiso sobre esta materia.']); exit; }
 
     $tareas = [];
     $rt = mysqli_query($con, "SELECT id, titulo, fecha_limite, fecha_limite_correccion, porcentaje, nota_maxima

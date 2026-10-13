@@ -46,7 +46,7 @@ if (!$eInfo) {
     exit;
 }
 if (!materia_puede_gestionar($con, $uid, $rol, (int)$eInfo['materia_id'])) {
-    echo json_encode(['ok' => false, 'msg' => 'No tenés permiso para calificar esta entrega.']);
+    echo json_encode(['ok' => false, 'msg' => 'No tienes permiso para calificar esta entrega.']);
     exit;
 }
 

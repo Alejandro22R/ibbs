@@ -21,7 +21,7 @@ mysqli_close($con);
     <div style="flex:1;min-width:240px;">
       <div style="font-weight:800;color:#fff;font-size:.95rem;">¿Cómo funciona?</div>
       <div style="font-size:.82rem;color:rgba(255,255,255,.92);line-height:1.5;margin-top:.15rem;">
-        Registrás un cobro (mensualidad o inscripción) para un alumno. El alumno lo ve en su portal y sube su comprobante de pago, o vos lo marcás "Pagado" directo si te pagó en efectivo. Los datos bancarios/pago móvil que ve el alumno son los mismos que ya configuraste en Biblioteca › Datos de Pago.
+        Registras un cobro (mensualidad o inscripción) para un alumno. El alumno lo ve en su portal y sube su comprobante de pago, o tú lo marcas "Pagado" directo si te pagó en efectivo. Los datos bancarios/pago móvil que ve el alumno son los mismos que ya configuraste en Biblioteca › Datos de Pago.
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:.5rem;flex-shrink:0;">

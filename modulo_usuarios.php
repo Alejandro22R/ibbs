@@ -25,7 +25,7 @@ if($_rol !== 'superadmin'){
     <div style="display:flex;gap:.5rem;">
       <input type="text" id="fUsuNombre" data-only="letters" placeholder="Buscar por nombre…" oninput="filtrarUsuarios()"
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:190px;">
-      <input type="text" id="fUsuCedula" data-only="cedula" placeholder="Buscar por cédula…" oninput="filtrarUsuarios()"
+      <input type="text" id="fUsuCedula" data-only="cedula" placeholder="Buscar por ID…" oninput="filtrarUsuarios()"
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:180px;">
       <button type="button" class="btn btn-secondary btn-sm" onclick="exportarUsuariosExcel()" title="Descargar esta lista como Excel/CSV">
         <i class="bx bx-download"></i> Exportar
@@ -338,8 +338,8 @@ function filtrarUsuarios() {
 window.IBBS_TOUR_USUARIOS = {
   storageKey: 'ibbs_tour_usuarios_v1',
   steps: [
-    { selector: '[data-tour="usu-nuevo"]', title: 'Crear cuentas de acceso', text: 'Acá creás las cuentas con las que alumnos, docentes y otros administradores inician sesión — usuario, correo, contraseña y rol.' },
-    { selector: '[data-tour="usu-tabla"]', title: 'Gestionar usuarios', text: 'Podés activar, desactivar, editar o eliminar cada cuenta. Marcando varias (o todas con la casilla del encabezado) podés activar, desactivar o eliminar en lote.' },
+    { selector: '[data-tour="usu-nuevo"]', title: 'Crear cuentas de acceso', text: 'Acá creas las cuentas con las que alumnos, docentes y otros administradores inician sesión — usuario, correo, contraseña y rol.' },
+    { selector: '[data-tour="usu-tabla"]', title: 'Gestionar usuarios', text: 'Puedes activar, desactivar, editar o eliminar cada cuenta. Marcando varias (o todas con la casilla del encabezado) puedes activar, desactivar o eliminar en lote.' },
   ],
   auto: true,
 };

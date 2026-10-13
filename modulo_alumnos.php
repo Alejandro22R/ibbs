@@ -28,7 +28,7 @@ if(!in_array($_rol,['superadmin','admin'])){
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
         <input type="text" id="fAlumNombre" data-only="letters" placeholder="Nombre o apellido…" oninput="filtrarAlumnos()"
           style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:180px;">
-        <input type="text" id="fAlumCedula" data-only="cedula" placeholder="Cédula…" oninput="filtrarAlumnos()"
+        <input type="text" id="fAlumCedula" data-only="cedula" placeholder="ID…" oninput="filtrarAlumnos()"
           style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:140px;">
         <input type="text" id="filtCiudad" data-only="letters" placeholder="Ciudad…" oninput="loadAlumnos()"
           style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:130px;">
@@ -46,7 +46,7 @@ if(!in_array($_rol,['superadmin','admin'])){
     <table id="tblA" class="table-stack">
       <thead><tr>
         <th style="width:34px;text-align:center;"><input type="checkbox" id="chkAllAlum" onchange="toggleAllAlumnos(this)" title="Seleccionar todo"></th>
-        <th>Cédula</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Modalidad</th><th>Solicitud</th><th>Acciones</th></tr></thead>
+        <th>ID</th><th>Nombre</th><th>Correo</th><th>Ciudad</th><th>Materias</th><th>Estado</th><th>Regular</th><th>Modalidad</th><th>Solicitud</th><th>Acciones</th></tr></thead>
       <tbody id="tbodyA"><tr class="empty-row"><td colspan="10"><span class="spin"></span></td></tr></tbody>
     </table>
   </div>
@@ -64,7 +64,7 @@ if(!in_array($_rol,['superadmin','admin'])){
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre *</label><input name="nombre" data-only="letters" placeholder="María"></div>
           <div class="field"><label>Apellido *</label><input name="apellido" data-only="letters" placeholder="López"></div>
-          <div class="field"><label>Cédula *</label><input name="cedula" data-only="cedula" placeholder="V-23456789"></div>
+          <div class="field"><label>ID <span class="field-ast-help"><button type="button" onclick="toggleIdHint(this)" aria-label="¿Qué es el ID?">*</button><span class="field-ast-bubble">Identificación personal del alumno: cédula, DNI, pasaporte u otro documento oficial válido en su país.</span></span></label><input name="cedula" data-only="cedula" placeholder="V-23456789"></div>
           <div class="field"><label>Gmail *</label><input type="email" name="correo" placeholder="alumno@gmail.com"></div>
           <div class="field"><label>Teléfono</label><input name="telefono" data-only="phone" placeholder="0412-7654321"></div>
           <div class="field"><label>Ciudad</label><input name="ciudad" data-only="letters" placeholder="Caracas, Maracaibo…"></div>
@@ -89,7 +89,7 @@ if(!in_array($_rol,['superadmin','admin'])){
       <div class="form-grid" style="margin-bottom:1rem;">
         <div class="field"><label>Nombre</label><input id="eAN"></div>
         <div class="field"><label>Apellido</label><input id="eAA"></div>
-        <div class="field"><label>Cédula</label><input id="eAC"></div>
+        <div class="field"><label>ID</label><input id="eAC"></div>
         <div class="field"><label>Correo</label><input id="eAM" type="email"></div>
         <div class="field"><label>Teléfono</label><input id="eAT"></div>
         <div class="field"><label>Ciudad</label><input id="eACi" data-only="letters" placeholder="Escribe la ciudad"></div>
@@ -189,7 +189,7 @@ let _alumnosAll = [];
 function filaAlumno(r){
   return `<tr>
     <td style="text-align:center;"><input type="checkbox" class="chkAlum" value="${r.id}" onchange="actualizarBarraLoteAlumnos()"></td>
-    <td data-label="Cédula"><strong>${h(r.cedula)}</strong></td>
+    <td data-label="ID"><strong>${h(r.cedula)}</strong></td>
     <td data-label="Nombre">
       <div style="display:flex;align-items:center;gap:.6rem;">
         <div style="width:30px;height:30px;flex-shrink:0;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:.9rem;">${h((r.nombre||'?').charAt(0).toUpperCase())}</div>
@@ -293,7 +293,7 @@ async function verPerfil(id){
     <div class="profile-card">
       <div class="profile-ava">${ini}</div>
       <div class="profile-name">${h(r.nombre)} ${h(r.apellido)}</div>
-      <div class="profile-meta">Cédula: ${h(r.cedula)} · ${h(r.correo)}</div>
+      <div class="profile-meta">ID: ${h(r.cedula)} · ${h(r.correo)}</div>
       ${r.telefono?`<div class="profile-meta">Tel: ${h(r.telefono)}</div>`:''}
       ${r.ciudad?`<div class="profile-meta">📍 ${h(r.ciudad)}</div>`:''}
       <div class="profile-chips" style="margin-top:.8rem;"><span class="profile-chip lime">Alumno</span><span class="profile-chip ${r.activo?'lime':''}">${r.activo?'Activo':'Inactivo'}</span></div>
@@ -358,7 +358,7 @@ window.IBBS_TOUR_ALUMNOS = {
   storageKey: 'ibbs_tour_alumnos_v1',
   steps: [
     { selector: '[data-tour="alum-nuevo"]', title: 'Registrar un alumno', text: 'Carga manual — para cuando el alumno no se inscribe solo desde su portal.' },
-    { selector: '[data-tour="alum-tabla"]', title: 'Gestionar alumnos', text: 'Aceptá o rechazá solicitudes de ingreso, editá, mirá el perfil, generá constancias o eliminá. Marcando varios (o todos con la casilla del encabezado) podés aceptar, rechazar o eliminar en lote.' },
+    { selector: '[data-tour="alum-tabla"]', title: 'Gestionar alumnos', text: 'Acepta o rechaza solicitudes de ingreso, edita, mira el perfil, genera constancias o elimina. Marcando varios (o todos con la casilla del encabezado) puedes aceptar, rechazar o eliminar en lote.' },
   ],
   auto: true,
 };

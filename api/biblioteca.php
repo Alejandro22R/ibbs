@@ -141,7 +141,7 @@ if ($action === 'libro_create' || $action === 'libro_update') {
         $libroExistente = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM libros WHERE id=$id LIMIT 1"));
         if (!$libroExistente) json_fail('Libro no encontrado.');
         $puede = in_array($rol, ['superadmin','admin']) || ((int)$libroExistente['creado_por'] === $uid);
-        if (!$puede) json_fail('Sin permiso — solo podés editar los libros que vos mismo cargaste.');
+        if (!$puede) json_fail('Sin permiso — solo puedes editar los libros que tú mismo cargaste.');
     }
 
     // Portada (opcional, imagen pública)
@@ -285,7 +285,7 @@ if ($action === 'compra_crear') {
     if (!$libro) json_fail('Libro no disponible.');
 
     $ex = mysqli_fetch_assoc(mysqli_query($con, "SELECT id,estado FROM libro_compras WHERE libro_id=$lid AND alumno_id=$aid ORDER BY id DESC LIMIT 1"));
-    if ($ex && $ex['estado'] !== 'rechazado') json_fail($ex['estado']==='activado' ? 'Ya tenés este libro activado.' : 'Ya tenés una solicitud pendiente para este libro.');
+    if ($ex && $ex['estado'] !== 'rechazado') json_fail($ex['estado']==='activado' ? 'Ya tienes este libro activado.' : 'Ya tienes una solicitud pendiente para este libro.');
 
     $precio = (float)$libro['precio'];
     if ($precio <= 0) {
