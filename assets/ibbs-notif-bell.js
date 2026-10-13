@@ -25,6 +25,8 @@
     solicitud_materia: '🧾', solicitud_materia_aprobada: '✅', solicitud_materia_rechazada: '⛔',
     notas_envio: '📝',
     solicitud_libro: '📚', solicitud_libro_activada: '✅', solicitud_libro_rechazada: '⛔',
+    pago_pendiente: '💳', pago_revisado: '💰', pago_pendiente_revision: '💳',
+    autoinscripcion_semestral: '🧾', devocional: '🙏',
   };
 
   // Escapa antes de meter en innerHTML — titulo/mensaje son texto
@@ -127,6 +129,8 @@
       calificacion: esDocente ? 'entregas' : 'notas',
       reprobado: esDocente ? 'asistencia' : 'notas',
       asistencia: esDocente ? 'asistencia' : null,
+      pago_pendiente: 'pagos', pago_revisado: 'pagos',
+      devocional: 'devocionales',
     };
     return mapa[tipo] || null;
   }

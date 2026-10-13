@@ -29,7 +29,7 @@
  * funcione, así que un fallo acá nunca debe tumbar la página.
  */
 
-define('IBBS_SCHEMA_VERSION', 24);
+define('IBBS_SCHEMA_VERSION', 25);
 
 if (!function_exists('ibbs_autoheal_schema')) {
     function ibbs_autoheal_schema($con) {
@@ -425,6 +425,34 @@ if (!function_exists('ibbs_autoheal_schema')) {
                 KEY `idx_materia` (`materia_id`),
                 CONSTRAINT `autoheal_md_ibfk_1` FOREIGN KEY (`alumno_id`) REFERENCES `alumnos` (`id`) ON DELETE CASCADE,
                 CONSTRAINT `autoheal_md_ibfk_2` FOREIGN KEY (`materia_id`) REFERENCES `materias` (`id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
+
+            // v25 — Inscripción semestral (ya no por materia): la fecha
+            // en que un alumno quedó registrado en materia_alumno no se
+            // guardaba en ningún lado (ni siquiera para mostrarle su
+            // propio historial de inscripciones), así que no había forma
+            // de distinguir "esto lo cursó este período" de "esto es de
+            // hace tres años" sin esta columna.
+            "ALTER TABLE `materia_alumno` ADD COLUMN IF NOT EXISTS `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
+
+            // v25 — Devocionales: un profesor o administrador publica un
+            // estudio/devocional (texto y/o archivo adjunto — PDF, Word,
+            // imagen) que llega como notificación a alumnos y docentes.
+            // `materia_id` NULL = para toda la institución; con valor =
+            // solo para los inscritos/el equipo de esa materia puntual.
+            "CREATE TABLE IF NOT EXISTS `devocionales` (
+                `id` INT(11) NOT NULL AUTO_INCREMENT,
+                `titulo` VARCHAR(150) NOT NULL,
+                `contenido` TEXT DEFAULT NULL,
+                `archivo` VARCHAR(255) DEFAULT NULL,
+                `archivo_nombre` VARCHAR(255) DEFAULT NULL,
+                `materia_id` INT(11) DEFAULT NULL,
+                `publicado_por` INT(11) NOT NULL,
+                `publicado_por_nombre` VARCHAR(120) NOT NULL,
+                `creado_en` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id`),
+                KEY `idx_materia` (`materia_id`),
+                KEY `idx_creado` (`creado_en`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
         ];
 

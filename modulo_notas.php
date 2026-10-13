@@ -144,7 +144,7 @@ mysqli_close($con);
     <div class="card" style="margin-bottom:1.1rem;background:var(--cream);">
       <div class="card-body" style="font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:.6rem;">
         <i class="bx bx-lock-alt" style="font-size:1.1rem;"></i>
-        Podés ver el histórico de este alumno, pero solo el superadmin puede agregar materias o guardar cambios acá.
+        Puedes ver el histórico de este alumno, pero solo el superadmin puede agregar materias o guardar cambios acá.
       </div>
     </div>
     <?php endif; ?>

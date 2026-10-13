@@ -321,7 +321,7 @@ if ($action === 'compra_crear') {
 
     $stN = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,para_rol,referencia_id) VALUES('solicitud_libro',?,?,'admin',?)");
     $tituloN  = "Nueva compra de libro: {$libro['titulo']}";
-    $mensajeN = "Un alumno quiere comprar \"{$libro['titulo']}\" (Bs./USD {$precio}) y adjuntó su comprobante de pago. Revisalo antes de activarlo.";
+    $mensajeN = "Un alumno quiere comprar \"{$libro['titulo']}\" (Bs./USD {$precio}) y adjuntó su comprobante de pago. Revísalo antes de activarlo.";
     mysqli_stmt_bind_param($stN, 'ssi', $tituloN, $mensajeN, $compraId);
     mysqli_stmt_execute($stN);
     $notifId = mysqli_insert_id($con);

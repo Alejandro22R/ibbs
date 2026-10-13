@@ -316,6 +316,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button data-tour="nav-notificaciones" onclick="switchView('notificaciones', this); renderNotifFull('notifListFull');" class="sb-link">
                 <i class="fas fa-bell"></i> <span class="sb-lbl">Notificaciones</span>
             </button>
+            <button data-tour="nav-devocionales" onclick="switchView('devocionales', this); cargarDevocionales();" class="sb-link">
+                <i class="fas fa-dove"></i> <span class="sb-lbl">Devocionales</span>
+            </button>
 
             <?php if(in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
             <div class="sb-section" style="margin-top: .5rem;">Administración</div>
@@ -335,6 +338,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <button type="button" data-palette-skip="1" onclick="abrirAcercaDe()" class="sb-link">
                 <i class="fas fa-circle-info"></i> <span class="sb-lbl">Acerca de</span>
             </button>
+            <a href="assets/ibbs_ayuda.pdf" target="_blank" class="sb-link">
+                <i class="fas fa-life-ring"></i> <span class="sb-lbl">Ayuda</span>
+            </a>
             <a href="cerrar_sesion.php" class="sb-link">
                 <i class="fas fa-sign-out-alt"></i> <span class="sb-lbl">Salir</span>
             </a>
@@ -707,6 +713,62 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <button class="btn btn-secondary" onclick="marcarTodasLeidasFull('notifListFull')">Marcar todas leídas</button>
             </div>
             <div class="card"><div id="notifListFull"></div></div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VISTA: DEVOCIONALES                            -->
+        <!-- ============================================== -->
+        <div id="view-devocionales" class="view-section">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.8rem;">
+                <div>
+                    <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink);">Devocionales</h2>
+                    <p style="font-size:.82rem;color:var(--muted);">Estudios, planes devocionales y otros materiales para compartir con alumnos y colegas.</p>
+                </div>
+                <button class="btn btn-primary" onclick="openModal('modal-nuevo-devocional')"><i class="fas fa-plus"></i> Nuevo Devocional</button>
+            </div>
+            <div id="devocionalesLista" class="space-y-4" style="display:flex;flex-direction:column;gap:1rem;">
+                <p style="font-size:.85rem;color:var(--muted);font-style:italic;">Cargando…</p>
+            </div>
+        </div>
+
+        <!-- MODAL: NUEVO DEVOCIONAL -->
+        <div class="modal-backdrop" id="modal-nuevo-devocional">
+            <div class="modal">
+                <div class="modal-head"><h3>Nuevo Devocional</h3>
+                    <button class="modal-close" onclick="closeModal('modal-nuevo-devocional')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                </div>
+                <div class="modal-body">
+                    <form id="form-nuevo-devocional" onsubmit="submitNuevoDevocional(event)" enctype="multipart/form-data">
+                        <div class="form-grid" style="margin-bottom:1rem;">
+                            <div class="field field-full">
+                                <label>Título *</label>
+                                <input type="text" name="titulo" placeholder="Ej. Estudio de la semana — Salmo 23" required>
+                            </div>
+                            <div class="field field-full">
+                                <label>Para quién</label>
+                                <select name="materia_id">
+                                    <option value="">— Toda la institución (alumnos y docentes) —</option>
+                                    <?php foreach($materias as $m): ?>
+                                    <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['nombre']) ?> (solo esa materia)</option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="field field-full">
+                                <label>Contenido (opcional si adjuntas un archivo)</label>
+                                <textarea name="contenido" rows="4" placeholder="Escribe el devocional acá, o deja esto vacío y adjunta un PDF/Word abajo…"></textarea>
+                            </div>
+                            <div class="field field-full">
+                                <label>Archivo adjunto (opcional — PDF, Word, PowerPoint o imagen, máx. 25MB)</label>
+                                <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,image/png,image/jpeg,image/webp">
+                            </div>
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;gap:.6rem;">
+                            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-nuevo-devocional')">Cancelar</button>
+                            <button type="submit" class="btn btn-primary" id="btnPublicarDevocional">Publicar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- ============================================== -->
@@ -2063,6 +2125,72 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         }, 5000);
         if (window.IbbsRT && window.IbbsRT.hasWs) {
             window.IbbsRT.on('chat_staff_mensaje', () => { lastCountStaffChat = -1; loadChatStaffPortal(); });
+        }
+
+        // ── DEVOCIONALES ─────────────────────────────────────────
+        function hDevo(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+        function _devoIconoArchivo(nombre) {
+            const ext = (nombre || '').split('.').pop().toLowerCase();
+            if (['jpg','jpeg','png','webp'].includes(ext)) return 'fa-image';
+            if (ext === 'pdf') return 'fa-file-pdf';
+            if (['doc','docx'].includes(ext)) return 'fa-file-word';
+            if (['ppt','pptx'].includes(ext)) return 'fa-file-powerpoint';
+            return 'fa-file';
+        }
+        async function cargarDevocionales() {
+            const cont = document.getElementById('devocionalesLista');
+            cont.innerHTML = '<p style="font-size:.85rem;color:var(--muted);font-style:italic;">Cargando…</p>';
+            const fd = new FormData(); fd.append('action', 'listar');
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            const r = await fetch('api/devocionales.php', { method: 'POST', body: fd });
+            const d = await r.json();
+            if (!d.ok || !d.data.length) { cont.innerHTML = '<p style="font-size:.85rem;color:var(--muted);font-style:italic;">Todavía no hay devocionales publicados.</p>'; return; }
+            const esAdmin = <?= in_array($_SESSION['rol'], ['superadmin','admin']) ? 'true' : 'false' ?>;
+            cont.innerHTML = d.data.map(dv => {
+                const puedeBorrar = esAdmin || dv.publicado_por == MI_USUARIO_ID;
+                return `<div class="card" style="padding:1.2rem 1.4rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem;flex-wrap:wrap;margin-bottom:.5rem;">
+                        <div>
+                            <h3 style="font-size:1rem;font-weight:700;color:var(--ink);margin:0;">${hDevo(dv.titulo)}</h3>
+                            <p style="font-size:.76rem;color:var(--muted);margin:.2rem 0 0;">Por ${hDevo(dv.publicado_por_nombre)}${dv.materia_nombre ? ' · ' + hDevo(dv.materia_nombre) : ' · Para toda la institución'} · ${dv.creado_en ? dv.creado_en.substring(0,10) : ''}</p>
+                        </div>
+                        ${puedeBorrar ? `<button onclick="eliminarDevocional(${dv.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;" title="Eliminar"><i class="fas fa-trash"></i></button>` : ''}
+                    </div>
+                    ${dv.contenido ? `<p style="font-size:.88rem;color:var(--ink);white-space:pre-line;margin-bottom:.6rem;">${hDevo(dv.contenido)}</p>` : ''}
+                    ${dv.archivo ? `<a href="${dv.archivo}" target="_blank" style="display:inline-flex;align-items:center;gap:.5rem;font-size:.78rem;font-weight:700;background:var(--cream);border:1px solid var(--border);padding:.5rem .8rem;border-radius:8px;text-decoration:none;color:var(--ink);"><i class="fas ${_devoIconoArchivo(dv.archivo_nombre)}"></i> ${hDevo(dv.archivo_nombre || 'Ver archivo')}</a>` : ''}
+                </div>`;
+            }).join('');
+        }
+
+        async function submitNuevoDevocional(e) {
+            e.preventDefault();
+            const form = e.target;
+            const btn = document.getElementById('btnPublicarDevocional');
+            btn.disabled = true; btn.textContent = 'Publicando…';
+            const fd = new FormData(form);
+            fd.append('action', 'crear');
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            try {
+                const r = await fetch('api/devocionales.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) {
+                    closeModal('modal-nuevo-devocional');
+                    form.reset();
+                    await Ibbs.success(d.msg);
+                    cargarDevocionales();
+                } else Ibbs.error(d.msg || 'No se pudo publicar.');
+            } catch (err) { console.error(err); Ibbs.error('Error de conexión.'); }
+            btn.disabled = false; btn.textContent = 'Publicar';
+        }
+
+        async function eliminarDevocional(id) {
+            const r = await Ibbs.confirm({ title: 'Eliminar devocional', text: '¿Seguro que quieres eliminarlo? Esta acción no se puede deshacer.', danger: true, confirm: 'Sí, eliminar' });
+            if (!r.isConfirmed) return;
+            const fd = new FormData(); fd.append('action', 'eliminar'); fd.append('id', id);
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            const resp = await fetch('api/devocionales.php', { method: 'POST', body: fd });
+            const d = await resp.json();
+            if (d.ok) { await Ibbs.success(d.msg); cargarDevocionales(); } else Ibbs.error(d.msg || 'No se pudo eliminar.');
         }
 
         // ── BIBLIOTECA (vista embebida — antes abría modulo_biblioteca.php

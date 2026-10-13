@@ -179,6 +179,32 @@ if (!function_exists('materia_prerequisitos_faltantes')) {
     }
 }
 
+if (!function_exists('inscripcion_semestre_estado')) {
+    /**
+     * La inscripción ya no se paga por materia: se paga UNA vez por
+     * semestre (tabla `pagos`, tipo='inscripcion') y, una vez
+     * confirmada, el alumno elige libremente qué materias cursar ese
+     * período (sujeto igual a los candados de prerequisito/pensum de
+     * arriba) — sin volver a adjuntar comprobante por cada una.
+     *
+     * No hace falta un concepto de "período activo" separado: se mira
+     * el cobro de inscripción MÁS RECIENTE del alumno. Si está
+     * 'pagado', puede autoinscribirse. Cuando empieza un semestre
+     * nuevo, administración simplemente registra un cobro de
+     * inscripción nuevo (ej. "Inscripción 2026-II") — automáticamente
+     * ese pasa a ser el más reciente y, hasta que se pague, vuelve a
+     * bloquear la autoinscripción aunque el semestre anterior ya
+     * estuviera pagado.
+     */
+    function inscripcion_semestre_estado($con, $alumno_id) {
+        $st = mysqli_prepare($con, "SELECT id,concepto,monto,estado,comprobante,creado_en FROM pagos WHERE alumno_id=? AND tipo='inscripcion' ORDER BY creado_en DESC LIMIT 1");
+        mysqli_stmt_bind_param($st, 'i', $alumno_id);
+        mysqli_stmt_execute($st);
+        $pago = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
+        return ['pagada' => $pago && $pago['estado'] === 'pagado', 'pago' => $pago];
+    }
+}
+
 if (!function_exists('materias_asignadas')) {
     /**
      * "Mis materias" para los selectores de cada módulo (Aula, Clases

@@ -77,7 +77,7 @@ if ($action === 'pago_crear') {
 
     $stN = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,usuario_id,referencia_id) SELECT 'pago_pendiente',?,?,usuario_id,? FROM alumnos WHERE id=?");
     $tit = 'Nuevo cobro pendiente';
-    $msg = "Tenés un cobro pendiente: \"$concepto\" por $monto.";
+    $msg = "Tienes un cobro pendiente: \"$concepto\" por $monto.";
     mysqli_stmt_bind_param($stN, 'ssii', $tit, $msg, $pid, $aid);
     mysqli_stmt_execute($stN);
 
@@ -118,11 +118,16 @@ if ($action === 'pago_resumen') {
 if ($action === 'pago_marcar_pagado') {
     if (!in_array($rol, ['superadmin','admin'])) json_fail_pg('Sin permiso.');
     $id = (int)($_POST['id'] ?? 0);
-    $p = mysqli_fetch_assoc(mysqli_query($con, "SELECT estado FROM pagos WHERE id=$id LIMIT 1"));
+    $p = mysqli_fetch_assoc(mysqli_query($con, "SELECT alumno_id,concepto,estado FROM pagos WHERE id=$id LIMIT 1"));
     if (!$p) json_fail_pg('Pago no encontrado.');
     if ($p['estado'] !== 'pendiente') json_fail_pg('Este cobro ya no está pendiente.');
     mysqli_query($con, "UPDATE pagos SET estado='pagado',revisado_por=$uid,revisado_en=NOW() WHERE id=$id");
     log_audit($con, $uid, 'PAGO_MARCAR_PAGADO', "id=$id");
+    $stN = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,usuario_id,referencia_id) SELECT 'pago_revisado',?,?,usuario_id,? FROM alumnos WHERE id=?");
+    $titP = 'Pago confirmado';
+    $msgP = "Tu pago de \"{$p['concepto']}\" fue confirmado.";
+    mysqli_stmt_bind_param($stN, 'ssii', $titP, $msgP, $id, $p['alumno_id']);
+    mysqli_stmt_execute($stN);
     echo json_encode(['ok'=>true,'msg'=>'Marcado como pagado.']); exit;
 }
 
@@ -252,11 +257,24 @@ if ($action === 'pago_subir_comprobante') {
     }
     log_audit($con, $uid, 'PAGO_SUBIR_COMPROBANTE', "id=$id");
 
+    $alNombre = mysqli_fetch_assoc(mysqli_query($con, "SELECT nombre,apellido FROM alumnos WHERE id=$aid LIMIT 1"));
+    $nombreCompleto = $alNombre ? trim($alNombre['nombre'].' '.$alNombre['apellido']) : 'Un alumno';
+    $tipoLbl = $pago['tipo'] === 'mensualidad' ? 'mensualidad' : 'inscripción';
     $stN = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,para_rol,referencia_id) VALUES('pago_pendiente_revision',?,?,'admin',?)");
-    $tit = 'Comprobante de pago recibido';
-    $msg = "Un alumno subió un comprobante para \"{$pago['concepto']}\" — revisalo.";
+    $tit = "Comprobante de $tipoLbl recibido";
+    $msg = "$nombreCompleto subió un comprobante para \"{$pago['concepto']}\" — revísalo.";
     mysqli_stmt_bind_param($stN, 'ssi', $tit, $msg, $id);
     mysqli_stmt_execute($stN);
+    $notifId = mysqli_insert_id($con);
+    if (function_exists('ws_broadcast_user')) {
+        $rAdmins = mysqli_query($con, "SELECT id FROM usuarios WHERE rol IN ('admin','superadmin') AND activo=1");
+        while ($fAdmin = mysqli_fetch_assoc($rAdmins)) {
+            ws_broadcast_user((int)$fAdmin['id'], 'notificacion', [
+                'id' => $notifId, 'tipo' => 'pago_pendiente_revision', 'titulo' => $tit,
+                'mensaje' => $msg, 'referencia_id' => $id, 'creado_en' => date('Y-m-d H:i:s'),
+            ]);
+        }
+    }
 
     echo json_encode(['ok'=>true,'msg'=>'¡Listo! Tu comprobante quedó enviado para revisión.']); exit;
 }

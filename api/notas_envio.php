@@ -68,11 +68,11 @@ if ($action === 'crear') {
     if (!materia_puede_gestionar($con, $uid, $rol, $mid)) json_fail_ne('No tienes permiso sobre esta materia.');
 
     $pendiente = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM notas_envios WHERE materia_id=$mid AND estado='pendiente' LIMIT 1"));
-    if ($pendiente) json_fail_ne('Ya enviaste las notas de esta materia y están pendientes de aprobación — esperá la revisión del administrador antes de volver a enviar.');
+    if ($pendiente) json_fail_ne('Ya enviaste las notas de esta materia y están pendientes de aprobación — espera la revisión del administrador antes de volver a enviar.');
 
     $propuestasRaw = $_POST['propuestas'] ?? '';
     $propuestas = json_decode($propuestasRaw, true);
-    if (!is_array($propuestas) || !$propuestas) json_fail_ne('Tenés que cargar una nota para cada alumno antes de enviar.');
+    if (!is_array($propuestas) || !$propuestas) json_fail_ne('Tienes que cargar una nota para cada alumno antes de enviar.');
 
     $alumnosMateria = [];
     $ra = mysqli_query($con, "SELECT alumno_id FROM materia_alumno WHERE materia_id=$mid");

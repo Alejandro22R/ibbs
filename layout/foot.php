@@ -408,7 +408,9 @@ const NOTIF_ICONS = {
   solicitud_aprobada:'✅', solicitud_rechazada:'⛔',
   solicitud_materia:'🧾', solicitud_materia_aprobada:'✅', solicitud_materia_rechazada:'⛔',
   notas_envio:'📝',
-  solicitud_libro:'📚', solicitud_libro_activada:'✅', solicitud_libro_rechazada:'⛔'
+  solicitud_libro:'📚', solicitud_libro_activada:'✅', solicitud_libro_rechazada:'⛔',
+  pago_pendiente:'💳', pago_revisado:'💰', pago_pendiente_revision:'💳',
+  autoinscripcion_semestral:'🧾', devocional:'🙏'
 };
 let _notifUnread = 0;
 function _notifSetBadge(n){
