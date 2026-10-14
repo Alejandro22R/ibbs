@@ -97,7 +97,7 @@ if ($action === 'crear') {
     $nombreCompleto = trim($al['nombre'].' '.$al['apellido']);
     $stN = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,para_rol,referencia_id) VALUES('solicitud_materia',?,?,'admin',?)");
     $tituloN  = "Nueva solicitud de inscripción: $nombreCompleto";
-    $mensajeN = "$nombreCompleto quiere inscribirse en \"{$mat['nombre']}\" y adjuntó su comprobante de pago. Revisalo antes de aceptar o rechazar.";
+    $mensajeN = "$nombreCompleto quiere inscribirse en \"{$mat['nombre']}\" y adjuntó su comprobante de pago. Revísalo antes de aceptar o rechazar.";
     mysqli_stmt_bind_param($stN, 'ssi', $tituloN, $mensajeN, $solId);
     mysqli_stmt_execute($stN);
     $notifId = mysqli_insert_id($con);
@@ -111,6 +111,72 @@ if ($action === 'crear') {
         }
     }
     echo json_encode(['ok'=>true,'msg'=>'¡Listo! Tu solicitud y comprobante quedaron enviados. La administración la revisará y te avisaremos apenas la acepten.']); exit;
+}
+
+if ($action === 'autoinscribir_multiple') {
+    if ($rol !== 'alumno') { echo json_encode(['ok'=>false,'msg'=>'Solo un alumno puede autoinscribirse.']); exit; }
+
+    $al = mysqli_fetch_assoc(mysqli_query($con, "SELECT id,regular,nombre,apellido FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
+    if (!$al) { echo json_encode(['ok'=>false,'msg'=>'No se encontró tu registro de alumno.']); exit; }
+    if (!(int)$al['regular']) { echo json_encode(['ok'=>false,'msg'=>'Tu inscripción aún no fue marcada como regular. Contacta a la administración.']); exit; }
+    $aid = (int)$al['id'];
+
+    $insc = inscripcion_semestre_estado($con, $aid);
+    if (!$insc['pagada']) { echo json_encode(['ok'=>false,'msg'=>'Todavía no tienes la inscripción de este período confirmada como pagada. Revisa "Mis Pagos".']); exit; }
+
+    $ids = array_values(array_unique(array_filter(array_map('intval', explode(',', trim($_POST['materia_ids'] ?? ''))))));
+    if (!$ids) { echo json_encode(['ok'=>false,'msg'=>'Selecciona al menos una materia.']); exit; }
+
+    $inscritas = []; $omitidas = [];
+    foreach ($ids as $mid) {
+        $mat = mysqli_fetch_assoc(mysqli_query($con, "SELECT id,nombre,estado,inscripcion_abierta FROM materias WHERE id=$mid AND activo=1 LIMIT 1"));
+        if (!$mat) { $omitidas[] = "materia #$mid (no encontrada)"; continue; }
+        if ($mat['estado'] === 'culminada') { $omitidas[] = $mat['nombre'].' (ya culminó)'; continue; }
+        if (!(int)$mat['inscripcion_abierta']) { $omitidas[] = $mat['nombre'].' (inscripción cerrada)'; continue; }
+        $ex = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM materia_alumno WHERE materia_id=$mid AND alumno_id=$aid LIMIT 1"));
+        if ($ex) { $omitidas[] = $mat['nombre'].' (ya estabas inscrito)'; continue; }
+        if (!materia_puede_recursar($con, $aid, $mid, $mat['nombre'])) { $omitidas[] = $mat['nombre'].' (ya tienes un registro de ella)'; continue; }
+        if (!materia_cumple_prerequisito($con, $aid, $mid)) { $omitidas[] = $mat['nombre'].' (te faltan prerequisitos)'; continue; }
+
+        $stI = mysqli_prepare($con, "INSERT INTO materia_alumno(materia_id,alumno_id,auto_inscrito) VALUES(?,?,1)");
+        mysqli_stmt_bind_param($stI, 'ii', $mid, $aid);
+        if (mysqli_stmt_execute($stI)) {
+            $inscritas[] = $mat['nombre'];
+            log_audit($con, $uid, 'AUTOINSCRIPCION_SEMESTRAL', "materia=$mid alumno=$aid");
+        } else {
+            $omitidas[] = $mat['nombre'].' (error al registrar)';
+        }
+    }
+
+    if ($inscritas) {
+        $nombreCompleto = trim($al['nombre'].' '.$al['apellido']);
+        $msgAdmin = "$nombreCompleto se autoinscribió en: ".implode(', ', $inscritas).'.';
+        $stN = mysqli_prepare($con, "INSERT INTO notificaciones(tipo,titulo,mensaje,para_rol) VALUES('autoinscripcion_semestral',?,?,'admin')");
+        $titAdmin = "Nueva autoinscripción: $nombreCompleto";
+        mysqli_stmt_bind_param($stN, 'ss', $titAdmin, $msgAdmin);
+        mysqli_stmt_execute($stN);
+    }
+
+    $msg = $inscritas ? ('¡Listo! Quedaste inscrito(a) en: '.implode(', ', $inscritas).'.') : 'No se pudo inscribir en ninguna de las materias seleccionadas.';
+    if ($omitidas) $msg .= ' No se pudo con: '.implode('; ', $omitidas).'.';
+    echo json_encode(['ok'=>(bool)$inscritas, 'msg'=>$msg, 'inscritas'=>$inscritas, 'omitidas'=>$omitidas]); exit;
+}
+
+if ($action === 'mi_historial') {
+    if ($rol !== 'alumno') { echo json_encode(['ok'=>false,'msg'=>'Solo un alumno.']); exit; }
+    $al = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
+    if (!$al) { echo json_encode(['ok'=>false,'msg'=>'No se encontró tu registro de alumno.']); exit; }
+    $aid = (int)$al['id'];
+    $r = mysqli_query($con, "SELECT ma.id,ma.nota_final,ma.origen,ma.creado_en,
+        m.nombre materia_nombre, m.codigo materia_codigo, m.estado materia_estado,
+        p.nombre periodo_nombre
+        FROM materia_alumno ma
+        JOIN materias m ON m.id=ma.materia_id
+        LEFT JOIN periodos p ON p.id=m.periodo_id
+        WHERE ma.alumno_id=$aid
+        ORDER BY ma.creado_en DESC LIMIT 300");
+    $rows = []; while ($f = mysqli_fetch_assoc($r)) $rows[] = $f;
+    echo json_encode(['ok'=>true,'data'=>$rows]); exit;
 }
 
 if ($action === 'get') {

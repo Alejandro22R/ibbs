@@ -282,7 +282,7 @@ async function submitCrearPago(e){
 }
 
 async function marcarPagado(id){
-  const rr = await Ibbs.confirm({title:'¿Marcar como pagado?', text:'Usalo cuando el alumno ya pagó en efectivo o por otro medio sin comprobante digital.', confirm:'Sí, marcar pagado'});
+  const rr = await Ibbs.confirm({title:'¿Marcar como pagado?', text:'Úsalo cuando el alumno ya pagó en efectivo o por otro medio sin comprobante digital.', confirm:'Sí, marcar pagado'});
   if(!rr.isConfirmed) return;
   const d = await ajax('pago_marcar_pagado', {id}, 'api/pagos.php');
   if(d?.ok){ toast(d.msg); loadPagos(); loadPagosResumen(); } else toast(d?.msg||'Error', 'err');
@@ -310,8 +310,8 @@ window.IBBS_TOUR_PAGOS = {
   storageKey: 'ibbs_tour_pagos_v1',
   steps: [
     { selector: '[data-tour="pagos-resumen"]', title: 'Resumen rápido', text: 'De un vistazo: cuántos cobros están pendientes, cuántos ya se pagaron, y los montos totales.' },
-    { selector: '[data-tour="pagos-registrar"]', title: 'Registrar un cobro', text: 'Elegís el alumno, si es mensualidad o inscripción, el monto y el concepto (ej. "Mensualidad Octubre 2026"). El alumno lo va a ver en su portal apenas lo registrés.' },
-    { selector: '#chkAllPagos', title: 'Seleccionar todo', text: 'Marcá la casilla de un cobro, o esta de arriba para marcarlos todos, y aparece una barra para aprobar, marcar pagado o eliminar varios a la vez — ya no hace falta uno por uno.' },
+    { selector: '[data-tour="pagos-registrar"]', title: 'Registrar un cobro', text: 'Eliges el alumno, si es mensualidad o inscripción, el monto y el concepto (ej. "Mensualidad Octubre 2026"). El alumno lo va a ver en su portal apenas lo registres.' },
+    { selector: '#chkAllPagos', title: 'Seleccionar todo', text: 'Marca la casilla de un cobro, o esta de arriba para marcarlos todos, y aparece una barra para aprobar, marcar pagado o eliminar varios a la vez — ya no hace falta uno por uno.' },
   ],
   auto: true,
 };

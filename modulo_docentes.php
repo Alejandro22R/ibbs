@@ -250,7 +250,7 @@ async function createDoc(e){
         const nombreCompleto = e.target.querySelector('[name="nombre"]').value+' '+e.target.querySelector('[name="apellido"]').value;
         await Ibbs.confirm({
           title:'Docente creado',
-          text:`Pasale estos datos a <b>${h(nombreCompleto)}</b> para que pueda ingresar:<br><br>
+          text:`Pásale estos datos a <b>${h(nombreCompleto)}</b> para que pueda ingresar:<br><br>
                 Usuario: <code>${h(usuarioLogin)}</code><br>
                 Contraseña: <code>${h(pwdInicial)}</code><br><br>
                 Puede cambiarla luego desde su perfil.`,

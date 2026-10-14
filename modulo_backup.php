@@ -21,7 +21,7 @@ if(!in_array($_rol,['superadmin','admin'])){
     <div style="flex:1;min-width:240px;">
       <div style="font-weight:800;color:#fff;font-size:.95rem;">¿Qué es un "respaldo"?</div>
       <div style="font-size:.82rem;color:rgba(255,255,255,.92);line-height:1.5;margin-top:.15rem;">
-        Es una copia de <strong>todos</strong> los datos del sistema (alumnos, notas, materias, etc.) en un solo archivo. Si algo sale mal en la base de datos, ese archivo permite recuperar todo tal como estaba. <strong>Recomendación:</strong> descargá uno cada vez que hagas un cambio importante, y guardalo en un lugar aparte (correo, USB, Google Drive).
+        Es una copia de <strong>todos</strong> los datos del sistema (alumnos, notas, materias, etc.) en un solo archivo. Si algo sale mal en la base de datos, ese archivo permite recuperar todo tal como estaba. <strong>Recomendación:</strong> descarga uno cada vez que hagas un cambio importante, y guárdalo en un lugar aparte (correo, USB, Google Drive).
       </div>
     </div>
     <button class="btn" data-tour-start style="background:#fff;color:#15803d;font-weight:800;flex-shrink:0;" onclick="IbbsTour.replay(window.IBBS_TOUR_BACKUP)">
@@ -66,7 +66,7 @@ if(!in_array($_rol,['superadmin','admin'])){
         </div>
         <div style="display:flex;align-items:center;gap:.6rem;font-size:.78rem;color:var(--ink);">
           <span style="width:20px;height:20px;border-radius:50%;background:var(--lime2);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.68rem;flex-shrink:0;">3</span>
-          Guardalo en un lugar seguro (correo, USB, Drive)
+          Guárdalo en un lugar seguro (correo, USB, Drive)
         </div>
       </div>
       <a href="api/backup.php?action=export" class="btn btn-primary" style="text-align:center;">
@@ -123,7 +123,7 @@ if(!in_array($_rol,['superadmin','admin'])){
       <div>
         <div style="font-weight:700;font-size:.88rem;margin-bottom:.25rem;">Reiniciar base de datos</div>
         <div style="font-size:.8rem;color:var(--muted);max-width:480px;line-height:1.6;">
-          Elimina <strong>todos</strong> los datos de alumnos, docentes, inscripciones, notas y asistencias. Conserva el usuario administrador. No se puede deshacer — usala solo si estás seguro(a).
+          Elimina <strong>todos</strong> los datos de alumnos, docentes, inscripciones, notas y asistencias. Conserva el usuario administrador. No se puede deshacer — úsala solo si estás seguro(a).
         </div>
       </div>
       <button class="btn btn-danger" id="btnResetBD" onclick="abrirResetModal()">
@@ -252,7 +252,7 @@ window.IBBS_TOUR_BACKUP = {
     { selector: '[data-tour="bk-importar"]', title: 'Importar (restaurar)', text: 'Si algo sale mal, puedes subir un archivo de respaldo acá para volver todo a como estaba. OJO: esto reemplaza los datos actuales — asegúrate de tener un respaldo reciente antes de restaurar otro.' },
     <?php endif; ?>
     <?php if(can('all')): ?>
-    { selector: '[data-tour="bk-peligro"]', title: 'Zona de Peligro', text: 'Acá solo hay una acción: borrar todo y empezar de cero. Es irreversible, por eso te pide tu contraseña antes de hacerlo. Usala solo si estás completamente seguro(a).' },
+    { selector: '[data-tour="bk-peligro"]', title: 'Zona de Peligro', text: 'Acá solo hay una acción: borrar todo y empezar de cero. Es irreversible, por eso te pide tu contraseña antes de hacerlo. Úsala solo si estás completamente seguro(a).' },
     <?php endif; ?>
   ],
   auto: true,

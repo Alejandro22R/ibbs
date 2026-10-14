@@ -150,6 +150,7 @@ function can($perm){
     <li><a href="modulo_backup.php" class="sb-link <?=$active_link==='backup'?'act':''?>" data-tour="nav-backup"><i class="bx bx-data"></i><span class="sb-lbl">Respaldo BD</span></a></li>
     <?php endif; ?>
 
+    <li><a href="modulo_devocionales.php" class="sb-link <?=$active_link==='devocionales'?'act':''?>"><i class="bx bx-church"></i><span class="sb-lbl">Devocionales</span></a></li>
     <li><a href="javascript:void(0)" onclick="IbbsTour.replay(window.IBBS_TOUR_SIDEBAR)" class="sb-link" data-tour="nav-tutorial"><i class="bx bx-play-circle"></i><span class="sb-lbl">Ver Tutorial</span></a></li>
     <li><a href="assets/ibbs_ayuda.pdf" target="_blank" class="sb-link"><i class="bx bx-help-circle"></i><span class="sb-lbl">Ayuda</span></a></li>
   </ul>

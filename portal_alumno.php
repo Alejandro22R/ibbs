@@ -133,7 +133,11 @@ $materias_ya_vistas_otras = array_values(array_filter($materias_ya_vistas, fn($r
 // puede inscribirse en vez de que la materia simplemente no aparezca.
 $materias_disponibles = [];
 $materias_bloqueadas_prerequisito = [];
+$inscripcion_info = ['pagada' => false, 'pago' => null];
 if ($alumno && !empty($alumno['regular'])) {
+    $inscripcion_info = inscripcion_semestre_estado($con, $alumno_id);
+}
+if ($alumno && !empty($alumno['regular']) && $inscripcion_info['pagada']) {
     $ids_inscritas = array_column($materias, 'id');
     $ids_pendientes = array_column($solicitudes_pendientes, 'materia_id');
     $ids_excluir = array_merge($ids_inscritas, $ids_pendientes);
@@ -416,6 +420,9 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             <button data-tour="nav-notificaciones" onclick="switchView('notificaciones', this); renderNotifFull('notifListFull');" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-bell w-5 text-center"></i> <span class="font-medium text-sm">Notificaciones</span>
             </button>
+            <button data-tour="nav-devocionales" onclick="switchView('devocionales', this); cargarDevocionales();" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <i class="fas fa-dove w-5 text-center"></i> <span class="font-medium text-sm">Devocionales</span>
+            </button>
 
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mt-6 mb-3 px-3">Cuenta</p>
             <button id="navBtnPerfil" data-tour="nav-perfil" onclick="switchView('perfil', this)" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
@@ -424,6 +431,9 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             <button type="button" data-palette-skip="1" onclick="abrirAcercaDe()" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-circle-info w-5 text-center"></i> <span class="font-medium text-sm">Acerca de</span>
             </button>
+            <a href="assets/ibbs_ayuda.pdf" target="_blank" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
+                <i class="fas fa-life-ring w-5 text-center"></i> <span class="font-medium text-sm">Ayuda</span>
+            </a>
             <button type="button" data-tour="nav-replay" data-palette-skip="1" onclick="IbbsTour.replay(window.IBBS_TOUR_ALUMNO)" class="ibbstour-replay nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
                 <i class="fas fa-circle-question w-5 text-center"></i> <span class="font-medium text-sm">Ver Tutorial</span>
             </button>
@@ -548,6 +558,17 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 </div>
             </div>
 
+            <!-- VISTA: DEVOCIONALES -->
+            <div id="view-devocionales" class="view-section hidden space-y-5">
+                <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
+                    <h2 class="text-2xl font-serif text-ibbs-ink">Devocionales</h2>
+                </div>
+                <p class="text-sm text-ibbs-muted">Estudios, planes devocionales y otros materiales que tus profesores o administración fueron compartiendo.</p>
+                <div id="devocionalesLista" class="space-y-4">
+                    <p class="text-sm text-ibbs-muted italic">Cargando…</p>
+                </div>
+            </div>
+
             <!-- VISTA: MATERIAS -->
             <div id="view-materias" class="view-section hidden space-y-5">
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
@@ -618,19 +639,36 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             </div>
                         </div>
                         <?php endif; ?>
-                        <?php if (empty($materias_disponibles)): ?>
-                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a), con una solicitud pendiente, o ya registrado(a) o bloqueado(a) por orden del pensum en todas las disponibles.</p>
+                        <?php if (!$inscripcion_info['pagada']): ?>
+                        <div class="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-ibbs-ink flex items-start gap-3">
+                            <i class="fas fa-circle-exclamation text-amber-500 mt-0.5"></i>
+                            <div>
+                                <p class="font-bold mb-1">La inscripción ahora se paga una sola vez por semestre, no por materia.</p>
+                                <?php if ($inscripcion_info['pago']): $pg = $inscripcion_info['pago']; ?>
+                                    <?php if ($pg['estado'] === 'en_revision'): ?>
+                                    Tu comprobante de inscripción (<strong><?= htmlspecialchars($pg['concepto']) ?></strong>) está en revisión — apenas administración lo confirme vas a poder elegir tus materias libremente.
+                                    <?php elseif ($pg['estado'] === 'rechazado'): ?>
+                                    Tu comprobante de inscripción (<strong><?= htmlspecialchars($pg['concepto']) ?></strong>) fue rechazado — sube uno nuevo desde <strong>Mis Pagos</strong> para poder elegir tus materias.
+                                    <?php else: ?>
+                                    Tienes pendiente el pago de <strong><?= htmlspecialchars($pg['concepto']) ?></strong> ($<?= number_format((float)$pg['monto'], 2) ?>). Sube tu comprobante desde <strong>Mis Pagos</strong> y, una vez confirmado, vas a poder elegir libremente qué materias cursar — no hace falta pagar ni pedir aprobación materia por materia.
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                Todavía no tienes un cobro de inscripción generado para este período — contacta a la administración para que te lo registre. Una vez pagado, vas a poder elegir libremente qué materias cursar.
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php elseif (empty($materias_disponibles)): ?>
+                        <p class="text-sm text-ibbs-muted italic">No hay materias con inscripción abierta en este momento. La administración todavía no habilitó ninguna, o ya estás inscrito(a) o bloqueado(a) por orden del pensum en todas las disponibles.</p>
                         <?php else: ?>
                         <div class="bg-ibbs-cream border border-ibbs-border rounded-lg p-3 mb-3 text-xs text-ibbs-ink flex items-start gap-2">
-                            <i class="fas fa-circle-info text-ibbs-blue mt-0.5"></i>
-                            <div>Para inscribirte tienes que adjuntar la captura de tu pago móvil o transferencia a la institución. La administración la revisa antes de dejarte adentro de la materia.</div>
+                            <i class="fas fa-circle-check text-ibbs-lime2 mt-0.5"></i>
+                            <div>Tu inscripción de este período ya está pagada — elige las materias que quieras cursar (no hace falta anotarte en todas) y confirma. Quedas inscrito(a) al instante, sin comprobante ni aprobación por materia.</div>
                         </div>
                         <div class="flex flex-col gap-4">
-                            <input type="hidden" id="selAutoInsc" value="">
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 <?php foreach ($materias_disponibles as $md): ?>
                                 <div class="auto-insc-card cursor-pointer rounded-xl border-2 border-ibbs-border bg-white p-4 flex items-center gap-3 transition-all hover:border-ibbs-lime2 hover:-translate-y-0.5"
-                                     data-materia-id="<?= $md['id'] ?>" onclick="seleccionarMateriaAutoInsc(<?= $md['id'] ?>, this)">
+                                     data-materia-id="<?= $md['id'] ?>" onclick="toggleMateriaAutoInsc(<?= $md['id'] ?>, this)">
                                     <div class="w-10 h-10 rounded-lg bg-ibbs-ink/5 text-ibbs-ink flex items-center justify-center text-lg flex-shrink-0">
                                         <i class="fas fa-book"></i>
                                     </div>
@@ -642,9 +680,8 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                 </div>
                                 <?php endforeach; ?>
                             </div>
-                            <div class="flex flex-col sm:flex-row gap-3">
-                                <input type="file" id="fileComprobante" accept="image/png,image/jpeg,image/webp" class="flex-1 border border-ibbs-border rounded-lg px-3 py-2 text-xs bg-white file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-ibbs-ink file:text-white file:text-xs file:font-bold">
-                                <button onclick="autoInscribirme()" id="btnAutoInsc" class="btn-ibbs px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap">Enviar solicitud</button>
+                            <div class="flex justify-end">
+                                <button onclick="autoInscribirme()" id="btnAutoInsc" class="btn-ibbs px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap" disabled>Inscribirme en las seleccionadas</button>
                             </div>
                         </div>
                         <?php endif; ?>
@@ -1042,7 +1079,14 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
                     <h2 class="text-2xl font-serif text-ibbs-ink">Mis Pagos</h2>
                 </div>
+                <div class="flex gap-2">
+                    <button id="btnPagosTabPagos" onclick="mostrarPagosTab('pagos')" class="px-4 py-1.5 rounded-full text-xs font-bold bg-ibbs-ink text-white">Pagos</button>
+                    <button id="btnPagosTabInsc" onclick="mostrarPagosTab('inscripciones')" class="px-4 py-1.5 rounded-full text-xs font-bold bg-ibbs-cream text-ibbs-ink border border-ibbs-border">Historial de Inscripciones</button>
+                </div>
                 <div id="pagosLista" class="space-y-3">
+                    <p class="text-sm text-ibbs-muted italic">Cargando…</p>
+                </div>
+                <div id="inscripcionesLista" class="space-y-3 hidden">
                     <p class="text-sm text-ibbs-muted italic">Cargando…</p>
                 </div>
             </div>
@@ -1454,33 +1498,32 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         function hChat(s) { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; }
         function hAttrChat(s) { return hChat(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
-        function seleccionarMateriaAutoInsc(materiaId, cardEl) {
-            document.getElementById('selAutoInsc').value = materiaId;
-            document.querySelectorAll('.auto-insc-card').forEach(c => {
-                c.classList.remove('border-ibbs-lime2', 'bg-ibbs-lime2/5');
-                c.classList.add('border-ibbs-border');
-                c.querySelector('.auto-insc-check').classList.add('opacity-0');
-            });
-            cardEl.classList.remove('border-ibbs-border');
-            cardEl.classList.add('border-ibbs-lime2', 'bg-ibbs-lime2/5');
-            cardEl.querySelector('.auto-insc-check').classList.remove('opacity-0');
+        const _materiasAutoInscSeleccionadas = new Set();
+        function toggleMateriaAutoInsc(materiaId, cardEl) {
+            if (_materiasAutoInscSeleccionadas.has(materiaId)) {
+                _materiasAutoInscSeleccionadas.delete(materiaId);
+                cardEl.classList.remove('border-ibbs-lime2', 'bg-ibbs-lime2/5');
+                cardEl.classList.add('border-ibbs-border');
+                cardEl.querySelector('.auto-insc-check').classList.add('opacity-0');
+            } else {
+                _materiasAutoInscSeleccionadas.add(materiaId);
+                cardEl.classList.remove('border-ibbs-border');
+                cardEl.classList.add('border-ibbs-lime2', 'bg-ibbs-lime2/5');
+                cardEl.querySelector('.auto-insc-check').classList.remove('opacity-0');
+            }
+            const btn = document.getElementById('btnAutoInsc');
+            if (btn) btn.disabled = _materiasAutoInscSeleccionadas.size === 0;
         }
 
         async function autoInscribirme() {
-            const sel = document.getElementById('selAutoInsc');
-            const mid = sel ? sel.value : '';
-            if (!mid) { Ibbs.warn('Selecciona una materia primero.'); return; }
-            const fileInput = document.getElementById('fileComprobante');
-            const file = fileInput && fileInput.files[0];
-            if (!file) { Ibbs.warn('Adjuntá la captura de tu pago móvil o transferencia para poder inscribirte.'); return; }
+            if (!_materiasAutoInscSeleccionadas.size) { Ibbs.warn('Selecciona al menos una materia.'); return; }
             const btn = document.getElementById('btnAutoInsc');
-            btn.disabled = true; btn.textContent = 'Enviando…';
+            btn.disabled = true; btn.textContent = 'Inscribiendo…';
             try {
                 const _csrfMeta = document.querySelector('meta[name="csrf-token"]');
                 const fd = new FormData();
-                fd.append('action', 'crear');
-                fd.append('materia_id', mid);
-                fd.append('comprobante', file);
+                fd.append('action', 'autoinscribir_multiple');
+                fd.append('materia_ids', Array.from(_materiasAutoInscSeleccionadas).join(','));
                 fd.append('csrf_token', _csrfMeta ? _csrfMeta.content : '');
                 const r = await fetch('api/materia_solicitud.php', { method: 'POST', body: fd });
                 const d = await r.json();
@@ -1489,10 +1532,10 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     await Ibbs.success(d.msg);
                     location.reload();
                 } else {
-                    Ibbs.error(d.msg || 'No se pudo enviar la solicitud.');
-                    btn.disabled = false; btn.textContent = 'Enviar solicitud';
+                    Ibbs.error(d.msg || 'No se pudo completar la inscripción.');
+                    btn.disabled = false; btn.textContent = 'Inscribirme en las seleccionadas';
                 }
-            } catch (e) { console.error(e); Ibbs.error('Error de conexión.'); btn.disabled = false; btn.textContent = 'Enviar solicitud'; }
+            } catch (e) { console.error(e); Ibbs.error('Error de conexión.'); btn.disabled = false; btn.textContent = 'Inscribirme en las seleccionadas'; }
         }
 
         // ── BIBLIOTECA ────────────────────────────────────────────
@@ -1615,6 +1658,72 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         // ── Mis Pagos (mensualidad / inscripción) ──────────────────
         let _misPagos = [];
         let _datosPagoCache = null;
+        let _historialCargado = false;
+
+        function mostrarPagosTab(tab) {
+            document.getElementById('pagosLista').classList.toggle('hidden', tab !== 'pagos');
+            document.getElementById('inscripcionesLista').classList.toggle('hidden', tab !== 'inscripciones');
+            document.getElementById('btnPagosTabPagos').className = 'px-4 py-1.5 rounded-full text-xs font-bold ' + (tab === 'pagos' ? 'bg-ibbs-ink text-white' : 'bg-ibbs-cream text-ibbs-ink border border-ibbs-border');
+            document.getElementById('btnPagosTabInsc').className = 'px-4 py-1.5 rounded-full text-xs font-bold ' + (tab === 'inscripciones' ? 'bg-ibbs-ink text-white' : 'bg-ibbs-cream text-ibbs-ink border border-ibbs-border');
+            if (tab === 'inscripciones' && !_historialCargado) cargarHistorialInscripciones();
+        }
+
+        async function cargarHistorialInscripciones() {
+            _historialCargado = true;
+            const cont = document.getElementById('inscripcionesLista');
+            cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">Cargando…</p>';
+            const fd = new FormData(); fd.append('action', 'mi_historial');
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            const r = await fetch('api/materia_solicitud.php', { method: 'POST', body: fd });
+            const d = await r.json();
+            if (!d.ok || !d.data.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">Todavía no tienes materias registradas.</p>'; return; }
+            const estadoMateria = { pendiente: 'Pendiente de iniciar', en_curso: 'En curso', culminada: 'Culminada' };
+            cont.innerHTML = d.data.map(h => {
+                let notaBadge = '<span class="text-xs font-bold px-3 py-1 rounded-full bg-gray-100 text-gray-700">Sin nota aún</span>';
+                if (h.nota_final !== null) {
+                    const aprobada = parseFloat(h.nota_final) >= 15;
+                    notaBadge = `<span class="text-xs font-bold px-3 py-1 rounded-full ${aprobada ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${aprobada ? '✅' : '⚠️'} ${parseFloat(h.nota_final).toFixed(1)} / 20</span>`;
+                }
+                return `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border p-4 flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                        <p class="font-bold text-ibbs-ink">${hBib(h.materia_nombre)}</p>
+                        <p class="text-xs text-ibbs-muted">${hBib(h.materia_codigo)} · ${hBib(h.periodo_nombre || 'Sin período asignado')} · Inscrito el ${h.creado_en ? h.creado_en.substring(0,10) : '—'} · ${estadoMateria[h.materia_estado] || h.materia_estado}</p>
+                    </div>
+                    ${notaBadge}
+                </div>`;
+            }).join('');
+        }
+
+        // ── Devocionales ─────────────────────────────────────────
+        function _devoIconoArchivo(nombre) {
+            const ext = (nombre || '').split('.').pop().toLowerCase();
+            if (['jpg','jpeg','png','webp'].includes(ext)) return 'fa-image';
+            if (ext === 'pdf') return 'fa-file-pdf';
+            if (['doc','docx'].includes(ext)) return 'fa-file-word';
+            if (['ppt','pptx'].includes(ext)) return 'fa-file-powerpoint';
+            return 'fa-file';
+        }
+        async function cargarDevocionales() {
+            const cont = document.getElementById('devocionalesLista');
+            cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">Cargando…</p>';
+            const fd = new FormData(); fd.append('action', 'listar');
+            const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
+            const r = await fetch('api/devocionales.php', { method: 'POST', body: fd });
+            const d = await r.json();
+            if (!d.ok || !d.data.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">Todavía no hay devocionales publicados.</p>'; return; }
+            cont.innerHTML = d.data.map(dv => `
+                <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border p-5">
+                    <div class="flex items-start justify-between gap-3 flex-wrap mb-2">
+                        <div>
+                            <h3 class="text-base font-bold text-ibbs-ink">${hBib(dv.titulo)}</h3>
+                            <p class="text-xs text-ibbs-muted">Por ${hBib(dv.publicado_por_nombre)}${dv.materia_nombre ? ' · ' + hBib(dv.materia_nombre) : ' · Para toda la institución'} · ${dv.creado_en ? dv.creado_en.substring(0,10) : ''}</p>
+                        </div>
+                    </div>
+                    ${dv.contenido ? `<p class="text-sm text-ibbs-ink whitespace-pre-line mb-2">${hBib(dv.contenido)}</p>` : ''}
+                    ${dv.archivo ? `<a href="${dv.archivo}" target="_blank" class="inline-flex items-center gap-2 text-xs font-bold bg-ibbs-cream border border-ibbs-border px-3 py-2 rounded-lg hover:bg-ibbs-border transition-colors"><i class="fas ${_devoIconoArchivo(dv.archivo_nombre)}"></i> ${hBib(dv.archivo_nombre || 'Ver archivo')}</a>` : ''}
+                </div>`).join('');
+        }
+
         async function loadMisPagos() {
             const cont = document.getElementById('pagosLista');
             cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">Cargando…</p>';
@@ -1640,7 +1749,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 return `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border p-4 flex items-center justify-between gap-3 flex-wrap">
                     <div>
                         <p class="font-bold text-ibbs-ink">${hBib(p.concepto)}</p>
-                        <p class="text-xs text-ibbs-muted">${p.tipo === 'mensualidad' ? 'Mensualidad' : 'Inscripción'} · $${parseFloat(p.monto).toFixed(2)}${p.fecha_vencimiento ? ' · Vence ' + p.fecha_vencimiento : ''}</p>
+                        <p class="text-xs text-ibbs-muted">${p.tipo === 'mensualidad' ? 'Mensualidad' : 'Inscripción'} · $${parseFloat(p.monto).toFixed(2)}${p.fecha_vencimiento ? ' · Vence ' + p.fecha_vencimiento : ''}${p.creado_en ? ' · Generado el ' + p.creado_en.substring(0,10) : ''}</p>
                     </div>
                     <div class="flex items-center gap-2">
                         <span class="text-xs font-bold px-3 py-1 rounded-full ${ei.cls}">${ei.label}</span>
