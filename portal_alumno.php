@@ -274,7 +274,16 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         
         /* Sidebar transition para mobile */
         @media (max-width: 768px) {
-            #sidebar { transition: transform 0.3s cubic-bezier(.22,1,.36,1); }
+            /* #sidebar usa h-full (Tailwind), que al ser position:absolute
+               sin ancestro posicionado se calcula contra el viewport más
+               grande posible (igual que 100vh) — en móvil, con la barra de
+               direcciones del navegador visible, eso lo deja más alto que
+               el área visible real, y al tener overflow-hidden "Cerrar
+               Sesión" (al final del todo) quedaba recortado sin forma de
+               hacer scroll para alcanzarlo. 100dvh fija la altura real;
+               overflow-y:auto es red de seguridad por si algún dispositivo
+               igual se queda corto. */
+            #sidebar { transition: transform 0.3s cubic-bezier(.22,1,.36,1); height: 100vh; height: 100dvh; overflow-y: auto; }
             .sidebar-open { transform: translateX(0) !important; }
         }
 

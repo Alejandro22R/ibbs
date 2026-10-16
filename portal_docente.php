@@ -271,6 +271,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 <body>
 
     <!-- 1. SIDEBAR -->
+    <div id="sb-overlay" onclick="closeMobileSB()"></div>
     <aside id="sb">
         <a href="#" class="sb-brand">
             <div class="sb-logo">
@@ -356,6 +357,13 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <h2 class="page-title">Panel de Control <em>Resumen de gestión docente</em></h2>
             </div>
             <div style="display: flex; align-items: center; gap: 1rem;">
+                <!-- Hamburger — solo visible en móvil -->
+                <button id="mobileMenuBtn" onclick="toggleMobileSB()" title="Menú"
+                  style="display:none;background:none;border:1.5px solid var(--border);border-radius:9px;padding:.45rem .55rem;cursor:pointer;color:var(--ink);align-items:center;justify-content:center;">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                  </svg>
+                </button>
                 <button type="button" class="ibbs-cmdk-btn" onclick="IbbsShortcuts.openPalette()" title="Buscar sección (Ctrl+K)">
                     <i class="fas fa-search"></i> <kbd>Ctrl K</kbd>
                 </button>
@@ -1506,12 +1514,41 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         function switchView(viewId, btnElement = null) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + viewId).classList.add('active');
-            
+
             if(btnElement) {
                 document.querySelectorAll('.sb-link').forEach(btn => btn.classList.remove('act'));
                 btnElement.classList.add('act');
             }
+            if (window.innerWidth <= 768) closeMobileSB();
         }
+
+        // ── MOBILE SIDEBAR ──────────────────────────────────────────
+        // Este portal reconstruye a mano el sidebar #sb/.sb-link del
+        // panel admin (ver assets/ibbs.css), pero — a diferencia de
+        // layout/head.php + layout/foot.php — es una página autocontenida
+        // que no incluye layout/foot.php, así que nunca tuvo el botón de
+        // hamburguesa ni el JS que abre/cierra el menú en móvil: el
+        // sidebar quedaba permanentemente fuera de pantalla (sin forma
+        // de llegar a Devocionales, Cerrar Sesión, etc.) en pantallas
+        // ≤768px. Se replica acá el mismo patrón de layout/foot.php.
+        function toggleMobileSB() {
+            const sb = document.getElementById('sb');
+            const open = sb.classList.toggle('mobile-open');
+            const ov = document.getElementById('sb-overlay');
+            if (ov) ov.classList.toggle('on', open);
+        }
+        function closeMobileSB() {
+            document.getElementById('sb').classList.remove('mobile-open');
+            const ov = document.getElementById('sb-overlay');
+            if (ov) ov.classList.remove('on');
+        }
+        function checkMobileBtn() {
+            const btn = document.getElementById('mobileMenuBtn');
+            if (!btn) return;
+            btn.style.display = window.innerWidth <= 768 ? 'flex' : 'none';
+        }
+        checkMobileBtn();
+        window.addEventListener('resize', checkMobileBtn);
 
         // Agrupa las entregas ya calificadas por alumno — un nombre por
         // fila en vez de una tarjeta grande por cada nota, y al hacer
