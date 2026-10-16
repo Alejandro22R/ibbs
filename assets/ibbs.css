@@ -79,7 +79,7 @@ html[data-theme="dark"] body {
 /* ══ SIDEBAR ════════════════════════════════════════════════ */
 #sb {
   position: fixed; top: 0; left: 0;
-  width: var(--sb-w); height: 100vh;
+  width: var(--sb-w); height: 100vh; height: 100dvh;
   background: linear-gradient(175deg, var(--ink2) 0%, var(--ink) 45%, #123a22 100%);
   display: flex; flex-direction: column;
   padding: 0 0.7rem 1rem;
@@ -666,7 +666,18 @@ tr:hover td { background:rgba(46,204,16,.045); }
      sidebar vive fuera de pantalla por defecto y entra como un
      panel completo (con sus etiquetas, no solo iconos) al tocar el
      botón de menú — el contenido se queda con el 100% del ancho. */
-  #sb            { width: var(--sb-w) !important; transform: translateX(-100%); transition: transform .3s cubic-bezier(.22,1,.36,1); }
+  /* El alto del sidebar venía fijo en 100vh — en móvil, cuando la
+     barra de direcciones del navegador está visible (expandida), el
+     100vh "clásico" se calcula contra el viewport MÁS GRANDE posible
+     (barra colapsada), así que el sidebar terminaba siendo más alto
+     que el área visible real. Con overflow:hidden en #sb, eso dejaba
+     ".sb-bottom" (Cerrar Sesión / Salir, al final) recortado fuera de
+     pantalla sin forma de hacer scroll para alcanzarlo. 100dvh (arriba,
+     junto a la declaración base) ya lo corrige en navegadores que lo
+     soportan; esto es una red de seguridad adicional por si igual no
+     alcanza en algún dispositivo/orientación: todo el sidebar se vuelve
+     scrolleable en vez de recortarse. */
+  #sb            { width: var(--sb-w) !important; transform: translateX(-100%); transition: transform .3s cubic-bezier(.22,1,.36,1); overflow-y: auto; }
   #sb.mobile-open{ transform: translateX(0); }
   #toggler       { display: none; }
   #main          { margin-left: 0 !important; padding: 1.1rem 1rem 2rem; }
