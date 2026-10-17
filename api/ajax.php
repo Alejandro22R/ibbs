@@ -699,7 +699,7 @@ if($action==='alumno_lote'){
         } else {
             mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=$uidAlumno");
             log_audit($con,$uid,'ALUMNO_RECHAZAR',"alumno=$id usuario=$uidAlumno (lote)");
-            notificar_usuario($con,$uidAlumno,'solicitud_rechazada','Tu solicitud de ingreso fue rechazada','Contactá a la administración si creés que es un error.');
+            notificar_usuario($con,$uidAlumno,'solicitud_rechazada','Tu solicitud de ingreso fue rechazada','Contacta a la administración si crees que es un error.');
             mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
         }
         $ok++;
@@ -755,7 +755,7 @@ if($action==='alumno_rechazar'){
     // "Cuenta desactivada."
     mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=$uidAlumno");
     log_audit($con,$uid,'ALUMNO_RECHAZAR',"alumno=$id usuario=$uidAlumno");
-    notificar_usuario($con,$uidAlumno,'solicitud_rechazada','Tu solicitud de ingreso fue rechazada','Contactá a la administración si creés que es un error.');
+    notificar_usuario($con,$uidAlumno,'solicitud_rechazada','Tu solicitud de ingreso fue rechazada','Contacta a la administración si crees que es un error.');
     mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
     echo json_encode(['ok'=>true,'msg'=>"Se rechazó la solicitud de {$al['nombre']} {$al['apellido']}."]); exit;
 }
@@ -951,7 +951,8 @@ if($action==='usuario_create'){
     $ced=trim($_POST['cedula']??'');
     $pwd=trim($_POST['password']??''); $rol=trim($_POST['rol']??'profesor');
     if(!$usr||!$mail||!$ced||!$pwd){echo json_encode(['ok'=>false,'msg'=>'Todos los campos son requeridos (incluyendo ID).']);exit;}
-    if(strlen($pwd)<6){echo json_encode(['ok'=>false,'msg'=>'La contraseña debe tener al menos 6 caracteres.']);exit;}
+    $errPwd=ibbs_validar_password($pwd);
+    if($errPwd){echo json_encode(['ok'=>false,'msg'=>$errPwd]);exit;}
     if(!in_array($rol,['admin','profesor','superadmin'])) $rol='profesor';
     // Check duplicates: usuario, correo AND cedula
     $st=mysqli_prepare($con,"SELECT id FROM usuarios WHERE usuario=? OR correo=? OR cedula=?");
@@ -993,7 +994,8 @@ if($action==='usuario_toggle'){
 if($action==='usuario_reset_pwd'){
     if($_rol!=='superadmin'){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
     $id=(int)($_POST['id']??0); $pwd=trim($_POST['password']??'');
-    if(strlen($pwd)<6){echo json_encode(['ok'=>false,'msg'=>'Mínimo 6 caracteres.']);exit;}
+    $errPwd=ibbs_validar_password($pwd);
+    if($errPwd){echo json_encode(['ok'=>false,'msg'=>$errPwd]);exit;}
     $hash=password_hash($pwd,PASSWORD_BCRYPT);
     $st=mysqli_prepare($con,"UPDATE usuarios SET password_hash=? WHERE id=?");
     mysqli_stmt_bind_param($st,'si',$hash,$id); mysqli_stmt_execute($st);

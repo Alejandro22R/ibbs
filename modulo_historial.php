@@ -341,8 +341,8 @@ window.IBBS_TOUR_HISTORIAL = {
   storageKey: 'ibbs_tour_historial_v1',
   steps: [
     { selector: '[data-tour="hist-resumen"]', title: 'Historial de Actividad', text: 'Todo lo que pasó en el sistema: notas cargadas, inscripciones, asistencias y cambios de usuarios — de un vistazo.' },
-    { selector: '[data-tour="hist-filtros"]', title: 'Filtrar', text: 'Filtrá por tipo de actividad o por fecha para encontrar algo puntual.' },
-    { selector: '#chkAll', title: 'Seleccionar y eliminar', text: 'Marcá uno o varios registros (o todos con esta casilla) para eliminarlos en lote, o exportá el historial filtrado a Excel/CSV.' },
+    { selector: '[data-tour="hist-filtros"]', title: 'Filtrar', text: 'Filtra por tipo de actividad o por fecha para encontrar algo puntual.' },
+    { selector: '#chkAll', title: 'Seleccionar y eliminar', text: 'Marca uno o varios registros (o todos con esta casilla) para eliminarlos en lote, o exporta el historial filtrado a Excel/CSV.' },
   ],
   auto: true,
 };

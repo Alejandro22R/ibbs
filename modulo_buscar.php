@@ -79,7 +79,7 @@ async function buscarPersonas(q) {
       <div style="width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--lime);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">${h((p.nombre||'?')[0])}</div>
       <div style="flex:1;">
         <div style="font-weight:700;font-size:.86rem;color:var(--ink);">${h(p.apellido)}, ${h(p.nombre)}</div>
-        <div style="font-size:.74rem;color:var(--muted);">CI: ${h(p.cedula)}</div>
+        <div style="font-size:.74rem;color:var(--muted);">ID: ${h(p.cedula)}</div>
       </div>
       <span class="badge ${p.tipo==='alumno'?'b-alumno':'b-profesor'}">${p.tipo==='alumno'?'Alumno':'Docente'}</span>
     </div>`).join('');

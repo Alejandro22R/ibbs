@@ -58,7 +58,7 @@ mysqli_query($con, "ALTER TABLE materia_alumno ADD COLUMN IF NOT EXISTS origen E
 
 function parse_csv_rows($con) {
     if (empty($_FILES['csvfile']['tmp_name']) || !is_uploaded_file($_FILES['csvfile']['tmp_name'])) {
-        return ['error' => 'Subí un archivo .csv primero.'];
+        return ['error' => 'Sube un archivo .csv primero.'];
     }
     $fh = fopen($_FILES['csvfile']['tmp_name'], 'r');
     if (!$fh) return ['error' => 'No se pudo leer el archivo.'];
@@ -114,7 +114,7 @@ function resolver_fila($con, $uid, $fila, $crear, &$cacheMaterias) {
     $out['alumno_id'] = (int)$al['id'];
 
     $per = mysqli_fetch_assoc(mysqli_query($con, "SELECT id,nombre FROM periodos WHERE LOWER(nombre)=LOWER('".esc_ni($con,$fila['periodo'])."') LIMIT 1"));
-    if (!$per) { $out['estado'] = 'error'; $out['mensaje'] = "Período '{$fila['periodo']}' no existe — creálo primero en Materias › Períodos."; return $out; }
+    if (!$per) { $out['estado'] = 'error'; $out['mensaje'] = "Período '{$fila['periodo']}' no existe — créalo primero en Materias › Períodos."; return $out; }
     $out['periodo_id'] = (int)$per['id'];
 
     $cacheKey = strtolower(trim($fila['materia'])).'|'.$per['id'];

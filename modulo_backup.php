@@ -89,7 +89,7 @@ if(!in_array($_rol,['superadmin','admin'])){
     <div class="card-body">
       <div class="warn-pill" style="margin-bottom:1rem;">
         <i class="bx bx-error" style="font-size:1rem;flex-shrink:0;margin-top:1px;"></i>
-        <span><strong>Advertencia:</strong> Restaurar reemplazará todos los datos actuales por los del archivo. Descargá un respaldo primero, por si necesitás volver atrás.</span>
+        <span><strong>Advertencia:</strong> Restaurar reemplazará todos los datos actuales por los del archivo. Descarga un respaldo primero, por si necesitas volver atrás.</span>
       </div>
       <div class="field" style="margin-bottom:1rem;">
         <label>Archivo .sql</label>

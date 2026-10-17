@@ -60,21 +60,21 @@
 
       <div class="acerca-hero">
         <img src="assets/logo.jpg" class="acerca-logo" alt="Logo del instituto">
-        <h1>Instituto Biblico Bautista del Sur</h1>
+        <h1>Instituto Bíblico Bautista del Sur</h1>
         <p class="acerca-verse">2 de Timoteo 2:15 "Procura con diligencia presentarte ante Dios aprobado, como obrero que no tiene de qué avergonzarse, que expone bien la palabra de verdad"</p>
       </div>
 
       <section class="acerca-section">
-        <h2>Metodos de Estudio</h2>
+        <h2>Métodos de Estudio</h2>
         <p class="acerca-verse-alt">Hechos 1:8 "Pero recibirán poder cuando el Espíritu Santo haya venido sobre ustedes, y me serán testigos en Jerusalén, en toda Judea, en Samaria y hasta lo último de la tierra."</p>
         <div class="acerca-grid-2">
           <div class="acerca-card">
             <h3>Programa</h3>
-            <p>El instituto biblico bautista  del sur cuenta con un programa de  estudio  que  consta de 5 años para ser licenciado en teologia obteniendo asi es tan prestigioso titulo consta  de 5 secciones de estudiantes desde primer año hasta 5to año arduamente enseñando la palabra divina con los profesores profesionales mallisters doctores, en si muchos hermanos  e incluso pastores se preparan dia  a dia  para hacerte crecer en el conocimiento de Dios y su palabra siendo asi el instituto biblico bautista mas grande del estadi  bolivar.</p>
+            <p>El Instituto Bíblico Bautista del Sur cuenta con un programa de estudios de 5 años para obtener la licenciatura en Teología, un título de gran prestigio. El programa está conformado por 5 secciones de estudiantes, desde primer hasta quinto año, enseñando con dedicación la Palabra de Dios de la mano de profesores profesionales, magísteres y doctores. Muchos hermanos, e incluso pastores, se preparan día a día aquí para crecer en el conocimiento de Dios y su Palabra, siendo así el instituto bíblico bautista más grande del estado Bolívar.</p>
           </div>
           <div class="acerca-card">
             <h3>Programa a distancia</h3>
-            <p>Para esos siervos y siervas del señor que no tiene la oportunidad  de estar en una de nuestras cedes  , tiene  la opcion de acompañarnos via  online a traves de nuestro diplomado donde si bien  es a distancia posees  la oportunidad de ver las calses con los mismos profesores de noche  y todas las pruebas las ves  virtual, no  hay  excusa  para estudiar  del señor todo esta a tu  disposicion  para convertirte en un  siervo aprobado con  muchas  ganas de seguir el ejemplo de jesus.</p>
+            <p>Para los siervos y siervas del Señor que no tienen la oportunidad de asistir a una de nuestras sedes, existe la opción de acompañarnos en línea a través de nuestro diplomado. Aunque es a distancia, tendrás la oportunidad de ver las clases en vivo con los mismos profesores en horario nocturno, y presentar todas las evaluaciones de forma virtual. No hay excusa para estudiar la Palabra del Señor: todo está a tu disposición para que te conviertas en un siervo aprobado, con muchas ganas de seguir el ejemplo de Jesús.</p>
           </div>
         </div>
       </section>
@@ -99,12 +99,12 @@
           <div class="acerca-highlight">
             <i class="fa-solid fa-campground"></i>
             <h2>Actividades Recreativas</h2>
-            <p>Campamento Teologico 2024</p>
+            <p>Campamento Teológico 2024</p>
           </div>
           <div class="acerca-highlight">
             <i class="fa-solid fa-graduation-cap"></i>
             <h2>Actos de Grado</h2>
-            <p>Desde 1997 hasta 2025. 28 años regalando alegria a los corazones.</p>
+            <p>Desde 1997 hasta 2025, 28 años regalando alegría a los corazones.</p>
           </div>
         </div>
       </section>
@@ -114,18 +114,18 @@
         <div class="acerca-grid-2">
           <div class="acerca-card">
             <h3>Presenciales</h3>
-            <p>Aperturadas todos los años desde febrero hasta marzo para iniciar nuestro instituto biblico bautistad el sur presencial desde las 8am hasta las 2pm con un costo de inscripcion y mesualidad que no  encontraras en otro lugar si n embargo si deseas ver una materia en especifico ponte en contacto con nosotos para ingresar en una  de nuestras modalidades bien sea esta o el diplomado</p>
+            <p>Abiertas todos los años desde febrero hasta marzo para iniciar en nuestro Instituto Bíblico Bautista del Sur de forma presencial, de 8:00 a.m. a 2:00 p.m., con un costo de inscripción y mensualidad que no encontrarás en ningún otro lugar. Sin embargo, si deseas cursar una materia en específico, ponte en contacto con nosotros para inscribirte en cualquiera de nuestras modalidades, ya sea esta o el diplomado.</p>
           </div>
           <div class="acerca-card">
             <h3>Sedes</h3>
-            <p>Estamos ubicados en Puerto Ordaz, San Félix, upata ,el callao ,angostura del Orinoco o ciudad Bolívar ,Barcelona y sierra caroni . Cada una de estas haciendo una sede con la misma calidad de profesores solamente que con diferentes caras dispuesto a brindarte todo el apoyo y recursos necesarios para entender la palabra divina</p>
+            <p>Estamos ubicados en Puerto Ordaz, San Félix, Upata, El Callao, Angostura del Orinoco, Ciudad Bolívar, Barcelona y Sierra Caroní. Cada una de estas sedes cuenta con la misma calidad de profesores, solo que con diferentes rostros dispuestos a brindarte todo el apoyo y los recursos necesarios para entender la Palabra de Dios.</p>
           </div>
         </div>
-        <a href="#" class="acerca-btn" onclick="return false;">Informacion</a>
+        <a href="#" class="acerca-btn" onclick="return false;">Información</a>
       </section>
 
       <div class="acerca-footer">
-        <p>Experiencia Demostrada de Calidad desde 1997 - 2025 Instituto Bíblico Autista del Sur. Todos los derechos reservados</p>
+        <p>Experiencia demostrada de calidad desde 1997 hasta 2025 — Instituto Bíblico Bautista del Sur. Todos los derechos reservados.</p>
       </div>
 
     </div>

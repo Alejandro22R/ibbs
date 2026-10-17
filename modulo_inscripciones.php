@@ -97,7 +97,7 @@ async function cargarAlumno(id) {
   document.getElementById('panelAlumno').style.display = 'block';
   document.getElementById('alumnoAva').textContent     = ini;
   document.getElementById('alumnoNombre').textContent  = al.apellido + ', ' + al.nombre;
-  document.getElementById('alumnoCedula').textContent  = 'CI: ' + al.cedula + (al.ciudad ? ' · ' + al.ciudad : '');
+  document.getElementById('alumnoCedula').textContent  = 'ID: ' + al.cedula + (al.ciudad ? ' · ' + al.ciudad : '');
 
   document.getElementById('alumnoStats').innerHTML = `
     <div style="text-align:center;padding:.4rem .9rem;background:rgba(255,255,255,.06);border-radius:8px;">
@@ -148,7 +148,7 @@ function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replac
 window.IBBS_TOUR_INSCRIPCIONES = {
   storageKey: 'ibbs_tour_inscripciones_v1',
   steps: [
-    { selector: '[data-tour="insc-selector"]', title: 'Inscripciones', text: 'Elegí un alumno para ver en qué materias está inscrito. Los alumnos se inscriben solos desde su portal — esta página es solo de consulta. Para cargar una nota, ir a "Cargar Notas"; para exportar una constancia o planilla, ir a "Record Académico".' },
+    { selector: '[data-tour="insc-selector"]', title: 'Inscripciones', text: 'Elige un alumno para ver en qué materias está inscrito. Los alumnos se inscriben solos desde su portal — esta página es solo de consulta. Para cargar una nota, ir a "Cargar Notas"; para exportar una constancia o planilla, ir a "Record Académico".' },
   ],
   auto: true,
 };

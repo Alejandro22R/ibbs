@@ -406,7 +406,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <div class="banner-dash">
                 <div style="position: relative; z-index: 1;">
                     <h3 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: .2rem;">
-                        Bienvenido, <span style="color: var(--lime); font-style: italic; font-weight: 300;"><?= htmlspecialchars($nombre_docente) ?></span>
+                        Bienvenido/a, <span style="color: var(--lime); font-style: italic; font-weight: 300;"><?= htmlspecialchars($nombre_docente) ?></span>
                     </h3>
                     <p style="font-size: .85rem; color: rgba(255,255,255,.6); letter-spacing: .5px;">IBBS — Gestión académica completa · <?= date('l, d \d\e F \d\e Y') ?></p>
                 </div>
@@ -498,7 +498,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <i class="fas fa-exclamation-triangle"></i>
                 <div>
                     <strong style="color:var(--amber); font-size:.9rem; display:block; margin-bottom:.2rem;">Perfil de Docente Incompleto</strong>
-                    <p style="font-size:.8rem; color:var(--muted);">No tienes un perfil en la tabla de docentes vinculado a ti. Solicita al administrador que te registre con tu ID (<b><?= htmlspecialchars($usuario_db['cedula']) ?></b>) para vincular correctamente las entregas.</p>
+                    <p style="font-size:.8rem; color:var(--muted);">El administrador todavía no vinculó tu cuenta a tus datos de docente. Pídele que complete tu registro con tu ID (<b><?= htmlspecialchars($usuario_db['cedula']) ?></b>) para poder vincular correctamente las entregas.</p>
                 </div>
             </div>
             <?php endif; ?>
@@ -531,7 +531,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             </div>
                             <?php if($vencidaSinCalificar): ?>
                             <div style="background: rgba(220,38,38,.08); border: 1px solid var(--red); border-radius: 8px; padding: .5rem .7rem; font-size: .75rem; color: var(--red); font-weight: 700; margin-bottom: .8rem;">
-                                <i class="fas fa-triangle-exclamation"></i> Venció tu fecha límite de corrección — calificala cuanto antes.
+                                <i class="fas fa-triangle-exclamation"></i> Venció tu fecha límite de corrección — califícala cuanto antes.
                             </div>
                             <?php endif; ?>
 
@@ -554,7 +554,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             </div>
 
                             <div style="margin-top: auto; margin-bottom: 1rem; display: flex; flex-direction: column; gap: .5rem;">
-                                <p style="font-size: .75rem; color: var(--muted); font-weight: 600;"><i class="far fa-calendar-check"></i> Entregado: <?= date('d M Y, h:i A', strtotime($e['fecha_entrega'])) ?></p>
+                                <p style="font-size: .75rem; color: var(--muted); font-weight: 600;"><i class="far fa-calendar-check"></i> Entregado: <?= fecha_es('d M Y, h:i A', strtotime($e['fecha_entrega'])) ?></p>
                                 <?php if($e['archivo']): ?>
                                 <a href="uploads/entregas/<?= htmlspecialchars($e['archivo']) ?>" target="_blank" class="btn btn-secondary btn-sm" style="width: max-content;">
                                     <i class="fas fa-download"></i> Descargar Adjunto
@@ -607,7 +607,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 
             <div class="card">
                 <div class="tbl-wrap">
-                    <div id="pnContenedor" style="padding:2rem;text-align:center;color:var(--muted);">Elegí una materia para ver su plan de notas.</div>
+                    <div id="pnContenedor" style="padding:2rem;text-align:center;color:var(--muted);">Elige una materia para ver su plan de notas.</div>
                 </div>
             </div>
 
@@ -620,12 +620,12 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         <div id="view-asistencia" class="view-section">
             <div style="margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);">
                 <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink);">Asistencia por Foto</h2>
-                <p style="font-size:.85rem;color:var(--muted);margin-top:.2rem;">Subí la foto de la hoja de asistencia en papel de tu clase y el sistema te ayuda a pasarla a la tabla digital.</p>
+                <p style="font-size:.85rem;color:var(--muted);margin-top:.2rem;">Sube la foto de la hoja de asistencia en papel de tu clase y el sistema te ayuda a pasarla a la tabla digital.</p>
             </div>
 
             <div class="ocr-info-box">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                <div>El sistema lee la foto automáticamente y precarga la tabla de abajo — pero como leer letra manuscrita nunca es 100% exacto, <strong>siempre revisá y corregí</strong> antes de guardar. Nada se guarda hasta que apretás "Guardar asistencia".</div>
+                <div>El sistema lee la foto automáticamente y precarga la tabla de abajo — pero como leer letra manuscrita nunca es 100% exacto, <strong>siempre revisa y corrige</strong> antes de guardar. Nada se guarda hasta que tocas "Guardar asistencia".</div>
             </div>
 
             <div class="card" style="margin-bottom:1rem;">
@@ -675,7 +675,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <div id="ocrReview" style="display:none;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;flex-wrap:wrap;gap:.6rem;">
                     <div>
-                        <div style="font-weight:700;font-size:.9rem;color:var(--ink);">Revisá y corregí antes de guardar</div>
+                        <div style="font-weight:700;font-size:.9rem;color:var(--ink);">Revisa y corrige antes de guardar</div>
                         <div id="ocrReviewSummary" style="font-size:.78rem;color:var(--muted);margin-top:2px;"></div>
                     </div>
                     <button class="btn btn-secondary btn-sm" onclick="ocrVerTexto()">Ver texto detectado</button>
@@ -730,7 +730,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:.8rem;">
                 <div>
                     <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink);">Devocionales</h2>
-                    <p style="font-size:.82rem;color:var(--muted);">Estudios, planes devocionales y otros materiales para compartir con alumnos y colegas.</p>
+                    <p style="font-size:.82rem;color:var(--muted);">Estudios, planes devocionales y otros materiales para compartir con alumnos y colegas. Los administradores también pueden eliminar cualquier devocional publicado.</p>
                 </div>
                 <button class="btn btn-primary" onclick="openModal('modal-nuevo-devocional')"><i class="fas fa-plus"></i> Nuevo Devocional</button>
             </div>
@@ -755,7 +755,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <div class="field field-full">
                                 <label>Para quién</label>
                                 <select name="materia_id">
-                                    <option value="">— Toda la institución (alumnos y docentes) —</option>
+                                    <option value="">— Para toda la institución (alumnos y docentes) —</option>
                                     <?php foreach($materias as $m): ?>
                                     <option value="<?= $m['id'] ?>"><?= htmlspecialchars($m['nombre']) ?> (solo esa materia)</option>
                                     <?php endforeach; ?>
@@ -789,8 +789,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <div class="alert-box">
                 <i class="fas fa-exclamation-triangle"></i>
                 <div>
-                    <strong style="color:var(--amber); font-size:.9rem; display:block; margin-bottom:.2rem;">Perfil Incompleto</strong>
-                    <p style="font-size:.8rem; color:var(--muted);">El sistema no encuentra tus materias porque falta tu registro oficial en la tabla de <b>docentes</b> con el ID <b><?= htmlspecialchars($usuario_db['cedula']) ?></b>.</p>
+                    <strong style="color:var(--amber); font-size:.9rem; display:block; margin-bottom:.2rem;">Perfil de Docente Incompleto</strong>
+                    <p style="font-size:.8rem; color:var(--muted);">El administrador todavía no vinculó tu cuenta a tus datos de docente. Pídele que complete tu registro con tu ID (<b><?= htmlspecialchars($usuario_db['cedula']) ?></b>) para poder ver tus materias.</p>
                 </div>
             </div>
             <?php endif; ?>
@@ -1050,7 +1050,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <div class="card-body" style="padding: 1.5rem 2.5rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
                     <div>
                         <h3 style="font-size: 1rem; margin-bottom: .3rem;">Constancia de Trabajo</h3>
-                        <p style="font-size: .82rem; color: var(--muted); margin:0;">Documento oficial que certifica que prestás servicios como docente en el instituto.</p>
+                        <p style="font-size: .82rem; color: var(--muted); margin:0;">Documento oficial que certifica que prestas servicios como docente en el instituto.</p>
                     </div>
                     <a href="api/export_constancia.php?tipo=trabajo" target="_blank" class="btn btn-secondary" style="white-space:nowrap;"><i class="fas fa-file-pdf"></i> Generar PDF</a>
                 </div>
@@ -1108,7 +1108,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <div class="field"></div>
                             <div class="field">
                                 <label>Nueva contraseña</label>
-                                <input type="password" id="dp-nueva" placeholder="mín. 8 car., mayús., minús. y nº" required>
+                                <input type="password" id="dp-nueva" placeholder="mín. 8 car., mayús., minús. y nº" required oninput="pwdChecklistDoc('dpPwdChecklist', this.value)">
+                                <div style="margin-top:.5rem;font-size:.76rem;display:flex;flex-direction:column;gap:.25rem;" id="dpPwdChecklist"></div>
                             </div>
                             <div class="field">
                                 <label>Repetir nueva</label>
@@ -1270,11 +1271,11 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <textarea name="descripcion" rows="3" placeholder="Instrucciones para los alumnos..."></textarea>
                         </div>
                         <div class="field">
-                            <label>Fecha Límite de Entrega (alumno)</label>
+                            <label>Fecha Límite de Entrega (para el alumno)</label>
                             <input type="datetime-local" name="fecha_limite" id="nt-fecha-entrega" required onchange="validarFechasNuevaTarea()">
                         </div>
                         <div class="field">
-                            <label>Fecha Límite de Corrección (tú)</label>
+                            <label>Fecha Límite de Corrección (tu fecha para calificar)</label>
                             <input type="datetime-local" name="fecha_limite_correccion" id="nt-fecha-correccion" required onchange="validarFechasNuevaTarea()">
                         </div>
                         <p id="nt-fechas-error" style="display:none;grid-column:1/-1;margin:0;color:var(--red);font-size:.8rem;">La fecha de corrección debe ser posterior a la de entrega.</p>
@@ -1691,6 +1692,21 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             } catch (err) { Ibbs.error('Error de conexión.'); }
         }
 
+        // Lista con lo que falta para la contraseña, en palabras — no
+        // solo un color o un mensaje de error después de intentar
+        // guardar, para que cualquiera sepa exactamente qué le falta.
+        function pwdChecklistDoc(containerId, v) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const reqs = [
+                { ok: v.length >= 8, label: 'Al menos 8 caracteres' },
+                { ok: /[A-Z]/.test(v), label: 'Una letra mayúscula' },
+                { ok: /[a-z]/.test(v), label: 'Una letra minúscula' },
+                { ok: /[0-9!@#$%^&*()_+\-=\[\]{};':",.<>?\/|`~]/.test(v), label: 'Un número o símbolo' },
+            ];
+            el.innerHTML = reqs.map(r => `<div style="display:flex;align-items:center;gap:.4rem;color:${r.ok ? '#16a34a' : '#9ca3af'};font-weight:${r.ok ? '600' : '400'};"><b>${r.ok ? '✓' : '○'}</b> ${r.label}</div>`).join('');
+        }
+
         function validarPasswordDocente(pwd) {
             if (pwd.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
             if (!/[A-Z]/.test(pwd)) return 'Debe contener al menos una mayúscula.';
@@ -1704,7 +1720,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const actual = document.getElementById('dp-actual').value;
             const nueva = document.getElementById('dp-nueva').value;
             const repetir = document.getElementById('dp-repetir').value;
-            if (!actual || !nueva) { Ibbs.warn('Completá todos los campos.'); return; }
+            if (!actual || !nueva) { Ibbs.warn('Completa todos los campos.'); return; }
             const err = validarPasswordDocente(nueva);
             if (err) { Ibbs.warn(err); return; }
             if (nueva !== repetir) { Ibbs.warn('Las contraseñas nuevas no coinciden.'); return; }
@@ -1718,8 +1734,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
                 const d = await r.json();
                 if (d.ok) {
-                    Ibbs.success('Contraseña actualizada correctamente.');
+                    await Ibbs.success('Contraseña actualizada correctamente.');
                     e.target.reset();
+                    document.getElementById('dpPwdChecklist').innerHTML = '';
                 } else Ibbs.error(d.msg || 'No se pudo actualizar la contraseña.');
             } catch (err) { Ibbs.error('Error de conexión.'); }
         }
@@ -1845,7 +1862,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
 
         function submitNuevaTarea(e) {
             e.preventDefault();
-            if (!validarFechasNuevaTarea()) { Ibbs.warn('Revisá las fechas límite antes de publicar.'); return; }
+            if (!validarFechasNuevaTarea()) { Ibbs.warn('Revisa las fechas límite antes de publicar.'); return; }
             const form = e.target; const btn = form.querySelector('button[type="submit"]');
             btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo...';
 
@@ -2073,7 +2090,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const chatBox = document.getElementById('staffchat-box');
             chatBox.innerHTML = '';
             if (!mensajes.length) {
-                chatBox.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.9rem;">Sin mensajes todavía. Escribí el primero para el staff.</div>';
+                chatBox.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.9rem;">Sin mensajes todavía. Escribe el primero para el staff.</div>';
                 return;
             }
             const hilos = {};
@@ -2302,7 +2319,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             e.preventDefault();
             const id = document.getElementById('libD-id').value;
             const archivo = document.getElementById('libD-archivo').files[0];
-            if (!id && !archivo) { Ibbs.warn('Subí el archivo del libro (PDF o EPUB).'); return; }
+            if (!id && !archivo) { Ibbs.warn('Sube el archivo del libro (PDF o EPUB).'); return; }
             const fd = new FormData();
             fd.append('action', id ? 'libro_update' : 'libro_create');
             if (id) fd.append('id', id);
@@ -2408,7 +2425,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             await new Promise((resolve, reject) => {
                 const s = document.createElement('script');
                 s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-                s.onload = resolve; s.onerror = () => reject(new Error('No se pudo cargar el lector de imágenes (revisá tu conexión a internet).'));
+                s.onload = resolve; s.onerror = () => reject(new Error('No se pudo cargar el lector de imágenes (revisa tu conexión a internet).'));
                 document.head.appendChild(s);
             });
             _tesseractCargado = true;
@@ -2446,8 +2463,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         async function ocrProcesarFoto() {
             const mid = document.getElementById('ocrMateria').value;
             const file = _ocrFotoFinal;
-            if (!mid) { Ibbs.warn('Elegí una materia primero.'); return; }
-            if (!file) { Ibbs.warn('Adjuntá la foto de la hoja.'); return; }
+            if (!mid) { Ibbs.warn('Elige una materia primero.'); return; }
+            if (!file) { Ibbs.warn('Adjunta la foto de la hoja.'); return; }
 
             const btn = document.getElementById('btnOcrProcesar');
             const progWrap = document.getElementById('ocrProgressWrap');
@@ -2494,7 +2511,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 document.getElementById('ocrReview').scrollIntoView({behavior:'smooth', block:'start'});
             } catch (e) {
                 console.error(e);
-                Ibbs.error(e.message || 'No se pudo leer la imagen. Probá con una foto más clara y bien iluminada.');
+                Ibbs.error(e.message || 'No se pudo leer la imagen. Prueba con una foto más clara y bien iluminada.');
             }
             btn.disabled = false; progWrap.style.display = 'none';
         }
@@ -2504,14 +2521,14 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             _ocrFilas = filas;
             const detectados = filas.filter(f=>f.detectado).length;
             document.getElementById('ocrReviewSummary').innerHTML =
-                `${filas.length} alumnos inscritos · <strong>${detectados}</strong> encontrados en la foto · revisá cada fila antes de guardar`;
+                `${filas.length} alumnos inscritos · <strong>${detectados}</strong> encontrados en la foto · revisa cada fila antes de guardar`;
             const tb = document.getElementById('ocrBody');
             tb.innerHTML = filas.map((a, i) => `
                 <tr class="pl-row pl-${a.estado}" id="ocrrow-${i}">
                     <td style="padding:.55rem .7rem;width:44px;">${avatarHtml(a)}</td>
                     <td style="padding:.55rem .8rem;">
                         <div style="font-weight:700;font-size:.85rem;">${a.apellido||''}, ${a.nombre||''}</div>
-                        <div style="font-size:.72rem;color:var(--muted);">CI: ${a.cedula||'—'}</div>
+                        <div style="font-size:.72rem;color:var(--muted);">ID: ${a.cedula||'—'}</div>
                     </td>
                     <td style="text-align:center;padding:.55rem .5rem;">
                         <span class="${a.detectado?'ocr-detect-yes':'ocr-detect-no'}">${a.detectado?'✓ Sí':'— No'}</span>
@@ -2552,7 +2569,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const fecha = document.getElementById('ocrFecha').value;
             const modo = document.querySelector('input[name="ocrModo"]:checked').value;
             const file = _ocrFotoFinal;
-            if (!mid || !fecha || !file || !_ocrFilas.length) { Ibbs.warn('Procesá una foto primero.'); return; }
+            if (!mid || !fecha || !file || !_ocrFilas.length) { Ibbs.warn('Procesa una foto primero.'); return; }
 
             const btn = document.getElementById('btnOcrGuardar');
             btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Guardando…';
@@ -2595,7 +2612,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 const r = await fetch('api/asistencia_ocr.php', {method:'POST', body:fd});
                 d = await r.json();
             } catch(err) {
-                el.innerHTML = '<div style="text-align:center;color:#dc2626;font-size:.82rem;padding:.5rem;">No se pudo cargar las hojas. Revisá tu conexión e intentá de nuevo.</div>';
+                el.innerHTML = '<div style="text-align:center;color:#dc2626;font-size:.82rem;padding:.5rem;">No se pudieron cargar las hojas. Revisa tu conexión e intenta de nuevo.</div>';
                 return;
             }
             if (!d.ok || !d.data.length) { el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.82rem;padding:.5rem;">Todavía no se cargó ninguna hoja.</div>'; return; }
@@ -2621,7 +2638,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const cont = document.getElementById('pnContenedor');
             document.getElementById('pnEnvioStatus').innerHTML = '';
             document.getElementById('pnEnviarWrap').innerHTML = '';
-            if (!mid) { cont.innerHTML = 'Elegí una materia para ver su plan de notas.'; return; }
+            if (!mid) { cont.innerHTML = 'Elige una materia para ver su plan de notas.'; return; }
             cont.innerHTML = '<span class="spin"></span>';
             const fd = new FormData(); fd.append('accion', 'docente'); fd.append('materia_id', mid);
             const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
@@ -2697,7 +2714,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             html += `<div style="padding:.8rem 1.2rem;font-size:.78rem;color:var(--muted);border-top:1px solid var(--border);">"Nota a registrar" es la que se envía para aprobación — puedes cargarla aunque el alumno no haya entregado nada, poniéndola tú directamente. Se llena sola con el promedio ponderado, pero la puedes cambiar.</div>`;
 
             if (sumaPorcentajes !== 100 && sumaPorcentajes !== 0) {
-                html = `<div style="padding:.7rem 1.2rem;background:rgba(217,119,6,.08);color:var(--amber);font-size:.78rem;font-weight:600;border-bottom:1px solid var(--border);"><i class="fas fa-triangle-exclamation"></i> Los % de las actividades suman ${sumaPorcentajes}% (debería sumar 100%) — el promedio de arriba se calcula igual, mejor pero conviene revisar los %.</div>` + html;
+                html = `<div style="padding:.7rem 1.2rem;background:rgba(217,119,6,.08);color:var(--amber);font-size:.78rem;font-weight:600;border-bottom:1px solid var(--border);"><i class="fas fa-triangle-exclamation"></i> Los % de las actividades suman ${sumaPorcentajes}% (debería sumar 100%) — el promedio de arriba se calcula igual, pero conviene revisar los %.</div>` + html;
             }
             cont.innerHTML = html;
 
@@ -2768,6 +2785,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Responde las dudas de tus alumnos sobre cada materia y comparte avisos importantes del curso.' },
                 { selector: '[data-tour="nav-chat-staff"]', title: 'Chat del Staff', text: 'Canal privado para coordinar con administración y otros docentes de la institución, sin depender de ninguna materia en particular.' },
                 { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Sube tus propios libros, gratuitos o de pago, con portada y descripción — aparecen automáticamente en el catálogo que ven tus alumnos.' },
+                { selector: '[data-tour="nav-devocionales"]', title: 'Devocionales', text: 'Comparte un estudio bíblico o plan devocional con tus alumnos o con todo el instituto — puedes escribir el texto directo o adjuntar un PDF o Word. Les llega como notificación al instante.' },
                 <?php if (in_array($_SESSION['rol'], ['superadmin', 'admin'])): ?>
                 { selector: '[data-tour="nav-admin-docentes"]', title: 'Asignar Materias', text: 'Como administrador, desde acá asignas qué materias imparte cada docente de la institución.' },
                 <?php endif; ?>
@@ -2950,7 +2968,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         async function guardarAulaMaterial(e) {
             e.preventDefault();
             const archivo = document.getElementById('aulaMaterialArchivo').files[0];
-            if (!archivo) { Ibbs.warn('Elegí un archivo.'); return; }
+            if (!archivo) { Ibbs.warn('Elige un archivo.'); return; }
             const btn = document.getElementById('btnAulaMaterialSubir');
             btn.disabled = true; btn.textContent = 'Subiendo…';
             const fd = new FormData();

@@ -34,7 +34,7 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
 
 <div class="card" data-tour="doc-tabla">
   <div class="card-head">
-    <h3>Historial de Docentes</h3>
+    <h3>Registro de Docentes</h3>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
       <input type="text" id="fDocNombre" data-only="letters" placeholder="Nombre o apellido…" oninput="filtrarDocentes()"
         style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:180px;">
@@ -83,7 +83,8 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
           <div class="field"><label>Usuario de acceso *</label><input name="usuario_login" data-only="username" placeholder="ej. crodriguez" autocomplete="off"></div>
           <div class="field">
             <label>Contraseña inicial *</label>
-            <input type="text" name="password_inicial" id="dNewPwd" placeholder="mín. 8 car., mayús., minús., nº" autocomplete="off">
+            <input type="text" name="password_inicial" id="dNewPwd" placeholder="mín. 8 car., mayús., minús., nº" autocomplete="off" oninput="pwdChecklist('dNewPwdChecklist', this.value)">
+            <div style="margin-top:.4rem;" id="dNewPwdChecklist"></div>
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
@@ -233,7 +234,7 @@ async function createDoc(e){
   const usuarioLogin = document.querySelector('#fCD [name="usuario_login"]').value.trim();
   const pwdInicial = document.getElementById('dNewPwd').value;
   if(!usuarioLogin){ Ibbs.error('Ponle un usuario de acceso al docente.'); return; }
-  if(!pwdInicial){ Ibbs.error('Escribí una contraseña inicial o generá una.'); return; }
+  if(!pwdInicial){ Ibbs.error('Escribe una contraseña inicial o genera una.'); return; }
 
   const fd = new FormData(e.target);
   fd.append('action','docente_create');

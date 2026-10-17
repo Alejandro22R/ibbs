@@ -215,7 +215,7 @@ function eliminarClase(id) {
 window.IBBS_TOUR_GRABACIONES = {
   storageKey: 'ibbs_tour_grabaciones_v1',
   steps: [
-    { selector: '[data-tour="grab-intro"]', title: 'Clases Grabadas', text: 'Elegí una materia en el selector (o entrá desde Materias → 🎬 Grabadas) para ver sus videos. Si gestionás esa materia, un botón "Agregar clase grabada" te deja subir el link (YouTube, Drive o Vimeo) con título, descripción y fecha.' },
+    { selector: '[data-tour="grab-intro"]', title: 'Clases Grabadas', text: 'Elige una materia en el selector (o entra desde Materias → 🎬 Grabadas) para ver sus videos. Si gestionas esa materia, un botón "Agregar clase grabada" te deja subir el link (YouTube, Drive o Vimeo) con título, descripción y fecha.' },
   ],
   auto: true,
 };

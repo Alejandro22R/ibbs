@@ -27,7 +27,7 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
   <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.8rem;">
     <div>
       <div style="font-weight:700;font-size:.92rem;">Clases en Vivo</div>
-      <div style="font-size:.8rem;color:var(--muted);">Elegí una materia para programar la videollamada (Meet, Zoom o Jitsi) y, después de darla, guardar el link de la grabación en el repositorio.</div>
+      <div style="font-size:.8rem;color:var(--muted);">Elige una materia para programar la videollamada (Meet, Zoom o Jitsi) y, después de darla, guardar el link de la grabación en el repositorio.</div>
     </div>
     <button class="btn btn-secondary btn-sm" onclick="IbbsTour.replay(window.IBBS_TOUR_VIVO)" title="Ver el tutorial de esta página otra vez">
       <i class="bx bx-play-circle"></i> Tutorial
@@ -98,7 +98,7 @@ $materia_id = (int)($_GET['materia_id'] ?? 0);
         <div class="field field-full" id="avisoJitsi" style="margin:0;">
           <div class="info-box" style="background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:.7rem 1rem;font-size:.8rem;color:var(--muted);display:flex;gap:.5rem;align-items:flex-start;">
             <span>ℹ️</span>
-            <span>El sistema genera un link único de Jitsi Meet (gratis, sin cuenta). Cualquiera con el link puede entrar — solo compartilo con tu materia.</span>
+            <span>El sistema genera un link único de Jitsi Meet (gratis, sin cuenta). Cualquiera con el link puede entrar — solo compártelo con tu materia.</span>
           </div>
         </div>
       </div>
@@ -197,7 +197,7 @@ async function loadVivo() {
     const grabacionBtn = v.grabacion_clase_id
       ? `<a class="btn btn-sm btn-secondary" href="modulo_grabaciones.php?materia_id=${MATERIA_ID}" title="Ver en el repositorio de Clases Grabadas">🎥 Ver grabación</a>`
       : (CAN_MANAGE && v.estado !== 'cancelada'
-          ? `<button class="btn btn-sm btn-secondary" onclick='abrirModalGrabacion(${hJsonAttr(JSON.stringify(v))})' title="Guardá el link del video ya grabado para que quede en el repositorio de la materia">🎥 Guardar grabación</button>`
+          ? `<button class="btn btn-sm btn-secondary" onclick='abrirModalGrabacion(${hJsonAttr(JSON.stringify(v))})' title="Guarda el link del video ya grabado para que quede en el repositorio de la materia">🎥 Guardar grabación</button>`
           : '');
 
     const accionesGestion = CAN_MANAGE ? `
@@ -274,7 +274,7 @@ async function guardarVivo() {
   const titulo = document.getElementById('vvTitulo').value.trim();
   const fechaHora = document.getElementById('vvFechaHora').value;
   if (!titulo) { Ibbs.error('Ponle un título a la clase.'); return; }
-  if (!fechaHora) { Ibbs.error('Elegí fecha y hora.'); return; }
+  if (!fechaHora) { Ibbs.error('Elige fecha y hora.'); return; }
 
   const payload = {
     id, titulo, fecha_hora: fechaHora,
@@ -316,7 +316,7 @@ async function guardarGrabacionVivo() {
   const url = document.getElementById('gvUrl').value.trim();
   const descripcion = document.getElementById('gvDescripcion').value.trim();
   if (!titulo) { Ibbs.error('Ponle un título a la grabación.'); return; }
-  if (!url) { Ibbs.error('Pegá el link del video ya subido.'); return; }
+  if (!url) { Ibbs.error('Pega el link del video ya subido.'); return; }
 
   const btn = document.getElementById('btnGuardarGrabacion');
   btn.disabled = true; btn.textContent = 'Guardando…';

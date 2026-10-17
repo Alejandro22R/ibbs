@@ -65,7 +65,7 @@ if ($action === 'pago_crear') {
     $concepto = trim($_POST['concepto'] ?? '');
     $monto = (float)($_POST['monto'] ?? 0);
     $venc = trim($_POST['fecha_vencimiento'] ?? '') ?: null;
-    if (!$aid) json_fail_pg('Elegí un alumno.');
+    if (!$aid) json_fail_pg('Elige un alumno.');
     if (!in_array($tipo, ['mensualidad','inscripcion'])) json_fail_pg('Tipo inválido.');
     if (!$concepto) json_fail_pg('El concepto es requerido (ej. "Mensualidad Octubre 2026").');
     if ($monto <= 0) json_fail_pg('El monto debe ser mayor a 0.');
@@ -231,7 +231,7 @@ if ($action === 'pago_subir_comprobante') {
     if (!in_array($pago['estado'], ['pendiente','rechazado'])) json_fail_pg('Este pago ya fue procesado.');
 
     if (!isset($_FILES['comprobante']) || $_FILES['comprobante']['error'] !== UPLOAD_ERR_OK) {
-        json_fail_pg('Adjuntá la captura de tu pago móvil o transferencia.');
+        json_fail_pg('Adjunta la captura de tu pago móvil o transferencia.');
     }
     $file = $_FILES['comprobante'];
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));

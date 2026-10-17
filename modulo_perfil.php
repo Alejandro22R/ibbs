@@ -38,7 +38,7 @@ mysqli_close($con);
       <div style="margin-top:.3rem;">
         <span class="badge <?= $u['rol']==='superadmin'?'b-superadmin':($u['rol']==='admin'?'b-admin':($u['rol']==='profesor'?'b-profesor':'b-alumno'))?>"><?=ucfirst($u['rol'])?></span>
       </div>
-      <div style="font-size:.78rem;color:var(--muted);margin-top:.4rem;">CI: <?=htmlspecialchars($u['cedula'])?></div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:.4rem;">ID: <?=htmlspecialchars($u['cedula'])?></div>
       <p style="font-size:.72rem;color:var(--muted);margin-top:.8rem;">Clic en la foto para cambiarla<br>JPG, PNG o WebP · máx. 3MB</p>
       <div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--border);">
         <a href="api/export_perfil.php" target="_blank"

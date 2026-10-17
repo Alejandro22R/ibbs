@@ -63,7 +63,7 @@ if(!in_array($_rol,['superadmin','admin'])){
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre *</label><input name="nombre" data-only="letters" placeholder="Matemáticas I" required></div>
           <div class="field"><label>Código *</label><input name="codigo" data-only="code" placeholder="MAT-101" required></div>
-          <div class="field"><label>Orden en el pensum</label><input type="number" name="orden" min="1" placeholder="vacío = sin secuencia" title="Si la dejás vacía, esta materia queda disponible para autoinscripción sin pedirle al alumno materias anteriores."></div>
+          <div class="field"><label>Orden en el pensum</label><input type="number" name="orden" min="1" placeholder="vacío = sin secuencia" title="Si la dejas vacía, esta materia queda disponible para autoinscripción sin pedirle al alumno materias anteriores."></div>
 
           <div class="field field-full">
             <label>Período (año/semestre en que se dicta)</label>
@@ -124,7 +124,7 @@ if(!in_array($_rol,['superadmin','admin'])){
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre</label><input id="eNN"></div>
           <div class="field"><label>Código</label><input id="eNC"></div>
-          <div class="field"><label>Orden en el pensum</label><input type="number" id="eNOrden" min="1" placeholder="vacío = sin secuencia" title="Si la dejás vacía, esta materia queda disponible para autoinscripción sin pedirle al alumno materias anteriores."></div>
+          <div class="field"><label>Orden en el pensum</label><input type="number" id="eNOrden" min="1" placeholder="vacío = sin secuencia" title="Si la dejas vacía, esta materia queda disponible para autoinscripción sin pedirle al alumno materias anteriores."></div>
           <div class="field field-full">
             <label>Período (año/semestre en que se dicta)</label>
             <div style="display:flex;gap:.5rem;">
@@ -430,7 +430,7 @@ async function submitEdit(){
 async function toggleEstado(id,est){
   const next=est==='culminada'?'en_curso':'culminada';
   const lbl = {en_curso:'En curso',culminada:'Culminada',pendiente:'Pendiente'}[next];
-  const rr = await Ibbs.warn({title:'Cambiar estado',text:`Cambiar a <b>${lbl}</b>?`,confirm:'Confirmar'});
+  const rr = await Ibbs.warn({title:'Cambiar estado',text:`¿Cambiar a <b>${lbl}</b>?`,confirm:'Confirmar'});
   if(!rr.isConfirmed) return;
   const d=await ajax('materia_set_estado',{id,estado:next});
   if(d?.ok){toast(d.msg);loadMaterias();}else toast(d?.msg||'Err','err');
@@ -641,8 +641,8 @@ async function cargarPlanNotasMateria() {
 window.IBBS_TOUR_MATERIAS = {
   storageKey: 'ibbs_tour_materias_v1',
   steps: [
-    { selector: '[data-tour="mat-nueva"]', title: 'Crear una materia', text: 'Acá creás cada materia que se dicta: nombre, código, días/horario y el docente asignado — todo desde un mismo formulario.' },
-    { selector: '[data-tour="mat-periodos"]', title: 'Períodos académicos', text: 'Antes de cargar materias de años anteriores, creá acá el período (año/semestre) al que pertenecen — eso permite ver después, en el Récord del alumno, en qué año cursó cada cosa.' },
+    { selector: '[data-tour="mat-nueva"]', title: 'Crear una materia', text: 'Acá creas cada materia que se dicta: nombre, código, días/horario y el docente asignado — todo desde un mismo formulario.' },
+    { selector: '[data-tour="mat-periodos"]', title: 'Períodos académicos', text: 'Antes de cargar materias de años anteriores, crea acá el período (año/semestre) al que pertenecen — eso permite ver después, en el Récord del alumno, en qué año cursó cada cosa.' },
     { selector: '[data-tour="mat-tabla"]', title: 'Editar, inscribir, culminar', text: 'Desde "Editar" puedes asignar docentes, inscribir alumnos y ver sus calificaciones de esa materia. El botón "Culminar" marca la materia como terminada; la nota final siempre se carga desde Cargar Notas, no desde acá.' },
   ],
   auto: true,

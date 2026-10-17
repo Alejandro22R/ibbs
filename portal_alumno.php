@@ -512,8 +512,8 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     <div class="ibbs-glow-orb o1"></div>
                     <div class="ibbs-glow-orb o2"></div>
                     <div class="relative z-10">
-                        <h2 class="text-2xl font-serif mb-1">Bienvenido, <em class="text-ibbs-lime not-italic"><?= htmlspecialchars(explode(' ', $nombre_alumno)[0]) ?></em> 👋</h2>
-                        <p class="text-white/50 text-sm max-w-lg">Resumen general de tu actividad académica · <?= date('d M Y') ?></p>
+                        <h2 class="text-2xl font-serif mb-1">Bienvenido/a, <em class="text-ibbs-lime not-italic"><?= htmlspecialchars(explode(' ', $nombre_alumno)[0]) ?></em> 👋</h2>
+                        <p class="text-white/50 text-sm max-w-lg">Resumen general de tu actividad académica · <?= fecha_es('d M Y') ?></p>
                     </div>
                 </div>
 
@@ -619,7 +619,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                 <div class="flex items-center justify-between bg-ibbs-cream border border-ibbs-border rounded-lg px-3 py-2">
                                     <div class="text-sm font-bold text-ibbs-ink"><?= htmlspecialchars($yv['nombre']) ?></div>
                                     <?php if ($yv['mejor_nota'] === null): ?>
-                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-blue/10 text-ibbs-blue">📖 La estás viendo / ya la viste</span>
+                                    <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-blue/10 text-ibbs-blue">📖 Ya la cursaste, sin nota registrada</span>
                                     <?php elseif ($yv['mejor_nota'] >= 15): ?>
                                     <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-lime2/10 text-ibbs-lime2">✅ Aprobada</span>
                                     <?php else: ?>
@@ -657,9 +657,9 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                     <?php if ($pg['estado'] === 'en_revision'): ?>
                                     Tu comprobante de inscripción (<strong><?= htmlspecialchars($pg['concepto']) ?></strong>) está en revisión — apenas administración lo confirme vas a poder elegir tus materias libremente.
                                     <?php elseif ($pg['estado'] === 'rechazado'): ?>
-                                    Tu comprobante de inscripción (<strong><?= htmlspecialchars($pg['concepto']) ?></strong>) fue rechazado — sube uno nuevo desde <strong>Mis Pagos</strong> para poder elegir tus materias.
+                                    Tu comprobante de inscripción (<strong><?= htmlspecialchars($pg['concepto']) ?></strong>) fue rechazado — sube uno nuevo desde <strong>Mis Pagos</strong> para poder elegir tus materias libremente.
                                     <?php else: ?>
-                                    Tienes pendiente el pago de <strong><?= htmlspecialchars($pg['concepto']) ?></strong> ($<?= number_format((float)$pg['monto'], 2) ?>). Sube tu comprobante desde <strong>Mis Pagos</strong> y, una vez confirmado, vas a poder elegir libremente qué materias cursar — no hace falta pagar ni pedir aprobación materia por materia.
+                                    Tienes pendiente el pago de <strong><?= htmlspecialchars($pg['concepto']) ?></strong> ($<?= number_format((float)$pg['monto'], 2) ?>). Sube tu comprobante desde <strong>Mis Pagos</strong> y, una vez confirmado, vas a poder elegir libremente qué materias cursar, sin pagar ni pedir aprobación materia por materia — ese pago cubre todo el período.
                                     <?php endif; ?>
                                 <?php else: ?>
                                 Todavía no tienes un cobro de inscripción generado para este período — contacta a la administración para que te lo registre. Una vez pagado, vas a poder elegir libremente qué materias cursar.
@@ -683,7 +683,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                     </div>
                                     <div class="min-w-0">
                                         <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider"><?= htmlspecialchars($md['codigo']) ?></div>
-                                        <div class="text-sm font-bold text-ibbs-ink truncate"><?= htmlspecialchars($md['nombre']) ?></div>
+                                        <div class="text-sm font-bold text-ibbs-ink"><?= htmlspecialchars($md['nombre']) ?></div>
                                     </div>
                                     <i class="fas fa-circle-check ml-auto text-ibbs-lime2 text-lg opacity-0 transition-opacity auto-insc-check"></i>
                                 </div>
@@ -739,7 +739,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                     <?php if(empty($materias)): ?>
                     <div class="col-span-full p-8 text-center bg-ibbs-paper rounded-[14px] border border-dashed border-ibbs-border">
                         <i class="fas fa-folder-open text-3xl text-ibbs-muted/50 mb-3 block"></i>
-                        <p class="text-ibbs-muted text-sm">Aún no estás inscrito en ninguna materia.</p>
+                        <p class="text-ibbs-muted text-sm">Todavía no estás inscrito en ninguna materia.</p>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -766,7 +766,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                 
                                 <div class="flex flex-col gap-2 mb-5">
                                     <p class="text-xs font-bold text-ibbs-amber flex items-center gap-2">
-                                        <i class="far fa-calendar-alt"></i> Límite: <?= date('d M Y, h:i A', strtotime($t['fecha_limite'])) ?>
+                                        <i class="far fa-calendar-alt"></i> Límite: <?= fecha_es('d M Y, h:i A', strtotime($t['fecha_limite'])) ?>
                                     </p>
                                     <?php if($t['archivo']): ?>
                                     <a href="uploads/tareas/<?= htmlspecialchars($t['archivo']) ?>" target="_blank" class="text-xs text-ibbs-ink hover:text-ibbs-lime2 font-bold flex items-center gap-1.5 inline-flex w-max transition-colors">
@@ -830,7 +830,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                 <div class="w-8 h-8 rounded-lg bg-ibbs-ink text-ibbs-lime flex items-center justify-center font-bold text-xs flex-shrink-0">
                                     <?= substr($m['nombre'], 0, 2) ?>
                                 </div>
-                                <h4 class="font-bold text-xs text-ibbs-ink hidden md:block truncate"><?= htmlspecialchars($m['nombre']) ?></h4>
+                                <h4 class="font-bold text-xs text-ibbs-ink hidden md:block truncate" title="<?= htmlspecialchars($m['nombre']) ?>"><?= htmlspecialchars($m['nombre']) ?></h4>
                             </div>
                             <?php endforeach; ?>
                         </div>
@@ -906,7 +906,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                             <?= htmlspecialchars($n['nombre']) ?>
                                         </div>
                                     </td>
-                                    <td class="p-4 text-ibbs-muted hidden md:table-cell"><?= date('d M Y', strtotime($n['nota_fecha'])) ?></td>
+                                    <td class="p-4 text-ibbs-muted hidden md:table-cell"><?= fecha_es('d M Y', strtotime($n['nota_fecha'])) ?></td>
                                     <td class="p-4 text-right">
                                         <span class="inline-flex items-center justify-center px-3 py-1 rounded-full font-bold text-xs <?= $n['nota_final'] >= 15 ? 'bg-ibbs-green/10 text-ibbs-green' : 'bg-ibbs-red/10 text-ibbs-red' ?>">
                                             <?= $n['nota_final'] ?> / 20
@@ -933,7 +933,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border">
                     <h2 class="text-2xl font-serif text-ibbs-ink">Plan de Notas y Trabajos</h2>
                 </div>
-                <p class="text-sm text-ibbs-muted -mt-2">Todas las actividades de cada materia, con su fecha límite, cuánto vale y la nota que llevás en cada una — con el promedio ponderado acumulado hasta este momento, igual que lo ve tu profesor.</p>
+                <p class="text-sm text-ibbs-muted -mt-2">Todas las actividades de cada materia, con su fecha límite, cuánto vale y la nota que llevas en cada una — con el promedio ponderado acumulado hasta este momento, igual que lo ve tu profesor.</p>
 
                 <div class="space-y-3" id="planNotasAcordeon">
                     <?php foreach($materias as $m): ?>
@@ -975,7 +975,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
 
                 <?php if(empty($materias_con_aula)): ?>
                 <div class="text-center py-10 text-ibbs-muted border-2 border-dashed border-ibbs-border rounded-[14px]">
-                    <?= empty($materias) ? 'Aún no estás inscrito en ninguna materia.' : 'Ves tus materias de forma presencial — por ahora ningún profesor activó el Aula Virtual para ti. Si lo hace, va a aparecer acá.' ?>
+                    <?= empty($materias) ? 'Todavía no estás inscrito en ninguna materia.' : 'Ves tus materias de forma presencial — por ahora ningún profesor activó el Aula Virtual para ti. Si lo hace, va a aparecer acá.' ?>
                 </div>
                 <?php else: ?>
 
@@ -1176,6 +1176,34 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             </button>
                         </div>
                     </form>
+
+                    <!-- Cambiar contraseña -->
+                    <div class="border-t border-ibbs-border pt-8 mt-8 max-w-2xl mx-auto">
+                        <h3 class="text-lg font-serif text-ibbs-ink mb-6">Cambiar contraseña</h3>
+                        <form id="form-pwd-alumno" onsubmit="cambiarPwdAlumno(event)" class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Contraseña actual</label>
+                                    <input type="password" id="ap-actual" placeholder="••••••••" required class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all">
+                                </div>
+                                <div></div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Nueva contraseña</label>
+                                    <input type="password" id="ap-nueva" placeholder="mín. 8 car., mayús., minús. y nº" required class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all" oninput="pwdChecklistAl('apPwdChecklist', this.value)">
+                                    <div class="mt-2 space-y-1 text-xs" id="apPwdChecklist"></div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Repetir nueva</label>
+                                    <input type="password" id="ap-repetir" placeholder="repite" required class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all">
+                                </div>
+                            </div>
+                            <div class="border-t border-ibbs-border pt-6 flex justify-end">
+                                <button type="submit" class="btn-ibbs px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg">
+                                    <i class="fas fa-key"></i> Actualizar Contraseña
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -1251,8 +1279,8 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             const textos = {
                 perfil_actualizado: '✓ Perfil actualizado correctamente.',
                 correo_duplicado: 'Ese correo ya está en uso por otro alumno.',
-                faltan_campos: 'Completá nombre y apellido.',
-                csrf_invalido: 'La sesión del formulario expiró — probá guardar de nuevo.',
+                faltan_campos: 'Completa nombre y apellido.',
+                csrf_invalido: 'La sesión del formulario expiró — intenta guardar de nuevo.',
                 error: 'Ocurrió un error al actualizar el perfil.',
             };
             if (textos[msg]) { msg === 'perfil_actualizado' ? Ibbs.success(textos[msg]) : Ibbs.error(textos[msg]); }
@@ -1499,6 +1527,55 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             }
         }
 
+        // Lista con lo que falta para la contraseña, en palabras — no
+        // solo un color, para que cualquiera sepa exactamente qué le
+        // falta sin tener que adivinar.
+        function pwdChecklistAl(containerId, v) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const reqs = [
+                { ok: v.length >= 8, label: 'Al menos 8 caracteres' },
+                { ok: /[A-Z]/.test(v), label: 'Una letra mayúscula' },
+                { ok: /[a-z]/.test(v), label: 'Una letra minúscula' },
+                { ok: /[0-9!@#$%^&*()_+\-=\[\]{};':",.<>?\/|`~]/.test(v), label: 'Un número o símbolo' },
+            ];
+            el.innerHTML = reqs.map(r => `<div class="flex items-center gap-2 ${r.ok ? 'text-ibbs-lime2 font-bold' : 'text-ibbs-muted'}"><b>${r.ok ? '✓' : '○'}</b> ${r.label}</div>`).join('');
+        }
+
+        function validarPasswordAlumno(pwd) {
+            if (pwd.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+            if (!/[A-Z]/.test(pwd)) return 'Debe contener al menos una mayúscula.';
+            if (!/[a-z]/.test(pwd)) return 'Debe contener al menos una minúscula.';
+            if (!/[0-9!@#$%^&*()_+\-=\[\]{};':",.<>?\/|`~]/.test(pwd)) return 'Debe contener al menos un número o carácter especial.';
+            return null;
+        }
+
+        async function cambiarPwdAlumno(e) {
+            e.preventDefault();
+            const actual = document.getElementById('ap-actual').value;
+            const nueva = document.getElementById('ap-nueva').value;
+            const repetir = document.getElementById('ap-repetir').value;
+            if (!actual || !nueva) { Ibbs.warn('Completa todos los campos.'); return; }
+            const err = validarPasswordAlumno(nueva);
+            if (err) { Ibbs.warn(err); return; }
+            if (nueva !== repetir) { Ibbs.warn('Las contraseñas nuevas no coinciden.'); return; }
+            const fd = new FormData();
+            fd.append('action', 'perfil_pwd');
+            fd.append('actual', actual);
+            fd.append('nueva', nueva);
+            const _csrf = document.querySelector('meta[name="csrf-token"]');
+            if (_csrf) fd.append('csrf_token', _csrf.content);
+            try {
+                const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) {
+                    await Ibbs.success('Contraseña actualizada correctamente.');
+                    e.target.reset();
+                    document.getElementById('apPwdChecklist').innerHTML = '';
+                } else Ibbs.error(d.msg || 'No se pudo actualizar la contraseña.');
+            } catch (err) { Ibbs.error('Error de conexión.'); }
+        }
+
         // CHAT LOGIC (Ajustado estéticamente)
         let materiaActivaChatId = <?= !empty($materias) ? $materias[0]['id'] : 0 ?>;
         let ultimoIdMensaje = 0;
@@ -1620,7 +1697,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             if (parseFloat(libro.precio) <= 0) {
                 box.innerHTML = 'Este libro es gratuito — se activa apenas confirmes.';
             } else if (!p.titular && !p.pago_movil_telefono && !p.cuenta) {
-                box.innerHTML = 'La administración todavía no cargó los datos de pago. Consultá directamente en el instituto cómo realizar el pago antes de enviar tu solicitud.';
+                box.innerHTML = 'La administración todavía no cargó los datos de pago. Consulta directamente en el instituto cómo realizar el pago antes de enviar tu solicitud.';
             } else {
                 box.innerHTML = [
                     p.titular ? `<div><strong>Titular:</strong> ${hBib(p.titular)}</div>` : '',
@@ -1641,7 +1718,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             const id = document.getElementById('comprarLibroId').value;
             const libro = _bibCatalogo.find(l => l.id == id);
             const file = document.getElementById('comprobanteLibroInput').files[0];
-            if (libro && parseFloat(libro.precio) > 0 && !file) { Ibbs.warn('Adjuntá la captura de tu pago para poder enviar la solicitud.'); return; }
+            if (libro && parseFloat(libro.precio) > 0 && !file) { Ibbs.warn('Adjunta la captura de tu pago para poder enviar la solicitud.'); return; }
             const btn = document.getElementById('btnConfirmarCompra');
             btn.disabled = true; btn.textContent = 'Enviando…';
             try {
@@ -1781,7 +1858,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             const p2 = _datosPagoCache || {};
             const box = document.getElementById('datosPagoBoxPago');
             if (!p2.titular && !p2.pago_movil_telefono && !p2.cuenta) {
-                box.innerHTML = 'La administración todavía no cargó los datos de pago. Consultá directamente en el instituto cómo realizar el pago antes de subir tu comprobante.';
+                box.innerHTML = 'La administración todavía no cargó los datos de pago. Consulta directamente en el instituto cómo realizar el pago antes de subir tu comprobante.';
             } else {
                 box.innerHTML = [
                     p2.titular ? `<div><strong>Titular:</strong> ${hBib(p2.titular)}</div>` : '',
@@ -1798,7 +1875,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         async function confirmarSubirComprobantePago() {
             const id = document.getElementById('pagoComprobanteId').value;
             const file = document.getElementById('comprobantePagoInput').files[0];
-            if (!file) { Ibbs.warn('Adjuntá la captura de tu pago primero.'); return; }
+            if (!file) { Ibbs.warn('Adjunta la captura de tu pago primero.'); return; }
             const fd = new FormData();
             fd.append('action', 'pago_subir_comprobante');
             fd.append('id', id);
@@ -2014,6 +2091,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Descarga tu Constancia de Estudio o de Notas cuando quieras, gratis y al instante — la de Notas solo incluye las materias ya culminadas y 100% calificadas.' },
                 { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explora los libros que tus profesores fueron subiendo: los gratuitos se descargan directo, y en los de pago te vamos a pedir tu comprobante antes de darte acceso.' },
                 { selector: '[data-tour="nav-pagos"]', title: 'Mis Pagos', text: 'Acá vas a ver tus cobros de mensualidad e inscripción. Cuando tengas uno pendiente, sube la captura de tu pago móvil o transferencia y quedará en revisión hasta que administración lo confirme.' },
+                { selector: '[data-tour="nav-devocionales"]', title: 'Devocionales', text: 'Acá vas a encontrar estudios, planes devocionales y otros materiales que tus profesores o la administración vayan compartiendo contigo.' },
                 { selector: '[data-tour="nav-perfil"]', title: 'Mi Perfil', text: 'Actualiza tu foto, tus datos personales y tu contraseña. Al escribir una contraseña en cualquier parte del sistema vas a ver un ícono de ojo al lado — tócalo si quieres revisar lo que escribiste antes de guardar.' },
                 { selector: '[data-tour="nav-replay"]', title: '¿Necesitas repasar esto?', text: 'Cuando quieras volver a ver este recorrido completo, toca acá. ¡Éxitos en tus estudios!' }
             ]
