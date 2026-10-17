@@ -197,7 +197,7 @@ async function loadVivo() {
     const grabacionBtn = v.grabacion_clase_id
       ? `<a class="btn btn-sm btn-secondary" href="modulo_grabaciones.php?materia_id=${MATERIA_ID}" title="Ver en el repositorio de Clases Grabadas">🎥 Ver grabación</a>`
       : (CAN_MANAGE && v.estado !== 'cancelada'
-          ? `<button class="btn btn-sm btn-secondary" onclick='abrirModalGrabacion(${hJsonAttr(JSON.stringify(v))})' title="Guardá el link del video ya grabado para que quede en el repositorio de la materia">🎥 Guardar grabación</button>`
+          ? `<button class="btn btn-sm btn-secondary" onclick='abrirModalGrabacion(${hJsonAttr(JSON.stringify(v))})' title="Guarda el link del video ya grabado para que quede en el repositorio de la materia">🎥 Guardar grabación</button>`
           : '');
 
     const accionesGestion = CAN_MANAGE ? `

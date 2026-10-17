@@ -318,7 +318,7 @@ async function aprobarCompra(id){
   if(d?.ok){ toast(d.msg); loadCompras(); } else Ibbs.error(d?.msg||'Error');
 }
 async function rechazarCompra(id){
-  ibbsConfirm('¿Rechazar esta compra? Revisá bien el comprobante antes de confirmar.', async ()=>{
+  ibbsConfirm('¿Rechazar esta compra? Revisa bien el comprobante antes de confirmar.', async ()=>{
     const d = await ajax('compra_rechazar', {id}, 'api/biblioteca.php');
     if(d?.ok){ toast(d.msg); loadCompras(); } else Ibbs.error(d?.msg||'Error');
   });

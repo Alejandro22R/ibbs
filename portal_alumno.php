@@ -683,7 +683,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                     </div>
                                     <div class="min-w-0">
                                         <div class="text-xs font-bold text-ibbs-muted uppercase tracking-wider"><?= htmlspecialchars($md['codigo']) ?></div>
-                                        <div class="text-sm font-bold text-ibbs-ink truncate"><?= htmlspecialchars($md['nombre']) ?></div>
+                                        <div class="text-sm font-bold text-ibbs-ink"><?= htmlspecialchars($md['nombre']) ?></div>
                                     </div>
                                     <i class="fas fa-circle-check ml-auto text-ibbs-lime2 text-lg opacity-0 transition-opacity auto-insc-check"></i>
                                 </div>
@@ -830,7 +830,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                 <div class="w-8 h-8 rounded-lg bg-ibbs-ink text-ibbs-lime flex items-center justify-center font-bold text-xs flex-shrink-0">
                                     <?= substr($m['nombre'], 0, 2) ?>
                                 </div>
-                                <h4 class="font-bold text-xs text-ibbs-ink hidden md:block truncate"><?= htmlspecialchars($m['nombre']) ?></h4>
+                                <h4 class="font-bold text-xs text-ibbs-ink hidden md:block truncate" title="<?= htmlspecialchars($m['nombre']) ?>"><?= htmlspecialchars($m['nombre']) ?></h4>
                             </div>
                             <?php endforeach; ?>
                         </div>
@@ -1176,6 +1176,34 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                             </button>
                         </div>
                     </form>
+
+                    <!-- Cambiar contraseña -->
+                    <div class="border-t border-ibbs-border pt-8 mt-8 max-w-2xl mx-auto">
+                        <h3 class="text-lg font-serif text-ibbs-ink mb-6">Cambiar contraseña</h3>
+                        <form id="form-pwd-alumno" onsubmit="cambiarPwdAlumno(event)" class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Contraseña actual</label>
+                                    <input type="password" id="ap-actual" placeholder="••••••••" required class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all">
+                                </div>
+                                <div></div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Nueva contraseña</label>
+                                    <input type="password" id="ap-nueva" placeholder="mín. 8 car., mayús., minús. y nº" required class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all" oninput="pwdChecklistAl('apPwdChecklist', this.value)">
+                                    <div class="mt-2 space-y-1 text-xs" id="apPwdChecklist"></div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-ibbs-muted mb-2">Repetir nueva</label>
+                                    <input type="password" id="ap-repetir" placeholder="repite" required class="w-full bg-ibbs-cream border border-ibbs-border rounded-xl p-3 text-sm focus:bg-white focus:ring-2 focus:ring-ibbs-ink/10 focus:border-ibbs-ink outline-none transition-all">
+                                </div>
+                            </div>
+                            <div class="border-t border-ibbs-border pt-6 flex justify-end">
+                                <button type="submit" class="btn-ibbs px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg">
+                                    <i class="fas fa-key"></i> Actualizar Contraseña
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
@@ -1497,6 +1525,55 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 }
                 reader.readAsDataURL(input.files[0]);
             }
+        }
+
+        // Lista con lo que falta para la contraseña, en palabras — no
+        // solo un color, para que cualquiera sepa exactamente qué le
+        // falta sin tener que adivinar.
+        function pwdChecklistAl(containerId, v) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const reqs = [
+                { ok: v.length >= 8, label: 'Al menos 8 caracteres' },
+                { ok: /[A-Z]/.test(v), label: 'Una letra mayúscula' },
+                { ok: /[a-z]/.test(v), label: 'Una letra minúscula' },
+                { ok: /[0-9!@#$%^&*()_+\-=\[\]{};':",.<>?\/|`~]/.test(v), label: 'Un número o símbolo' },
+            ];
+            el.innerHTML = reqs.map(r => `<div class="flex items-center gap-2 ${r.ok ? 'text-ibbs-lime2 font-bold' : 'text-ibbs-muted'}"><b>${r.ok ? '✓' : '○'}</b> ${r.label}</div>`).join('');
+        }
+
+        function validarPasswordAlumno(pwd) {
+            if (pwd.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
+            if (!/[A-Z]/.test(pwd)) return 'Debe contener al menos una mayúscula.';
+            if (!/[a-z]/.test(pwd)) return 'Debe contener al menos una minúscula.';
+            if (!/[0-9!@#$%^&*()_+\-=\[\]{};':",.<>?\/|`~]/.test(pwd)) return 'Debe contener al menos un número o carácter especial.';
+            return null;
+        }
+
+        async function cambiarPwdAlumno(e) {
+            e.preventDefault();
+            const actual = document.getElementById('ap-actual').value;
+            const nueva = document.getElementById('ap-nueva').value;
+            const repetir = document.getElementById('ap-repetir').value;
+            if (!actual || !nueva) { Ibbs.warn('Completa todos los campos.'); return; }
+            const err = validarPasswordAlumno(nueva);
+            if (err) { Ibbs.warn(err); return; }
+            if (nueva !== repetir) { Ibbs.warn('Las contraseñas nuevas no coinciden.'); return; }
+            const fd = new FormData();
+            fd.append('action', 'perfil_pwd');
+            fd.append('actual', actual);
+            fd.append('nueva', nueva);
+            const _csrf = document.querySelector('meta[name="csrf-token"]');
+            if (_csrf) fd.append('csrf_token', _csrf.content);
+            try {
+                const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.ok) {
+                    await Ibbs.success('Contraseña actualizada correctamente.');
+                    e.target.reset();
+                    document.getElementById('apPwdChecklist').innerHTML = '';
+                } else Ibbs.error(d.msg || 'No se pudo actualizar la contraseña.');
+            } catch (err) { Ibbs.error('Error de conexión.'); }
         }
 
         // CHAT LOGIC (Ajustado estéticamente)

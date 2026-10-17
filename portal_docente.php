@@ -1108,7 +1108,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <div class="field"></div>
                             <div class="field">
                                 <label>Nueva contraseña</label>
-                                <input type="password" id="dp-nueva" placeholder="mín. 8 car., mayús., minús. y nº" required>
+                                <input type="password" id="dp-nueva" placeholder="mín. 8 car., mayús., minús. y nº" required oninput="pwdChecklistDoc('dpPwdChecklist', this.value)">
+                                <div style="margin-top:.5rem;font-size:.76rem;display:flex;flex-direction:column;gap:.25rem;" id="dpPwdChecklist"></div>
                             </div>
                             <div class="field">
                                 <label>Repetir nueva</label>
@@ -1691,6 +1692,21 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             } catch (err) { Ibbs.error('Error de conexión.'); }
         }
 
+        // Lista con lo que falta para la contraseña, en palabras — no
+        // solo un color o un mensaje de error después de intentar
+        // guardar, para que cualquiera sepa exactamente qué le falta.
+        function pwdChecklistDoc(containerId, v) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const reqs = [
+                { ok: v.length >= 8, label: 'Al menos 8 caracteres' },
+                { ok: /[A-Z]/.test(v), label: 'Una letra mayúscula' },
+                { ok: /[a-z]/.test(v), label: 'Una letra minúscula' },
+                { ok: /[0-9!@#$%^&*()_+\-=\[\]{};':",.<>?\/|`~]/.test(v), label: 'Un número o símbolo' },
+            ];
+            el.innerHTML = reqs.map(r => `<div style="display:flex;align-items:center;gap:.4rem;color:${r.ok ? '#16a34a' : '#9ca3af'};font-weight:${r.ok ? '600' : '400'};"><b>${r.ok ? '✓' : '○'}</b> ${r.label}</div>`).join('');
+        }
+
         function validarPasswordDocente(pwd) {
             if (pwd.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
             if (!/[A-Z]/.test(pwd)) return 'Debe contener al menos una mayúscula.';
@@ -1718,8 +1734,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 const r = await fetch('api/ajax.php', { method: 'POST', body: fd });
                 const d = await r.json();
                 if (d.ok) {
-                    Ibbs.success('Contraseña actualizada correctamente.');
+                    await Ibbs.success('Contraseña actualizada correctamente.');
                     e.target.reset();
+                    document.getElementById('dpPwdChecklist').innerHTML = '';
                 } else Ibbs.error(d.msg || 'No se pudo actualizar la contraseña.');
             } catch (err) { Ibbs.error('Error de conexión.'); }
         }
@@ -2408,7 +2425,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             await new Promise((resolve, reject) => {
                 const s = document.createElement('script');
                 s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-                s.onload = resolve; s.onerror = () => reject(new Error('No se pudo cargar el lector de imágenes (revisá tu conexión a internet).'));
+                s.onload = resolve; s.onerror = () => reject(new Error('No se pudo cargar el lector de imágenes (revisa tu conexión a internet).'));
                 document.head.appendChild(s);
             });
             _tesseractCargado = true;
@@ -2504,7 +2521,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             _ocrFilas = filas;
             const detectados = filas.filter(f=>f.detectado).length;
             document.getElementById('ocrReviewSummary').innerHTML =
-                `${filas.length} alumnos inscritos · <strong>${detectados}</strong> encontrados en la foto · revisá cada fila antes de guardar`;
+                `${filas.length} alumnos inscritos · <strong>${detectados}</strong> encontrados en la foto · revisa cada fila antes de guardar`;
             const tb = document.getElementById('ocrBody');
             tb.innerHTML = filas.map((a, i) => `
                 <tr class="pl-row pl-${a.estado}" id="ocrrow-${i}">

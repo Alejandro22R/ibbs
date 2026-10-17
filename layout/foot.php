@@ -193,6 +193,24 @@ function h(s) {
   return d.innerHTML;
 }
 
+// ── Checklist de contraseña ─────────────────────────────────
+// Lista con lo que falta en palabras — no solo un error después de
+// intentar guardar, para que cualquiera (sin importar su experiencia
+// con computadoras) sepa de un vistazo qué le falta exactamente.
+// Usar: <input oninput="pwdChecklist('miContenedor', this.value)">
+//       <div id="miContenedor"></div>
+function pwdChecklist(containerId, v) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const reqs = [
+    { ok: v.length >= 8, label: 'Al menos 8 caracteres' },
+    { ok: /[A-Z]/.test(v), label: 'Una letra mayúscula' },
+    { ok: /[a-z]/.test(v), label: 'Una letra minúscula' },
+    { ok: /[0-9!@#$%^&*()_+\-=\[\]{};':",.<>?\/|`~]/.test(v), label: 'Un número o símbolo' },
+  ];
+  el.innerHTML = reqs.map(r => `<div style="display:flex;align-items:center;gap:.4rem;color:${r.ok ? '#16a34a' : '#9ca3af'};font-weight:${r.ok ? '600' : '400'};font-size:.76rem;"><b>${r.ok ? '✓' : '○'}</b> ${r.label}</div>`).join('');
+}
+
 // ── Modal helpers ───────────────────────────────────────────
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) {

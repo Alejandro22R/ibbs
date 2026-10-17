@@ -83,7 +83,8 @@ if($res_mat) while($row = mysqli_fetch_assoc($res_mat)) $todas_materias[] = $row
           <div class="field"><label>Usuario de acceso *</label><input name="usuario_login" data-only="username" placeholder="ej. crodriguez" autocomplete="off"></div>
           <div class="field">
             <label>Contraseña inicial *</label>
-            <input type="text" name="password_inicial" id="dNewPwd" placeholder="mín. 8 car., mayús., minús., nº" autocomplete="off">
+            <input type="text" name="password_inicial" id="dNewPwd" placeholder="mín. 8 car., mayús., minús., nº" autocomplete="off" oninput="pwdChecklist('dNewPwdChecklist', this.value)">
+            <div style="margin-top:.4rem;" id="dNewPwdChecklist"></div>
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">

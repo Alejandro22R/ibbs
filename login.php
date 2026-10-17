@@ -427,6 +427,14 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
 .ok{background:#dcfce7;border:1px solid #bbf7d0;color:#16a34a;border-radius:8px;padding:.65rem 1rem;font-size:.84rem;margin-bottom:1rem;display:none;}
 .strength-bar{height:4px;border-radius:2px;background:#eee;margin-top:.35rem;overflow:hidden;}
 .strength-fill{height:100%;width:0;border-radius:2px;transition:all .3s;}
+/* Lista con lo que falta para la contraseña — en palabras, no solo
+   una barra de color, para que cualquiera (sin importar cuánta
+   experiencia tenga con computadoras) entienda de un vistazo qué le
+   falta en vez de tener que adivinar por qué la barra está roja. */
+.pwd-checklist{margin-top:.5rem;font-size:.76rem;display:flex;flex-direction:column;gap:.25rem;}
+.pwd-checklist div{display:flex;align-items:center;gap:.4rem;color:#9ca3af;transition:color .15s;}
+.pwd-checklist div.ok{color:#16a34a;font-weight:600;}
+.pwd-checklist i{font-size:.7rem;width:12px;text-align:center;}
 .pane{display:none;}.pane.active{display:block;}
 .info-box{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:.75rem 1rem;margin-bottom:1.2rem;font-size:.82rem;color:#15803d;display:flex;gap:.6rem;align-items:flex-start;}
 .info-box svg{flex-shrink:0;margin-top:1px;}
@@ -502,8 +510,9 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       <div class="field"><label>Correo electrónico *</label><input id="rM" type="email" placeholder="correo@gmail.com"></div>
       <div class="field-row">
         <div class="field"><label>Contraseña *</label>
-          <input id="rP" type="password" placeholder="mín. 8 car., mayús., minús., nº" oninput="strength(this.value)">
+          <input id="rP" type="password" placeholder="mín. 8 car., mayús., minús., nº" oninput="strength(this.value);pwdChecklist('rPChecklist',this.value)">
           <div class="strength-bar"><div id="sbar" class="strength-fill"></div></div>
+          <div class="pwd-checklist" id="rPChecklist"></div>
         </div>
         <div class="field"><label>Repetir contraseña *</label><input id="rP2" type="password" placeholder="repite"></div>
       </div>
@@ -638,7 +647,9 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       <div id="errRecEmailNew" class="err"></div>
       <div id="okRecEmailNew" class="ok"></div>
       <div id="recEmailNewForm">
-        <div class="field"><label>Nueva contraseña</label><input id="recEmailP" type="password" placeholder="mín. 8 car., mayús., minús., nº"></div>
+        <div class="field"><label>Nueva contraseña</label><input id="recEmailP" type="password" placeholder="mín. 8 car., mayús., minús., nº" oninput="pwdChecklist('recEmailPChecklist',this.value)">
+          <div class="pwd-checklist" id="recEmailPChecklist"></div>
+        </div>
         <div class="field"><label>Repetir</label><input id="recEmailP2" type="password" placeholder="repite"></div>
         <button class="btn btn-primary" onclick="doRecEmailConfirmar()">Guardar contraseña</button>
       </div>
@@ -664,7 +675,9 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       <div class="step-dots"><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot active"></div></div>
       <div id="errRec3" class="err"></div>
       <div id="okRec3" class="ok"></div>
-      <div class="field"><label>Nueva contraseña</label><input id="recP" type="password" placeholder="mín. 8 car., mayús., minús., nº"></div>
+      <div class="field"><label>Nueva contraseña</label><input id="recP" type="password" placeholder="mín. 8 car., mayús., minús., nº" oninput="pwdChecklist('recPChecklist',this.value)">
+        <div class="pwd-checklist" id="recPChecklist"></div>
+      </div>
       <div class="field"><label>Repetir</label><input id="recP2" type="password" placeholder="repite"></div>
       <button class="btn btn-primary" onclick="doRec3()">Guardar contraseña</button>
     </div>
@@ -750,6 +763,20 @@ function strength(v){
   const col=['','#ef4444','#f59e0b','#f59e0b','#22c55e','#16a34a'][s];
   b.style.width=w+'%';
   b.style.background=col;
+}
+// Lista con lo que falta, en palabras — complementa a strength() (la
+// barra de color) con algo que cualquiera entienda sin tener que
+// interpretar un color: exactamente qué requisito falta por cumplir.
+function pwdChecklist(containerId,v){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const reqs=[
+    {ok:v.length>=8,label:'Al menos 8 caracteres'},
+    {ok:/[A-Z]/.test(v),label:'Una letra mayúscula'},
+    {ok:/[a-z]/.test(v),label:'Una letra minúscula'},
+    {ok:/[0-9!@#$%^&*()_+\-=\[\]{};':",.<>?\/|`~]/.test(v),label:'Un número o símbolo'},
+  ];
+  el.innerHTML=reqs.map(r=>`<div class="${r.ok?'ok':''}"><b>${r.ok?'✓':'○'}</b> ${r.label}</div>`).join('');
 }
 
 async function doLogin(){

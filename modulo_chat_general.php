@@ -61,7 +61,7 @@ function renderChatStaff(mensajes) {
   const chatBox = document.getElementById('chat-box');
   chatBox.innerHTML = '';
   if (!mensajes.length) {
-    chatBox.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.9rem;">Sin mensajes todavía. Escribí el primero para el staff.</div>';
+    chatBox.innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);font-size:.9rem;">Sin mensajes todavía. Escribe el primero para el staff.</div>';
     return;
   }
 

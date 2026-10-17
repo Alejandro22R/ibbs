@@ -607,7 +607,7 @@ function renderTablaHistorico() {
   document.getElementById('histTitulo').textContent = 'Materias de ' + (al.options[al.selectedIndex]?.textContent || '');
   const tb = document.getElementById('tbHistorico');
   if (!_histMaterias.length) {
-    tb.innerHTML = '<tr class="empty-row"><td colspan="4">Este alumno todavía no tiene materias — agregá una arriba.</td></tr>';
+    tb.innerHTML = '<tr class="empty-row"><td colspan="4">Este alumno todavía no tiene materias — agrega una arriba.</td></tr>';
     return;
   }
   tb.innerHTML = _histMaterias.map(m => `

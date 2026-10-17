@@ -39,7 +39,7 @@ if ($action === 'hoja_guardar') {
     $registros = json_decode($_POST['registros'] ?? '[]', true);
 
     if (!$mid || !$fecha) json_fail_ocr('Materia y fecha son obligatorias.');
-    if (!is_array($registros) || !$registros) json_fail_ocr('No hay ningún alumno para registrar — procesá la foto primero.');
+    if (!is_array($registros) || !$registros) json_fail_ocr('No hay ningún alumno para registrar — procesa la foto primero.');
     if (!materia_puede_gestionar($con, $uid, $rol, $mid)) json_fail_ocr('No tienes permiso sobre esta materia.');
 
     if (!isset($_FILES['foto']) || $_FILES['foto']['error'] !== UPLOAD_ERR_OK) json_fail_ocr('Adjunta la foto de la hoja de asistencia.');
