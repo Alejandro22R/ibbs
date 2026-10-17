@@ -30,3 +30,4 @@ require_once __DIR__ . '/ws_config.php';
 require_once __DIR__ . '/ws_token.php';
 require_once __DIR__ . '/ws_broadcast.php';
 require_once __DIR__ . '/mailer.php';
+require_once __DIR__ . '/fecha_es.php';

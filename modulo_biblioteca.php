@@ -227,7 +227,7 @@ async function guardarLibro(e){
   const archivo = document.getElementById('lArchivo').files[0];
   if(portada) fd.append('portada', portada);
   if(archivo) fd.append('archivo', archivo);
-  if(!id && !archivo){ Ibbs.error('Subí el archivo del libro (PDF o EPUB).'); return; }
+  if(!id && !archivo){ Ibbs.error('Sube el archivo del libro (PDF o EPUB).'); return; }
   const _csrf = document.querySelector('meta[name="csrf-token"]');
   fd.append('csrf_token', _csrf?_csrf.content:'');
   const btn = document.getElementById('btnGuardarLibro');
@@ -285,7 +285,7 @@ async function eliminarLibrosSeleccionados(){
 window.IBBS_TOUR_BIBLIOTECA = {
   storageKey: 'ibbs_tour_biblioteca_v1',
   steps: [
-    { selector: '[data-tour="bib-nuevo"]', title: 'Subir un libro', text: 'Cargá el archivo (PDF o EPUB), portada y precio — si el precio es 0 queda gratis para quien lo descargue.' },
+    { selector: '[data-tour="bib-nuevo"]', title: 'Subir un libro', text: 'Carga el archivo (PDF o EPUB), portada y precio — si el precio es 0 queda gratis para quien lo descargue.' },
     { selector: '[data-tour="bib-tabla"]', title: 'Gestionar el catálogo', text: 'Edita, oculta o elimina cada libro. Marcando varios (o todos con la casilla del encabezado) puedes eliminarlos de una.' },
   ],
   auto: true,
@@ -300,7 +300,7 @@ async function loadCompras(){
   if(!d?.ok){ tb.innerHTML = `<tr class="empty-row"><td colspan="7">${d?.msg||'Error'}</td></tr>`; return; }
   if(!d.data.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="7">Sin solicitudes en este estado.</td></tr>'; return; }
   tb.innerHTML = d.data.map(c => `<tr>
-    <td>${h(c.alumno_apellido)}, ${h(c.alumno_nombre)}<br><span style="font-size:.72rem;color:var(--muted);">CI: ${h(c.alumno_cedula)}</span></td>
+    <td>${h(c.alumno_apellido)}, ${h(c.alumno_nombre)}<br><span style="font-size:.72rem;color:var(--muted);">ID: ${h(c.alumno_cedula)}</span></td>
     <td>${h(c.libro_titulo)}</td>
     <td>$${parseFloat(c.precio_pagado).toFixed(2)}</td>
     <td style="font-size:.78rem;">${(c.fecha||'').substring(0,16)}</td>

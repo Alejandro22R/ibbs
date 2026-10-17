@@ -99,7 +99,7 @@ mysqli_close($con);
             <select name="alumno_id" required>
               <option value="">— Seleccionar —</option>
               <?php foreach($alumnos_list as $al): ?>
-              <option value="<?=$al['id']?>"><?=htmlspecialchars($al['apellido'].', '.$al['nombre'].' — CI: '.$al['cedula'])?></option>
+              <option value="<?=$al['id']?>"><?=htmlspecialchars($al['apellido'].', '.$al['nombre'].' — ID: '.$al['cedula'])?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -175,7 +175,7 @@ let _pagosAll = [];
 function filaPago(p){
   return `<tr>
     <td style="text-align:center;"><input type="checkbox" class="chkPago" value="${p.id}" onchange="actualizarBarraLotePagos()"></td>
-    <td data-label="Alumno" style="text-align:left;">${h(p.alumno_apellido)}, ${h(p.alumno_nombre)}<br><span style="font-size:.72rem;color:var(--muted);">CI: ${h(p.alumno_cedula)}</span></td>
+    <td data-label="Alumno" style="text-align:left;">${h(p.alumno_apellido)}, ${h(p.alumno_nombre)}<br><span style="font-size:.72rem;color:var(--muted);">ID: ${h(p.alumno_cedula)}</span></td>
     <td data-label="Tipo" style="text-align:center;">${p.tipo==='mensualidad'?'Mensualidad':'Inscripción'}</td>
     <td data-label="Concepto" style="text-align:left;">${h(p.concepto)}</td>
     <td data-label="Monto" style="text-align:center;">$${parseFloat(p.monto).toFixed(2)}</td>

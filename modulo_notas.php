@@ -1,5 +1,5 @@
 <?php
-$page_title  = 'Calificaciones';
+$page_title  = 'Cargar Notas';
 $page_sub    = 'Nota final por materia · Escala 0–20 · Aprueba con 15';
 $active_link = 'notas';
 include __DIR__.'/layout/head.php';
@@ -126,7 +126,7 @@ mysqli_close($con);
           <select id="selAlumnoHist" onchange="cargarHistoricoAlumno()">
             <option value="">— Elige un alumno —</option>
             <?php foreach($alumnos_list as $al): ?>
-            <option value="<?=$al['id']?>"><?=htmlspecialchars($al['apellido'].', '.$al['nombre'].' — CI: '.$al['cedula'])?></option>
+            <option value="<?=$al['id']?>"><?=htmlspecialchars($al['apellido'].', '.$al['nombre'].' — ID: '.$al['cedula'])?></option>
             <?php endforeach; ?>
           </select>
         </div>
@@ -179,7 +179,7 @@ mysqli_close($con);
       <div class="tbl-wrap">
         <table>
           <thead><tr><th>Código</th><th style="text-align:left;">Materia</th><th>Período</th><th style="text-align:center;">Nota (0-20)</th></tr></thead>
-          <tbody id="tbHistorico"><tr class="empty-row"><td colspan="4">Elegí un alumno arriba.</td></tr></tbody>
+          <tbody id="tbHistorico"><tr class="empty-row"><td colspan="4">Elige un alumno arriba.</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -258,7 +258,7 @@ mysqli_close($con);
       <div class="form-grid" style="margin-bottom:.8rem;">
         <div class="field">
           <label>Período de esta planilla</label>
-          <select id="selPeriodoMatriz"><option value="">— Elegí el período —</option></select>
+          <select id="selPeriodoMatriz"><option value="">— Elige el período —</option></select>
         </div>
         <div class="field">
           <label>Archivo .xlsx</label>
@@ -625,7 +625,7 @@ function renderTablaHistorico() {
 
 async function agregarMateriaHistorico() {
   const mid = document.getElementById('selAgregarMateriaHist').value;
-  if (!mid) { toast('Elegí una materia primero.', 'err'); return; }
+  if (!mid) { toast('Elige una materia primero.', 'err'); return; }
   const d = await ajax('materia_inscribir_historico', {alumno_id: _histAlumnoId, materia_id: mid});
   if (d?.ok) { toast(d.msg); cargarHistoricoAlumno(); }
   else toast(d?.msg || 'Error', 'err');
@@ -696,7 +696,7 @@ async function cargarPeriodosMatriz() {
   if (sel.dataset.loaded) return;
   const d = await ajax('periodo_list');
   if (d?.ok) {
-    sel.innerHTML = '<option value="">— Elegí el período —</option>' +
+    sel.innerHTML = '<option value="">— Elige el período —</option>' +
       d.data.map(p => `<option value="${p.id}">${h(p.nombre)}</option>`).join('');
     sel.dataset.loaded = '1';
   }
@@ -721,7 +721,7 @@ let _matrizColumnas = [];
 
 async function leerPlanillaMatriz() {
   const file = document.getElementById('xlsxFile').files[0];
-  if (!file) { toast('Elegí un archivo .xlsx primero.', 'err'); return; }
+  if (!file) { toast('Elige un archivo .xlsx primero.', 'err'); return; }
   toast('Leyendo archivo…');
   await _loadXlsxLib();
   const buf = await file.arrayBuffer();
@@ -760,9 +760,9 @@ function renderRawPreviewMatriz() {
 }
 
 function procesarMatriz() {
-  if (!_matrizSheetAOA) { toast('Primero leé el archivo.', 'err'); return; }
+  if (!_matrizSheetAOA) { toast('Primero lee el archivo.', 'err'); return; }
   const periodoId = document.getElementById('selPeriodoMatriz').value;
-  if (!periodoId) { toast('Elegí el período primero.', 'err'); return; }
+  if (!periodoId) { toast('Elige el período primero.', 'err'); return; }
   const filaMateriasIdx = (parseInt(document.getElementById('inpFilaMaterias').value, 10) || 1) - 1;
   const filaAlumnosIdx = (parseInt(document.getElementById('inpFilaAlumnosInicio').value, 10) || 2) - 1;
   const colNombreIdx = (parseInt(document.getElementById('inpColNombre').value, 10) || 2) - 1;
@@ -776,7 +776,7 @@ function procesarMatriz() {
     if (!norm || SKIP.has(norm)) return;
     _matrizColumnas.push({ colIndex: idx, nombre: String(val).trim() });
   });
-  if (!_matrizColumnas.length) { toast('No se detectaron materias en esa fila. Revisá el número de fila.', 'err'); return; }
+  if (!_matrizColumnas.length) { toast('No se detectaron materias en esa fila. Revisa el número de fila.', 'err'); return; }
 
   const filas = [];
   for (let r = filaAlumnosIdx; r < _matrizSheetAOA.length; r++) {
@@ -790,7 +790,7 @@ function procesarMatriz() {
     if (!notas.length) continue; // fila sin ninguna nota numérica — no aporta nada, se ignora
     filas.push({ rowIndex: r, nombreCrudo, notas, alumnoId: null, omitir: false, guardado: false });
   }
-  if (!filas.length) { toast('No se detectaron alumnos con notas. Revisá los números de fila/columna.', 'err'); return; }
+  if (!filas.length) { toast('No se detectaron alumnos con notas. Revisa los números de fila/columna.', 'err'); return; }
 
   resolverAlumnosYMostrarMatriz(filas);
 }
@@ -881,7 +881,7 @@ function renderDetalleAlumnoMatriz() {
 
   const alumnoOpts = ['<option value="">— no encontrado, buscar —</option>']
     .concat(_matrizAlumnosList.map(a =>
-      `<option value="${a.id}" ${String(a.id) === String(f.alumnoId) ? 'selected' : ''}>${h(a.apellido + ', ' + a.nombre)} — CI:${h(a.cedula)}</option>`
+      `<option value="${a.id}" ${String(a.id) === String(f.alumnoId) ? 'selected' : ''}>${h(a.apellido + ', ' + a.nombre)} — ID:${h(a.cedula)}</option>`
     )).join('');
 
   const nombresRow = f.notas.map(n => `<th style="text-align:center;min-width:90px;font-size:.72rem;">${h(n.materiaNombre)}${n.materiaNueva ? ' <span style="color:#ca8a04;font-weight:400;">(nueva)</span>' : ''}</th>`).join('');
@@ -972,9 +972,9 @@ async function crearAlumnoDesdeMatriz() {
 
 async function guardarAlumnoMatrizActual() {
   const f = _matrizFilas[_matrizIdxActual];
-  if (!f.alumnoId) { toast('Elegí a qué alumno del sistema corresponde esta fila primero.', 'err'); return; }
+  if (!f.alumnoId) { toast('Elige a qué alumno del sistema corresponde esta fila primero.', 'err'); return; }
   const periodoId = document.getElementById('selPeriodoMatriz').value;
-  if (!periodoId) { toast('Elegí el período.', 'err'); return; }
+  if (!periodoId) { toast('Elige el período.', 'err'); return; }
 
   const filasPayload = [];
   document.querySelectorAll('.matriz-nota-detalle').forEach(inp => {
@@ -1006,7 +1006,7 @@ async function guardarAlumnoMatrizActual() {
 
 async function previsualizarCSV() {
   const file = document.getElementById('csvFile').files[0];
-  if (!file) { toast('Elegí un archivo .csv primero.', 'err'); return; }
+  if (!file) { toast('Elige un archivo .csv primero.', 'err'); return; }
   const fd = new FormData();
   fd.append('action', 'preview');
   fd.append('csvfile', file);
@@ -1026,8 +1026,8 @@ async function previsualizarCSV() {
 
 async function confirmarCSV() {
   const file = document.getElementById('csvFile').files[0];
-  if (!file) { toast('Volvé a elegir el archivo.', 'err'); return; }
-  const rr = await Ibbs.confirm({title:'¿Confirmar importación?', text:'Esto va a crear materias históricas, inscribir alumnos y guardar notas según lo que viste en la vista previa. No se puede deshacer de una — revisá bien antes.', confirm:'Sí, importar'});
+  if (!file) { toast('Vuelve a elegir el archivo.', 'err'); return; }
+  const rr = await Ibbs.confirm({title:'¿Confirmar importación?', text:'Esto va a crear materias históricas, inscribir alumnos y guardar notas según lo que viste en la vista previa. No se puede deshacer de una — revisa bien antes.', confirm:'Sí, importar'});
   if (!rr.isConfirmed) return;
   const fd = new FormData();
   fd.append('action', 'confirmar');

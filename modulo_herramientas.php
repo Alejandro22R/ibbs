@@ -227,7 +227,7 @@ mysqli_close($con);
                 <div class="cert-ava"><?=htmlspecialchars($ini)?></div>
                 <div>
                   <div class="cert-nombre"><?=htmlspecialchars($a['apellido'].', '.$a['nombre'])?></div>
-                  <div class="cert-ci">CI: <?=htmlspecialchars($a['cedula'])?></div>
+                  <div class="cert-ci">ID: <?=htmlspecialchars($a['cedula'])?></div>
                 </div>
               </div>
               <?php endforeach; ?>
@@ -427,7 +427,7 @@ async function aprobarMateriaNotif(notifId, solicitudId) {
   if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
 }
 async function rechazarMateriaNotif(notifId, solicitudId) {
-  ibbsConfirm('¿Rechazar esta solicitud de inscripción? Revisá bien el comprobante antes de confirmar.', async ()=>{
+  ibbsConfirm('¿Rechazar esta solicitud de inscripción? Revisa bien el comprobante antes de confirmar.', async ()=>{
     const d = await ajax('rechazar', {id: solicitudId}, 'api/materia_solicitud.php');
     if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
   });
@@ -443,7 +443,7 @@ async function aprobarLibroNotif(notifId, compraId) {
   if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
 }
 async function rechazarLibroNotif(notifId, compraId) {
-  ibbsConfirm('¿Rechazar esta compra? Revisá bien el comprobante antes de confirmar.', async ()=>{
+  ibbsConfirm('¿Rechazar esta compra? Revisa bien el comprobante antes de confirmar.', async ()=>{
     const d = await ajax('compra_rechazar', {id: compraId}, 'api/biblioteca.php');
     if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
   });
@@ -549,7 +549,7 @@ async function aprobarNotasEnvio() {
   for (const inp of inputs) {
     const v = inp.value.trim();
     if (v === '' || isNaN(parseFloat(v)) || parseFloat(v) < 0 || parseFloat(v) > 20) {
-      Ibbs.warn('Revisá que todas las notas estén entre 0 y 20.'); inp.focus(); return;
+      Ibbs.warn('Revisa que todas las notas estén entre 0 y 20.'); inp.focus(); return;
     }
     notas[inp.dataset.alumnoId] = parseFloat(v);
   }
@@ -561,7 +561,7 @@ async function aprobarNotasEnvio() {
 
 async function rechazarNotasEnvio() {
   const comentario = document.getElementById('rnComentario').value.trim();
-  if (!comentario) { Ibbs.warn('Escribí un comentario explicando por qué se rechaza, para que el profesor sepa qué corregir.'); return; }
+  if (!comentario) { Ibbs.warn('Escribe un comentario explicando por qué se rechaza, para que el profesor sepa qué corregir.'); return; }
   const rr = await Ibbs.confirm({title:'¿Rechazar este envío de notas?', text:'El profesor va a recibir tu comentario y va a poder corregir y reenviar.', confirm:'Sí, rechazar', danger:true});
   if (!rr.isConfirmed) return;
   const d = await ajax('rechazar', {id: _rnEnvioId, comentario}, 'api/notas_envio.php');
@@ -578,7 +578,7 @@ function renderSolAlumnos(rows) {
       <div class="sol-ava">${hSol((r.nombre||'?').charAt(0).toUpperCase())}</div>
       <div class="sol-body">
         <div class="sol-title">${hSol(r.apellido)}, ${hSol(r.nombre)}</div>
-        <div class="sol-sub">CI: ${hSol(r.cedula)} · ${hSol(r.correo||'')}</div>
+        <div class="sol-sub">ID: ${hSol(r.cedula)} · ${hSol(r.correo||'')}</div>
       </div>
       <div style="display:flex;gap:.5rem;flex-shrink:0;">
         <button class="btn btn-sm btn-success" onclick="solAprobarAlumno(${r.id},'${hSol(r.nombre+' '+r.apellido).replace(/'/g,"\\'")}')">✓ Aceptar</button>
@@ -620,7 +620,7 @@ async function solAprobarMateria(id) {
   if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
 }
 async function solRechazarMateria(id) {
-  const rr = await Ibbs.confirm({title:'¿Rechazar inscripción?', text:'Revisá bien el comprobante antes de confirmar.', confirm:'Sí, rechazar', danger:true});
+  const rr = await Ibbs.confirm({title:'¿Rechazar inscripción?', text:'Revisa bien el comprobante antes de confirmar.', confirm:'Sí, rechazar', danger:true});
   if (!rr.isConfirmed) return;
   const d = await ajax('rechazar', {id}, 'api/materia_solicitud.php');
   if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
@@ -649,7 +649,7 @@ async function solAprobarLibro(id) {
   if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
 }
 async function solRechazarLibro(id) {
-  const rr = await Ibbs.confirm({title:'¿Rechazar compra?', text:'Revisá bien el comprobante antes de confirmar.', confirm:'Sí, rechazar', danger:true});
+  const rr = await Ibbs.confirm({title:'¿Rechazar compra?', text:'Revisa bien el comprobante antes de confirmar.', confirm:'Sí, rechazar', danger:true});
   if (!rr.isConfirmed) return;
   const d = await ajax('compra_rechazar', {id}, 'api/biblioteca.php');
   if (d?.ok) { toast(d.msg); loadSolicitudes(); } else Ibbs.error(d?.msg||'Error');
@@ -751,8 +751,8 @@ async function generarCert() {
   
   // Párrafo introductorio oficial con jerga jurídica
   const cuerpoTexto=tipo==='estudio'
-    ? `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la identificación N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes.`
-    : `Quien suscribe, Director De Registro Y Control De Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la identificación N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:`;
+    ? `Quien suscribe, Director de Registro y Control de Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la identificación N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, quien se encuentra cursando de forma activa y regular sus programas de formación bíblica y ministerial correspondientes.`
+    : `Quien suscribe, Director de Registro y Control de Actividades Académicas del <strong>Instituto Bíblico Bautista del Sur</strong>, hace constar por medio de la presente que en los archivos de esta Casa de Estudios Teológicos reposa el Expediente de Estudios del Ciudadano: <strong style="text-transform: uppercase;">${h(alumno.apellido)}, ${h(alumno.nombre)}</strong>, titular de la identificación N°: <strong>V-${parseInt(alumno.cedula).toLocaleString('es-VE')}</strong>, habiendo cursado las unidades curriculares que a continuación se especifican:`;
 
   const html=`<!DOCTYPE html>
   <html>

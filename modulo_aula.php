@@ -342,15 +342,15 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
     <div class="modal-body">
       <form id="fTarea" onsubmit="guardarTarea(event)">
         <div class="form-grid" style="margin-bottom:1rem;">
-          <div class="field field-full"><label>Título de la Tarea *</label><input name="titulo" required></div>
-          <div class="field field-full"><label>Descripción / Instrucciones</label><textarea name="descripcion" rows="3"></textarea></div>
-          <div class="field"><label>Fecha y Hora Límite *</label><input type="datetime-local" name="fecha_limite" required></div>
-          <div class="field"><label>Nota Máxima</label><input type="number" name="nota_maxima" value="20" step="1"></div>
-          <div class="field field-full"><label>Archivo adjunto (Opcional)</label><input type="file" name="archivo"></div>
+          <div class="field field-full"><label>Título de la tarea *</label><input name="titulo" required></div>
+          <div class="field field-full"><label>Descripción / instrucciones</label><textarea name="descripcion" rows="3"></textarea></div>
+          <div class="field"><label>Fecha y hora límite *</label><input type="datetime-local" name="fecha_limite" required></div>
+          <div class="field"><label>Nota máxima</label><input type="number" name="nota_maxima" value="20" step="1"></div>
+          <div class="field field-full"><label>Archivo adjunto (opcional)</label><input type="file" name="archivo"></div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:.6rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('mTarea')">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="btnGuardarTarea">Publicar Tarea</button>
+          <button type="submit" class="btn btn-primary" id="btnGuardarTarea">Publicar tarea</button>
         </div>
       </form>
     </div>
@@ -360,7 +360,7 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
 <!-- MODAL SUBIR ENTREGA (Alumno) -->
 <div class="modal-backdrop" id="mSubirEntrega">
   <div class="modal">
-    <div class="modal-head"><h3 id="mSubirTitulo">Entregar Tarea</h3>
+    <div class="modal-head"><h3 id="mSubirTitulo">Entregar tarea</h3>
       <button class="modal-close" onclick="closeModal('mSubirEntrega')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
     <div class="modal-body">
@@ -368,17 +368,17 @@ if(!in_array($_rol,['superadmin','admin','profesor','alumno'])){
         <input type="hidden" name="tarea_id" id="entTareaId">
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field field-full">
-            <label>Tu respuesta escrita (Opcional si subes archivo)</label>
+            <label>Tu respuesta escrita (opcional si subes archivo)</label>
             <textarea name="texto_respuesta" rows="4" placeholder="Escribe aquí tu respuesta o comentarios..."></textarea>
           </div>
           <div class="field field-full">
-            <label>Subir Archivo de Entrega (PDF, Word, imagen, etc.)</label>
+            <label>Subir archivo de entrega (PDF, Word, imagen, etc.)</label>
             <input type="file" name="archivo">
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:.6rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('mSubirEntrega')">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="btnSubirEntrega">Enviar Entrega</button>
+          <button type="submit" class="btn btn-primary" id="btnSubirEntrega">Enviar entrega</button>
         </div>
       </form>
     </div>
@@ -930,7 +930,7 @@ async function guardarTarea(e) {
     const d = JSON.parse(text);
     if (d.ok) { toast(d.msg); closeModal('mTarea'); loadTareas(); }
     else Ibbs.error(d.msg);
-  } catch(err) { Ibbs.error('Error al guardar la tarea. Intentá de nuevo.'); }
+  } catch(err) { Ibbs.error('Error al guardar la tarea. Intenta de nuevo.'); }
   btn.disabled = false; btn.textContent = 'Publicar Tarea';
 }
 
@@ -1020,7 +1020,7 @@ async function abrirVerEntregas(tarea_id, titulo) {
       </tr>`;
     }).join('');
   } catch(err) {
-    tb.innerHTML = `<tr><td colspan="6" style="color:#dc2626;padding:1rem;">No se pudo cargar las entregas. Revisá tu conexión e intentá de nuevo.</td></tr>`;
+    tb.innerHTML = `<tr><td colspan="6" style="color:#dc2626;padding:1rem;">No se pudieron cargar las entregas. Revisa tu conexión e intenta de nuevo.</td></tr>`;
   }
 }
 
@@ -1182,9 +1182,9 @@ document.getElementById('chat-form').addEventListener('submit', async (e) => {
         if(result.success) loadForo();
         else Ibbs.error(result.error || 'No se pudo enviar el mensaje.');
     } catch(err) {
-        Ibbs.error('No se pudo enviar el mensaje. Intentá de nuevo.');
+        Ibbs.error('No se pudo enviar el mensaje. Intenta de nuevo.');
     }
-  } catch (error) { Ibbs.error('No se pudo enviar el mensaje. Revisá tu conexión.'); }
+  } catch (error) { Ibbs.error('No se pudo enviar el mensaje. Revisa tu conexión.'); }
 });
 
 document.getElementById('mensaje-input').addEventListener('keydown', function(e) {

@@ -205,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $con = db();
         $uid = (int)($_POST['uid']??0);
         if (!$uid || rec_verificar_throttle_blocked($uid)) {
-            echo json_encode(['ok'=>false,'msg'=>'Demasiados intentos. Esperá unos minutos e intentá de nuevo.']); exit;
+            echo json_encode(['ok'=>false,'msg'=>'Demasiados intentos. Espera unos minutos e intenta de nuevo.']); exit;
         }
         $r1  = strtolower(trim($_POST['resp1']??''));
         $r2  = strtolower(trim($_POST['resp2']??''));
@@ -299,7 +299,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $st = mysqli_prepare($con, "SELECT pr.id, pr.usuario_id, u.usuario FROM password_resets pr JOIN usuarios u ON u.id=pr.usuario_id WHERE pr.token_hash=? AND pr.usado=0 AND pr.expira_en>NOW() LIMIT 1");
         mysqli_stmt_bind_param($st, 's', $hash); mysqli_stmt_execute($st);
         $row = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
-        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'Este enlace ya venció o ya fue usado. Solicitá uno nuevo.']); exit; }
+        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'Este enlace ya venció o ya fue usado. Solicita uno nuevo.']); exit; }
         $_SESSION['rec_email_uid'] = (int)$row['usuario_id'];
         $_SESSION['rec_email_token'] = $token;
         echo json_encode(['ok'=>true,'data'=>['usuario'=>$row['usuario']]]); exit;
@@ -312,7 +312,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $token = $_SESSION['rec_email_token'] ?? '';
         $pwd = trim($_POST['password']??'');
         $rep = trim($_POST['repetir']??'');
-        if (!$uid || !$token) { echo json_encode(['ok'=>false,'msg'=>'Sesión expirada. Solicitá el enlace de nuevo.']); exit; }
+        if (!$uid || !$token) { echo json_encode(['ok'=>false,'msg'=>'Sesión expirada. Solicita el enlace de nuevo.']); exit; }
         $pwdErr = ibbs_validar_password($pwd);
         if ($pwdErr)        { echo json_encode(['ok'=>false,'msg'=>$pwdErr]); exit; }
         if ($pwd!==$rep)    { echo json_encode(['ok'=>false,'msg'=>'Las contraseñas no coinciden.']); exit; }
@@ -323,7 +323,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $st = mysqli_prepare($con, "SELECT id FROM password_resets WHERE usuario_id=? AND token_hash=? AND usado=0 AND expira_en>NOW() LIMIT 1");
         mysqli_stmt_bind_param($st, 'is', $uid, $hash); mysqli_stmt_execute($st);
         $row = mysqli_fetch_assoc(mysqli_stmt_get_result($st));
-        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'Este enlace ya venció o ya fue usado. Solicitá uno nuevo.']); exit; }
+        if (!$row) { echo json_encode(['ok'=>false,'msg'=>'Este enlace ya venció o ya fue usado. Solicita uno nuevo.']); exit; }
 
         $newHash = password_hash($pwd, PASSWORD_BCRYPT);
         $stU = mysqli_prepare($con, "UPDATE usuarios SET password_hash=? WHERE id=?");
@@ -634,11 +634,11 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
     <!-- ══ RECUPERAR POR CORREO — Nueva contraseña (desde el enlace) ═ -->
     <div id="pRecEmailNew" class="pane">
       <h2>Nueva contraseña</h2>
-      <p class="sub" id="recEmailNewSub">Elegí una contraseña segura para tu cuenta</p>
+      <p class="sub" id="recEmailNewSub">Elige una contraseña segura para tu cuenta</p>
       <div id="errRecEmailNew" class="err"></div>
       <div id="okRecEmailNew" class="ok"></div>
       <div id="recEmailNewForm">
-        <div class="field"><label>Nueva contraseña</label><input id="recEmailP" type="password" placeholder="mín. 6 caracteres"></div>
+        <div class="field"><label>Nueva contraseña</label><input id="recEmailP" type="password" placeholder="mín. 8 car., mayús., minús., nº"></div>
         <div class="field"><label>Repetir</label><input id="recEmailP2" type="password" placeholder="repite"></div>
         <button class="btn btn-primary" onclick="doRecEmailConfirmar()">Guardar contraseña</button>
       </div>
@@ -664,7 +664,7 @@ h2{font-family:'Playfair Display',serif;font-size:2rem;margin-bottom:.3rem;color
       <div class="step-dots"><div class="step-dot"></div><div class="step-dot"></div><div class="step-dot active"></div></div>
       <div id="errRec3" class="err"></div>
       <div id="okRec3" class="ok"></div>
-      <div class="field"><label>Nueva contraseña</label><input id="recP" type="password" placeholder="mín. 6 caracteres"></div>
+      <div class="field"><label>Nueva contraseña</label><input id="recP" type="password" placeholder="mín. 8 car., mayús., minús., nº"></div>
       <div class="field"><label>Repetir</label><input id="recP2" type="password" placeholder="repite"></div>
       <button class="btn btn-primary" onclick="doRec3()">Guardar contraseña</button>
     </div>
@@ -788,7 +788,7 @@ async function doReg2(){
   setErr('errReg2','');
   const p1=document.getElementById('rPrg1').value,r1=document.getElementById('rR1').value,p2=document.getElementById('rPrg2').value,r2=document.getElementById('rR2').value;
   if(!p1||!r1||!p2||!r2){setErr('errReg2','Responde ambas preguntas.');return;}
-  if(p1===p2){setErr('errReg2','Las preguntas deben ser diferentes.');return;}
+  if(p1===p2){setErr('errReg2','Las dos preguntas deben ser diferentes.');return;}
   const btn=document.getElementById('btnReg2');
   btn.disabled=true;
   btn.textContent='Guardando…';
@@ -879,7 +879,7 @@ async function doRecEmailConfirmar(){
   document.getElementById('recEmailNewSub').textContent = 'Verificando el enlace…';
   const d = await post('rec_email_verificar',{token});
   if(d.ok){
-    document.getElementById('recEmailNewSub').textContent = `Elegí una nueva contraseña para "${d.data.usuario}"`;
+    document.getElementById('recEmailNewSub').textContent = `Elige una nueva contraseña para "${d.data.usuario}"`;
     document.getElementById('recEmailNewForm').style.display='block';
   } else {
     setErr('errRecEmailNew', d.msg);

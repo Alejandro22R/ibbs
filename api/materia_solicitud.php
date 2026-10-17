@@ -64,7 +64,7 @@ if ($action === 'crear') {
     }
 
     if (!isset($_FILES['comprobante']) || $_FILES['comprobante']['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['ok'=>false,'msg'=>'Adjuntá la captura del pago móvil o la transferencia para poder inscribirte.']); exit;
+        echo json_encode(['ok'=>false,'msg'=>'Adjunta la captura del pago móvil o la transferencia para poder inscribirte.']); exit;
     }
     $file = $_FILES['comprobante'];
     $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
@@ -163,7 +163,7 @@ if ($action === 'autoinscribir_multiple') {
 }
 
 if ($action === 'mi_historial') {
-    if ($rol !== 'alumno') { echo json_encode(['ok'=>false,'msg'=>'Solo un alumno.']); exit; }
+    if ($rol !== 'alumno') { echo json_encode(['ok'=>false,'msg'=>'Solo un alumno puede ver su historial.']); exit; }
     $al = mysqli_fetch_assoc(mysqli_query($con, "SELECT id FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
     if (!$al) { echo json_encode(['ok'=>false,'msg'=>'No se encontró tu registro de alumno.']); exit; }
     $aid = (int)$al['id'];

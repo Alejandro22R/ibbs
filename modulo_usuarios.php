@@ -71,7 +71,7 @@ if($_rol !== 'superadmin'){
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre de usuario *</label><input name="usuario" data-only="username" placeholder="ej. prof_martinez" autocomplete="off"></div>
           <div class="field"><label>Correo *</label><input type="email" name="correo" placeholder="correo@gmail.com"></div>
-          <div class="field"><label>Contraseña * <span style="font-weight:400;color:var(--muted);">(mín. 6 caracteres)</span></label><input type="password" name="password" autocomplete="new-password"></div>
+          <div class="field"><label>Contraseña * <span style="font-weight:400;color:var(--muted);">(mín. 8 car., mayús., minús. y número o símbolo)</span></label><input type="password" name="password" autocomplete="new-password"></div>
           <div class="field"><label>Rol</label>
             <select name="rol">
               
@@ -132,7 +132,7 @@ if($_rol !== 'superadmin'){
       <!-- Tab Contraseña -->
       <div class="tab-pane" data-pane-group="eU" data-pane="pwd">
         <div class="field" style="margin-bottom:1rem;">
-          <label>Nueva contraseña <span style="font-weight:400;color:var(--muted);">(mín. 6 caracteres)</span></label>
+          <label>Nueva contraseña <span style="font-weight:400;color:var(--muted);">(mín. 8 car., mayús., minús. y número o símbolo)</span></label>
           <input type="password" id="eUPwd" placeholder="Nueva contraseña" autocomplete="new-password">
         </div>
         <div class="field" style="margin-bottom:1.2rem;">

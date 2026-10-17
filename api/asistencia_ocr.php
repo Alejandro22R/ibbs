@@ -42,7 +42,7 @@ if ($action === 'hoja_guardar') {
     if (!is_array($registros) || !$registros) json_fail_ocr('No hay ningún alumno para registrar — procesá la foto primero.');
     if (!materia_puede_gestionar($con, $uid, $rol, $mid)) json_fail_ocr('No tienes permiso sobre esta materia.');
 
-    if (!isset($_FILES['foto']) || $_FILES['foto']['error'] !== UPLOAD_ERR_OK) json_fail_ocr('Adjuntá la foto de la hoja de asistencia.');
+    if (!isset($_FILES['foto']) || $_FILES['foto']['error'] !== UPLOAD_ERR_OK) json_fail_ocr('Adjunta la foto de la hoja de asistencia.');
     $file = $_FILES['foto'];
     $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     $allowedExt = ['jpg','jpeg','png','webp'];

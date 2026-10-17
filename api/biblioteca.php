@@ -189,7 +189,7 @@ if ($action === 'libro_create' || $action === 'libro_update') {
         $nombreArchivo = mb_substr(basename($f['name']), 0, 255);
         $tipoArchivo   = $ext;
     }
-    if (!$rutaArchivo) json_fail('Subí el archivo del libro (PDF o EPUB).');
+    if (!$rutaArchivo) json_fail('Sube el archivo del libro (PDF o EPUB).');
 
     if ($action === 'libro_create') {
         $st = mysqli_prepare($con, "INSERT INTO libros(titulo,autor,descripcion,categoria,precio,portada,archivo,archivo_nombre,archivo_tipo,creado_por) VALUES(?,?,?,?,?,?,?,?,?,?)");
@@ -298,7 +298,7 @@ if ($action === 'compra_crear') {
     }
 
     if (!isset($_FILES['comprobante']) || $_FILES['comprobante']['error'] !== UPLOAD_ERR_OK) {
-        json_fail('Adjuntá la captura de tu pago móvil o transferencia para comprar este libro.');
+        json_fail('Adjunta la captura de tu pago móvil o transferencia para comprar este libro.');
     }
     $file = $_FILES['comprobante'];
     $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
@@ -376,7 +376,7 @@ if ($action === 'compra_aprobar' || $action === 'compra_rechazar') {
         mysqli_query($con, "UPDATE libro_compras SET estado='rechazado',revisado_por=$uid,fecha_revision=NOW() WHERE id=$id");
         log_audit($con, $uid, 'LIBRO_COMPRA_RECHAZAR', "compra=$id libro={$c['libro_id']} alumno={$c['alumno_id']}");
         if ($c['usuario_id']) {
-            notificar_usuario($con, (int)$c['usuario_id'], 'solicitud_libro_rechazada', 'Tu compra no pudo confirmarse', "No pudimos validar tu comprobante para \"{$c['libro_titulo']}\". Contactá a la administración.");
+            notificar_usuario($con, (int)$c['usuario_id'], 'solicitud_libro_rechazada', 'Tu compra no pudo confirmarse', "No pudimos validar tu comprobante para \"{$c['libro_titulo']}\". Contacta a la administración.");
         }
         $msg = "Se rechazó la compra de \"{$c['libro_titulo']}\" para {$c['alumno_nombre']} {$c['alumno_apellido']}.";
     }

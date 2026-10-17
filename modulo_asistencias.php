@@ -131,7 +131,7 @@ mysqli_close($con);
 <div id="tab-ocr" class="ibbs-tab-pane" style="display:none;">
   <div class="ocr-info-box">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-    <div>Subí la foto de la hoja de asistencia en papel de esa clase. El sistema la lee automáticamente y precarga la tabla de abajo — pero como leer letra manuscrita nunca es 100% exacto, <strong>siempre revisá y corregí</strong> antes de guardar. Nada se guarda hasta que apretás "Guardar asistencia".</div>
+    <div>Sube la foto de la hoja de asistencia en papel de esa clase. El sistema la lee automáticamente y precarga la tabla de abajo — pero como leer letra manuscrita nunca es 100% exacto, <strong>siempre revisa y corrige</strong> antes de guardar. Nada se guarda hasta que tocas "Guardar asistencia".</div>
   </div>
 
   <div class="card" style="margin-bottom:1rem;">
@@ -182,7 +182,7 @@ mysqli_close($con);
   <div id="ocrReview" style="display:none;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem;flex-wrap:wrap;gap:.6rem;">
       <div>
-        <div style="font-weight:700;font-size:.9rem;color:var(--ink);">Revisá y corregí antes de guardar</div>
+        <div style="font-weight:700;font-size:.9rem;color:var(--ink);">Revisa y corrige antes de guardar</div>
         <div id="ocrReviewSummary" style="font-size:.78rem;color:var(--muted);margin-top:2px;"></div>
       </div>
       <button class="btn btn-secondary btn-sm" onclick="ocrVerTexto()">Ver texto detectado</button>
@@ -684,7 +684,7 @@ function renderPasoLista(lista) {
       <td style="padding:.55rem .7rem;width:44px;">${avatarHtml(a)}</td>
       <td style="padding:.55rem .8rem;">
         <div style="font-weight:700;font-size:.85rem;">${a.apellido||''}, ${a.nombre||''}</div>
-        <div style="font-size:.72rem;color:var(--muted);">CI: ${a.cedula||'—'}</div>
+        <div style="font-size:.72rem;color:var(--muted);">ID: ${a.cedula||'—'}</div>
       </td>
       <td style="text-align:center;padding:.55rem .5rem;">
         <span class="est-dot" style="--dc:${col};">${a.estado}</span>
@@ -1022,7 +1022,7 @@ async function _ocrCargarTesseract() {
   await new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
-    s.onload = resolve; s.onerror = () => reject(new Error('No se pudo cargar el lector de imágenes (revisá tu conexión a internet).'));
+    s.onload = resolve; s.onerror = () => reject(new Error('No se pudo cargar el lector de imágenes (revisa tu conexión a internet).'));
     document.head.appendChild(s);
   });
   _tesseractCargado = true;
@@ -1065,8 +1065,8 @@ function ocrAlumnoDetectado(alumno, textoNorm, digitosTexto) {
 async function ocrProcesarFoto() {
   const mid = document.getElementById('ocrMateria').value;
   const file = _ocrFotoFinal;
-  if (!mid) { Ibbs.warn('Elegí una materia primero.'); return; }
-  if (!file) { Ibbs.warn('Adjuntá la foto de la hoja.'); return; }
+  if (!mid) { Ibbs.warn('Elige una materia primero.'); return; }
+  if (!file) { Ibbs.warn('Adjunta la foto de la hoja.'); return; }
 
   const btn = document.getElementById('btnOcrProcesar');
   const progWrap = document.getElementById('ocrProgressWrap');
@@ -1109,7 +1109,7 @@ async function ocrProcesarFoto() {
     document.getElementById('ocrReview').scrollIntoView({behavior:'smooth', block:'start'});
   } catch (e) {
     console.error(e);
-    Ibbs.error(e.message || 'No se pudo leer la imagen. Probá con una foto más clara y bien iluminada.');
+    Ibbs.error(e.message || 'No se pudo leer la imagen. Prueba con una foto más clara y bien iluminada.');
   }
   btn.disabled = false; progWrap.style.display = 'none';
 }
@@ -1119,14 +1119,14 @@ function ocrRenderReview(filas) {
   _ocrFilas = filas;
   const detectados = filas.filter(f=>f.detectado).length;
   document.getElementById('ocrReviewSummary').innerHTML =
-    `${filas.length} alumnos inscritos · <strong>${detectados}</strong> encontrados en la foto · revisá cada fila antes de guardar`;
+    `${filas.length} alumnos inscritos · <strong>${detectados}</strong> encontrados en la foto · revisa cada fila antes de guardar`;
   const tb = document.getElementById('ocrBody');
   tb.innerHTML = filas.map((a, i) => `
     <tr class="pl-row pl-${a.estado}" id="ocrrow-${i}">
       <td style="padding:.55rem .7rem;width:44px;">${avatarHtml(a)}</td>
       <td style="padding:.55rem .8rem;">
         <div style="font-weight:700;font-size:.85rem;">${a.apellido||''}, ${a.nombre||''}</div>
-        <div style="font-size:.72rem;color:var(--muted);">CI: ${a.cedula||'—'}</div>
+        <div style="font-size:.72rem;color:var(--muted);">ID: ${a.cedula||'—'}</div>
       </td>
       <td style="text-align:center;padding:.55rem .5rem;">
         <span class="${a.detectado?'ocr-detect-yes':'ocr-detect-no'}">${a.detectado?'✓ Sí':'— No'}</span>
@@ -1167,7 +1167,7 @@ async function ocrGuardar() {
   const fecha = document.getElementById('ocrFecha').value;
   const modo = document.querySelector('input[name="ocrModo"]:checked').value;
   const file = _ocrFotoFinal;
-  if (!mid || !fecha || !file || !_ocrFilas.length) { Ibbs.warn('Procesá una foto primero.'); return; }
+  if (!mid || !fecha || !file || !_ocrFilas.length) { Ibbs.warn('Procesa una foto primero.'); return; }
 
   const btn = document.getElementById('btnOcrGuardar');
   btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Guardando…';
@@ -1209,7 +1209,7 @@ async function ocrCargarHojas() {
     const r = await fetch('api/asistencia_ocr.php', {method:'POST', body:(()=>{const fd=new FormData();fd.append('action','hoja_list');fd.append('materia_id',mid);const m=document.querySelector('meta[name="csrf-token"]');fd.append('csrf_token',m?m.content:'');return fd;})()});
     d = await r.json();
   } catch(err) {
-    el.innerHTML = '<div style="text-align:center;color:#dc2626;font-size:.82rem;padding:.5rem;">No se pudo cargar las hojas. Revisá tu conexión e intentá de nuevo.</div>';
+    el.innerHTML = '<div style="text-align:center;color:#dc2626;font-size:.82rem;padding:.5rem;">No se pudieron cargar las hojas. Revisa tu conexión e intenta de nuevo.</div>';
     return;
   }
   if (!d.ok || !d.data.length) { el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.82rem;padding:.5rem;">Todavía no se cargó ninguna hoja.</div>'; return; }
