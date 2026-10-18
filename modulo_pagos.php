@@ -276,9 +276,17 @@ function verComprobantePago(ruta){
 async function submitCrearPago(e){
   e.preventDefault();
   const fd = new FormData(e.target);
-  const d = await ajax('pago_crear', Object.fromEntries(fd), 'api/pagos.php');
-  if(d?.ok){ toast(d.msg); closeModal('mCrearPago'); e.target.reset(); loadPagos(); loadPagosResumen(); }
-  else toast(d?.msg||'Error', 'err');
+  const btn = e.target.querySelector('button[type="submit"]'); const btnTxt = btn.textContent;
+  // Sin esto, un doble clic (muy fácil en celular con conexión lenta)
+  // registraba dos cobros idénticos para el mismo alumno.
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    const d = await ajax('pago_crear', Object.fromEntries(fd), 'api/pagos.php');
+    if(d?.ok){ toast(d.msg); closeModal('mCrearPago'); e.target.reset(); loadPagos(); loadPagosResumen(); }
+    else toast(d?.msg||'Error', 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = btnTxt;
+  }
 }
 
 async function marcarPagado(id){

@@ -1697,7 +1697,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 else accion = `<button onclick='abrirModalComprar(${l.id})' class="w-full btn-ibbs py-2 rounded-lg text-xs font-bold mt-3">${parseFloat(l.precio) > 0 ? 'Comprar' : 'Obtener gratis'}</button>`;
                 return `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden flex flex-col">
                     <div class="h-40 bg-ibbs-ink flex items-center justify-center overflow-hidden">
-                        ${l.portada ? `<img src="${l.portada}" class="w-full h-full object-cover">` : `<i class="fas fa-book text-4xl text-ibbs-lime"></i>`}
+                        ${l.portada ? `<img src="${l.portada}" class="w-full h-full object-cover" loading="lazy">` : `<i class="fas fa-book text-4xl text-ibbs-lime"></i>`}
                     </div>
                     <div class="p-4 flex-1 flex flex-col">
                         <h3 class="font-bold text-ibbs-ink leading-tight mb-1">${hBib(l.titulo)}</h3>
@@ -1717,7 +1717,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             if (!d.ok || !d.data.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic col-span-full">Todavía no tienes libros activados en tu biblioteca.</p>'; return; }
             cont.innerHTML = d.data.map(l => `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden flex flex-col">
                 <div class="h-40 bg-ibbs-ink flex items-center justify-center overflow-hidden">
-                    ${l.portada ? `<img src="${l.portada}" class="w-full h-full object-cover">` : `<i class="fas fa-book text-4xl text-ibbs-lime"></i>`}
+                    ${l.portada ? `<img src="${l.portada}" class="w-full h-full object-cover" loading="lazy">` : `<i class="fas fa-book text-4xl text-ibbs-lime"></i>`}
                 </div>
                 <div class="p-4 flex-1 flex flex-col">
                     <h3 class="font-bold text-ibbs-ink leading-tight mb-1">${hBib(l.titulo)}</h3>

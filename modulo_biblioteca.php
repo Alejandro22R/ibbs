@@ -149,7 +149,7 @@ let _librosAll = [];
 function filaLibro(r){
   return `<tr>
     <td style="text-align:center;"><input type="checkbox" class="chkLibro" value="${r.id}" onchange="actualizarBarraLoteLibros()"></td>
-    <td>${r.portada?`<img class="libro-cover" src="${r.portada}">`:'📖'}</td>
+    <td>${r.portada?`<img class="libro-cover" src="${r.portada}" loading="lazy">`:'📖'}</td>
     <td data-label="Título"><strong>${h(r.titulo)}</strong></td>
     <td data-label="Autor" style="font-size:.82rem;">${h(r.autor||'—')}</td>
     <td data-label="Categoría" style="font-size:.82rem;color:var(--muted);">${h(r.categoria||'—')}</td>
