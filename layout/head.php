@@ -93,7 +93,7 @@ function can($perm){
     </div>
     <div class="sb-wordmark"><strong>IBBS</strong><small>Sistema Académico</small></div>
   </a>
-  <ul class="sb-nav">
+  <ul class="sb-nav" data-scroll-hint data-scroll-hint-color="#123a22">
     <li><a href="index.php" class="sb-link <?=$active_link==='inicio'?'act':''?>" data-tour="nav-inicio"><i class="bx bx-grid-alt"></i><span class="sb-lbl">Inicio</span></a></li>
 
     <?php if(in_array($_rol,['superadmin','admin'])): ?>
@@ -133,6 +133,7 @@ function can($perm){
     <?php if(in_array($_rol,['superadmin','admin'])): ?>
     <div class="sb-section">Reportes</div>
     <li><a href="modulo_buscar.php" class="sb-link <?=$active_link==='buscar'?'act':''?>"><i class="bx bx-search-alt-2"></i><span class="sb-lbl">Buscar Personal</span></a></li>
+    <li><a href="modulo_graficos.php" class="sb-link <?=$active_link==='graficos'?'act':''?>"><i class="bx bx-bar-chart-alt-2"></i><span class="sb-lbl">Gráficos</span></a></li>
     <?php endif; ?>
 
     <div class="sb-section">Herramientas</div>

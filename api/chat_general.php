@@ -23,6 +23,10 @@ if (empty($_SESSION['loggedin'])) {
 $uid  = (int)($_SESSION['user_id'] ?? 0);
 $_rol = $_SESSION['rol'] ?? 'profesor';
 $usuarioNombre = $_SESSION['usuario'] ?? 'Usuario';
+if ($_rol === 'profesor') {
+    $d = mysqli_fetch_assoc(mysqli_query($con, "SELECT nombre,apellido FROM docentes WHERE usuario_id=$uid LIMIT 1"));
+    if ($d) $usuarioNombre = trim($d['nombre'].' '.$d['apellido']);
+}
 
 if (!in_array($_rol, ['superadmin', 'admin', 'profesor'])) {
     echo json_encode(['error' => 'Este chat es solo para administración y docentes.']); exit;

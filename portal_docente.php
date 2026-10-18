@@ -26,39 +26,62 @@ $nombre_docente = $usuario_db['usuario'];
 $inicial = strtoupper(substr($nombre_docente, 0, 1));
 $foto_perfil = !empty($usuario_db['foto']) ? $usuario_db['foto'] : null;
 
-$alumnos_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM alumnos WHERE activo=1"))[0] ?? 0;
-$docentes_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM docentes WHERE activo=1"))[0] ?? 0;
-$materias_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM materias WHERE activo=1"))[0] ?? 0;
-// $asistencias_totales ya no hace su propio COUNT(*) — era un segundo
-// escaneo completo de la tabla asistencias en cada carga del portal,
-// redundante con el GROUP BY de abajo que ya cuenta lo mismo por
-// estado (la suma de los 4 estados es el total).
-
-$res_cal = mysqli_query($con, "SELECT
-    SUM(CASE WHEN nota_final >= 15 THEN 1 ELSE 0 END) as aprobados,
-    SUM(CASE WHEN nota_final < 15 THEN 1 ELSE 0 END) as reprobados,
-    SUM(CASE WHEN nota_final IS NULL THEN 1 ELSE 0 END) as sin_nota
-    FROM materia_alumno");
-$calificaciones = mysqli_fetch_assoc($res_cal);
-$cal_aprobados = $calificaciones['aprobados'] ?: 0;
-$cal_reprobados = $calificaciones['reprobados'] ?: 0;
-$cal_sin_nota = $calificaciones['sin_nota'] ?: 0;
-
-$res_mat = mysqli_query($con, "SELECT estado, COUNT(*) as total FROM materias GROUP BY estado");
-$estado_materias = ['en_curso' => 0, 'pendiente' => 0, 'culminada' => 0];
-if($res_mat) { while($row = mysqli_fetch_assoc($res_mat)) { $estado_materias[$row['estado']] = $row['total']; } }
-
-$res_asi = mysqli_query($con, "SELECT estado, COUNT(*) as total FROM asistencias GROUP BY estado");
-$estado_asistencias = ['presente' => 0, 'ausente' => 0, 'tardanza' => 0, 'justificado' => 0];
-if($res_asi) { while($row = mysqli_fetch_assoc($res_asi)) { $estado_asistencias[$row['estado']] = $row['total']; } }
-$asistencias_totales = array_sum($estado_asistencias);
-
 $docente_id = 0;
 $stmt_doc = mysqli_prepare($con, "SELECT id FROM docentes WHERE cedula = ? OR usuario_id = ? LIMIT 1");
 mysqli_stmt_bind_param($stmt_doc, "si", $usuario_db['cedula'], $user_id);
 mysqli_stmt_execute($stmt_doc);
 $docente_data = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_doc));
 if ($docente_data) $docente_id = $docente_data['id'];
+$_esAdmin = in_array($_SESSION['rol'], ['superadmin', 'admin']);
+
+// Las 4 tarjetas del Panel de Control y sus gráficos de dona hacían
+// COUNT(*) sin filtrar nunca — un profesor con 2 materias asignadas
+// veía "73 materias" y estadísticas de TODO el instituto, sin ningún
+// aviso de que esos números no eran los suyos ("Mis Cursos" sí
+// filtraba bien, así que era una inconsistencia, no diseño
+// intencional). Para admin/superadmin se mantienen los totales del
+// instituto; para un profesor, todo se acota a sus propias materias
+// (vía materia_docente).
+if ($_esAdmin) {
+    $alumnos_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM alumnos WHERE activo=1"))[0] ?? 0;
+    $docentes_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM docentes WHERE activo=1"))[0] ?? 0;
+    $materias_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM materias WHERE activo=1"))[0] ?? 0;
+
+    $res_cal = mysqli_query($con, "SELECT
+        SUM(CASE WHEN nota_final >= 15 THEN 1 ELSE 0 END) as aprobados,
+        SUM(CASE WHEN nota_final < 15 THEN 1 ELSE 0 END) as reprobados,
+        SUM(CASE WHEN nota_final IS NULL THEN 1 ELSE 0 END) as sin_nota
+        FROM materia_alumno");
+    $res_mat = mysqli_query($con, "SELECT estado, COUNT(*) as total FROM materias GROUP BY estado");
+    $res_asi = mysqli_query($con, "SELECT estado, COUNT(*) as total FROM asistencias GROUP BY estado");
+} else {
+    $alumnos_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(DISTINCT ma.alumno_id) FROM materia_alumno ma JOIN materia_docente md ON md.materia_id=ma.materia_id WHERE md.docente_id=$docente_id"))[0] ?? 0;
+    // "Docentes" no tiene un sentido de "lo mío" tan directo como
+    // Alumnos/Materias/Asistencias — acá pasa a ser "con cuántos otros
+    // profesores comparto alguna de mis materias" (colegas), en vez de
+    // cuántos docentes hay en TODO el instituto.
+    $docentes_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(DISTINCT md2.docente_id) FROM materia_docente md2 WHERE md2.materia_id IN (SELECT materia_id FROM materia_docente WHERE docente_id=$docente_id) AND md2.docente_id != $docente_id"))[0] ?? 0;
+    $materias_totales = mysqli_fetch_row(mysqli_query($con, "SELECT COUNT(*) FROM materia_docente WHERE docente_id=$docente_id"))[0] ?? 0;
+
+    $res_cal = mysqli_query($con, "SELECT
+        SUM(CASE WHEN ma.nota_final >= 15 THEN 1 ELSE 0 END) as aprobados,
+        SUM(CASE WHEN ma.nota_final < 15 THEN 1 ELSE 0 END) as reprobados,
+        SUM(CASE WHEN ma.nota_final IS NULL THEN 1 ELSE 0 END) as sin_nota
+        FROM materia_alumno ma JOIN materia_docente md ON md.materia_id=ma.materia_id WHERE md.docente_id=$docente_id");
+    $res_mat = mysqli_query($con, "SELECT m.estado, COUNT(*) as total FROM materias m JOIN materia_docente md ON md.materia_id=m.id WHERE md.docente_id=$docente_id GROUP BY m.estado");
+    $res_asi = mysqli_query($con, "SELECT a.estado, COUNT(*) as total FROM asistencias a JOIN materia_docente md ON md.materia_id=a.materia_id WHERE md.docente_id=$docente_id GROUP BY a.estado");
+}
+$calificaciones = mysqli_fetch_assoc($res_cal);
+$cal_aprobados = $calificaciones['aprobados'] ?: 0;
+$cal_reprobados = $calificaciones['reprobados'] ?: 0;
+$cal_sin_nota = $calificaciones['sin_nota'] ?: 0;
+
+$estado_materias = ['en_curso' => 0, 'pendiente' => 0, 'culminada' => 0];
+if($res_mat) { while($row = mysqli_fetch_assoc($res_mat)) { $estado_materias[$row['estado']] = $row['total']; } }
+
+$estado_asistencias = ['presente' => 0, 'ausente' => 0, 'tardanza' => 0, 'justificado' => 0];
+if($res_asi) { while($row = mysqli_fetch_assoc($res_asi)) { $estado_asistencias[$row['estado']] = $row['total']; } }
+$asistencias_totales = array_sum($estado_asistencias);
 
 mysqli_query($con, "ALTER TABLE materias ADD COLUMN IF NOT EXISTS aula_virtual_presencial TINYINT(1) DEFAULT 0");
 // Obtener materias (El superadmin ve todas, el profesor solo las suyas)
@@ -149,6 +172,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     <script src="assets/libs/sweetalert2.all.min.js"></script>
     <script src="assets/ibbs-alerts.js"></script>
     <script src="assets/ibbs-tour.js"></script>
+    <script src="assets/ibbs-scroll-hint.js"></script>
+    <script src="assets/ibbs-file-input.js"></script>
     <script src="assets/ibbs-password-toggle.js"></script>
     <script src="assets/ibbs-shortcuts.js"></script>
     <script src="assets/ibbs-notif-bell.js"></script>
@@ -283,7 +308,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             </div>
         </a>
         
-        <nav class="sb-nav">
+        <nav class="sb-nav" data-scroll-hint data-scroll-hint-color="#123a22">
             <button data-tour="nav-dashboard" onclick="switchView('dashboard', this)" class="sb-link act">
                 <i class="fas fa-th-large"></i> <span class="sb-lbl">Inicio</span>
             </button>
@@ -408,7 +433,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     <h3 style="font-family: 'Playfair Display', serif; font-size: 1.8rem; margin-bottom: .2rem;">
                         Bienvenido/a, <span style="color: var(--lime); font-style: italic; font-weight: 300;"><?= htmlspecialchars($nombre_docente) ?></span>
                     </h3>
-                    <p style="font-size: .85rem; color: rgba(255,255,255,.6); letter-spacing: .5px;">IBBS — Gestión académica completa · <?= date('l, d \d\e F \d\e Y') ?></p>
+                    <p style="font-size: .85rem; color: rgba(255,255,255,.6); letter-spacing: .5px;">IBBS — Gestión académica completa · <?= fecha_es('l, d \d\e F \d\e Y') ?></p>
                 </div>
                 <div style="position: relative; z-index: 1; display: flex; gap: .8rem;">
                     <button class="btn btn-primary" style="background: rgba(57,255,20,.1); border: 1px solid var(--lime); color: var(--lime); box-shadow: none;">Asistencia</button>
@@ -530,7 +555,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                                 </span>
                             </div>
                             <?php if($vencidaSinCalificar): ?>
-                            <div style="background: rgba(220,38,38,.08); border: 1px solid var(--red); border-radius: 8px; padding: .5rem .7rem; font-size: .75rem; color: var(--red); font-weight: 700; margin-bottom: .8rem;">
+                            <div class="entrega-venc-warning" style="background: rgba(220,38,38,.08); border: 1px solid var(--red); border-radius: 8px; padding: .5rem .7rem; font-size: .75rem; color: var(--red); font-weight: 700; margin-bottom: .8rem;">
                                 <i class="fas fa-triangle-exclamation"></i> Venció tu fecha límite de corrección — califícala cuanto antes.
                             </div>
                             <?php endif; ?>
@@ -663,6 +688,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         <button class="btn btn-primary" id="btnOcrProcesar" onclick="ocrProcesarFoto()" disabled>
                             <i class="fas fa-camera"></i> Procesar foto
                         </button>
+                        <button class="btn btn-secondary" onclick="ocrRegistrarManual()" title="Si no tienes cámara a mano, o si la lectura automática de la hoja no funciona, pasa la asistencia a mano — misma tabla, sin foto.">
+                            <i class="fas fa-pen"></i> Registrar sin foto
+                        </button>
                         <div id="ocrProgressWrap" style="display:none;flex:1;min-width:180px;">
                             <div class="pct-bar"><div class="pct-fill" id="ocrProgressBar" style="width:0%;background:var(--lime2);"></div></div>
                             <div id="ocrProgressLbl" style="font-size:.72rem;color:var(--muted);margin-top:3px;">Leyendo imagen…</div>
@@ -720,6 +748,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink);">Notificaciones</h2>
                 <button class="btn btn-secondary" onclick="marcarTodasLeidasFull('notifListFull')">Marcar todas leídas</button>
             </div>
+            <div style="display:flex;gap:.5rem;margin-bottom:1rem;">
+                <button id="notifTabPend" onclick="_ibbsNotifCambiarTab('notifListFull', false, document.getElementById('notifTabPend'), document.getElementById('notifTabLeid'))" style="background:var(--ink);color:#fff;border:1px solid var(--ink);border-radius:20px;padding:.4rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;">Pendientes</button>
+                <button id="notifTabLeid" onclick="_ibbsNotifCambiarTab('notifListFull', true, document.getElementById('notifTabPend'), document.getElementById('notifTabLeid'))" style="background:none;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:.4rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;">Leídas</button>
+            </div>
             <div class="card"><div id="notifListFull"></div></div>
         </div>
 
@@ -732,7 +764,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     <h2 style="font-family:'Playfair Display',serif; font-size:1.6rem; color:var(--ink);">Devocionales</h2>
                     <p style="font-size:.82rem;color:var(--muted);">Estudios, planes devocionales y otros materiales para compartir con alumnos y colegas. Los administradores también pueden eliminar cualquier devocional publicado.</p>
                 </div>
-                <button class="btn btn-primary" onclick="openModal('modal-nuevo-devocional')"><i class="fas fa-plus"></i> Nuevo Devocional</button>
+                <button class="btn btn-primary" onclick="abrirNuevoDevocional()"><i class="fas fa-plus"></i> Nuevo Devocional</button>
             </div>
             <div id="devocionalesLista" class="space-y-4" style="display:flex;flex-direction:column;gap:1rem;">
                 <p style="font-size:.85rem;color:var(--muted);font-style:italic;">Cargando…</p>
@@ -742,17 +774,18 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         <!-- MODAL: NUEVO DEVOCIONAL -->
         <div class="modal-backdrop" id="modal-nuevo-devocional">
             <div class="modal">
-                <div class="modal-head"><h3>Nuevo Devocional</h3>
+                <div class="modal-head"><h3 id="devoModalTitulo">Nuevo Devocional</h3>
                     <button class="modal-close" onclick="closeModal('modal-nuevo-devocional')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                 </div>
                 <div class="modal-body">
                     <form id="form-nuevo-devocional" onsubmit="submitNuevoDevocional(event)" enctype="multipart/form-data">
+                        <input type="hidden" name="id" id="devoEditId" value="">
                         <div class="form-grid" style="margin-bottom:1rem;">
                             <div class="field field-full">
                                 <label>Título *</label>
                                 <input type="text" name="titulo" placeholder="Ej. Estudio de la semana — Salmo 23" required>
                             </div>
-                            <div class="field field-full">
+                            <div class="field field-full" id="devoCampoMateria">
                                 <label>Para quién</label>
                                 <select name="materia_id">
                                     <option value="">— Para toda la institución (alumnos y docentes) —</option>
@@ -765,7 +798,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                                 <label>Contenido (opcional si adjuntas un archivo)</label>
                                 <textarea name="contenido" rows="4" placeholder="Escribe el devocional acá, o deja esto vacío y adjunta un PDF/Word abajo…"></textarea>
                             </div>
-                            <div class="field field-full">
+                            <div class="field field-full" id="devoCampoArchivo">
                                 <label>Archivo adjunto (opcional — PDF, Word, PowerPoint o imagen, máx. 25MB)</label>
                                 <input type="file" name="archivo" accept=".pdf,.doc,.docx,.ppt,.pptx,image/png,image/jpeg,image/webp">
                             </div>
@@ -814,7 +847,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <?= !empty($m['aula_virtual_presencial']) ? '🎓 Aula Virtual activa para presenciales' : '— Aula Virtual: solo diplomado' ?>
                         </button>
 
-                        <div style="margin-top: auto;">
+                        <div style="margin-top: auto; display:flex; flex-direction:column; gap:.5rem;">
+                            <button onclick="verAlumnosMateriaDocente(<?= $m['id'] ?>, '<?= htmlspecialchars(addslashes($m['nombre']), ENT_QUOTES) ?>')" class="btn btn-secondary" style="width: 100%; justify-content: center;"><i class="fas fa-user-graduate"></i> Ver alumnos</button>
                             <button onclick="irAlChatMateria(<?= $m['id'] ?>)" class="btn btn-secondary" style="width: 100%; justify-content: center;">Abrir Foro de Discusión</button>
                         </div>
                     </div>
@@ -1069,7 +1103,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         </div>
                         <label class="btn btn-secondary btn-sm" style="cursor: pointer; position: relative;">
                             <i class="fas fa-camera"></i> Cambiar Foto
-                            <input type="file" id="perfil-foto-input" accept="image/*" style="opacity: 0; position: absolute; inset: 0; cursor: pointer;" onchange="subirFotoPerfilDocente(this)">
+                            <input type="file" id="perfil-foto-input" data-no-enhance accept="image/*" style="opacity: 0; position: absolute; inset: 0; cursor: pointer;" onchange="subirFotoPerfilDocente(this)">
                         </label>
                         <span style="font-size: .7rem; color: var(--muted); margin-top: .6rem;">Soporta JPG, PNG, GIF o WebP. Máx 3MB.</span>
                     </div>
@@ -1186,6 +1220,21 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
     </main>
 
     <!-- 3. MODALES -->
+
+    <!-- MODAL VER ALUMNOS DE UNA MATERIA (Mis Cursos) -->
+    <div id="modal-ver-alumnos" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-head">
+                <h3 id="verAlumnosTitulo">Alumnos inscritos</h3>
+                <button class="modal-close" onclick="closeModal('modal-ver-alumnos')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="verAlumnosLista"></div>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL CALIFICAR ENTREGA -->
     <div id="modal-calificar" class="modal-backdrop">
@@ -1494,7 +1543,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             
             new Chart(document.getElementById('chartCalificaciones').getContext('2d'), {
                 type: 'doughnut',
-                data: { labels: ['Aprobados', 'Reprobados', 'Sin nota'], datasets: [{ data: [<?= $cal_aprobados ?>, <?= $cal_reprobados ?>, <?= $cal_sin_nota ?>], backgroundColor: ['#16a34a', '#dc2626', '#cbd5e1'], borderWidth: 0, hoverOffset: 4 }] },
+                data: { labels: ['Aprobados', 'Reprobados', 'Sin nota'], datasets: [{ data: [<?= $cal_aprobados ?>, <?= $cal_reprobados ?>, <?= $cal_sin_nota ?>], backgroundColor: ['#16a34a', '#dc2626', '#64748b'], borderWidth: 0, hoverOffset: 4 }] },
                 options: chartOptions
             });
 
@@ -1512,6 +1561,26 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         });
 
         // Navegación (SPA)
+        // El título de arriba ("Panel de Control / Resumen de gestión
+        // docente") se quedaba igual sin importar a qué sección se
+        // navegara — podía despistar sobre en qué pantalla se está,
+        // sobre todo en móvil donde el menú ya está cerrado y el
+        // título es la única pista fija en pantalla.
+        const IBBS_TITULOS_VISTA = {
+            'dashboard':      ['Panel de Control', 'Resumen de gestión docente'],
+            'materias':       ['Mis Cursos', 'Materias que tienes asignadas este período'],
+            'aula':           ['Aula Virtual', 'Material y actividades de tus materias'],
+            'asistencia':     ['Asistencia', 'Registra la asistencia de tus alumnos'],
+            'entregas':       ['Cargar Notas', 'Revisa y califica las entregas de tus alumnos'],
+            'plan-notas':     ['Plan de Notas', 'Planilla completa de calificaciones por materia'],
+            'chat':           ['Foros de Clase', 'Dudas y mensajes por materia'],
+            'chat-staff':     ['Chat del Staff', 'Comunicación con administración y colegas'],
+            'biblioteca':     ['Biblioteca', 'Libros y material de estudio'],
+            'notificaciones': ['Notificaciones', 'Avisos del sistema'],
+            'devocionales':   ['Devocionales', 'Comparte un estudio o mensaje'],
+            'admin-docentes': ['Asignar Materias', 'Vincula docentes a las materias'],
+            'perfil':         ['Mi Perfil', 'Tu información y configuración de cuenta'],
+        };
         function switchView(viewId, btnElement = null) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById('view-' + viewId).classList.add('active');
@@ -1520,6 +1589,11 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 document.querySelectorAll('.sb-link').forEach(btn => btn.classList.remove('act'));
                 btnElement.classList.add('act');
             }
+
+            const titulo = IBBS_TITULOS_VISTA[viewId];
+            const h2 = document.querySelector('.page-title');
+            if (titulo && h2) h2.innerHTML = titulo[0] + ' <em>' + titulo[1] + '</em>';
+
             if (window.innerWidth <= 768) closeMobileSB();
         }
 
@@ -1815,6 +1889,13 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const badge = card.querySelector('.entrega-badge-estado');
             badge.className = 'badge entrega-badge-estado ' + (d.aprobado ? 'b-presente' : 'b-ausente');
             badge.innerHTML = `<i class="fas ${d.aprobado ? 'fa-check' : 'fa-xmark'}"></i> Nota: ${d.nota} / 20 · ${d.aprobado ? 'Aprobado' : 'Reprobado'}`;
+
+            // Ya tiene nota — el aviso de "venció tu fecha límite de
+            // corrección" ya no aplica (antes se quedaba pegado en
+            // pantalla aunque la nota ya estuviera puesta, como si no
+            // se hubiera guardado).
+            const avisoVencido = card.querySelector('.entrega-venc-warning');
+            if (avisoVencido) avisoVencido.remove();
 
             const obsWrap = card.querySelector('.entrega-obs-wrap');
             const obsText = card.querySelector('.entrega-obs-text');
@@ -2112,7 +2193,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         function crearMensajeStaffChatHTML(msg, isReply) {
             const isMe = msg.usuario_id === <?= (int)$user_id ?>;
             const bg = isMe ? 'background:var(--bubble-mine-bg);border:1px solid var(--bubble-mine-border);' : 'background:var(--paper);border:1px solid var(--border);';
-            const dateStr = new Date(msg.fecha).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+            const dateStr = new Date(msg.fecha).toLocaleString('es-VE', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
             const replyBtn = !isReply ? `<button type="button" onclick="setReplyStaffChat(${msg.id}, '${hAttrStaffChat(msg.usuario_nombre)}')" style="background:none;border:none;color:var(--ink);cursor:pointer;font-size:.8rem;margin-top:.4rem;padding:0;text-decoration:underline;">Responder</button>` : '';
             const delBtn = msg.puede_borrar ? `<button type="button" onclick="borrarMensajeStaffChat(${msg.id})" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:.8rem;margin-top:.4rem;margin-left:.8rem;padding:0;text-decoration:underline;">Borrar</button>` : '';
             return `
@@ -2191,6 +2272,37 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             if (['ppt','pptx'].includes(ext)) return 'fa-file-powerpoint';
             return 'fa-file';
         }
+        let _devocionalesCache = [];
+
+        function abrirNuevoDevocional() {
+            const form = document.getElementById('form-nuevo-devocional');
+            form.reset();
+            document.getElementById('devoEditId').value = '';
+            document.getElementById('devoModalTitulo').textContent = 'Nuevo Devocional';
+            document.getElementById('btnPublicarDevocional').textContent = 'Publicar';
+            document.getElementById('devoCampoMateria').style.display = '';
+            document.getElementById('devoCampoArchivo').style.display = '';
+            openModal('modal-nuevo-devocional');
+        }
+
+        function editarDevocional(id) {
+            const dv = _devocionalesCache.find(x => x.id == id);
+            if (!dv) return;
+            const form = document.getElementById('form-nuevo-devocional');
+            form.reset();
+            document.getElementById('devoEditId').value = dv.id;
+            form.querySelector('[name="titulo"]').value = dv.titulo || '';
+            form.querySelector('[name="contenido"]').value = dv.contenido || '';
+            document.getElementById('devoModalTitulo').textContent = 'Editar Devocional';
+            document.getElementById('btnPublicarDevocional').textContent = 'Guardar cambios';
+            // El "para quién" (materia) y el archivo adjunto no se pueden
+            // cambiar desde acá (para eso hay que publicar uno nuevo) —
+            // se ocultan en vez de dejarlos ahí sin que hagan nada.
+            document.getElementById('devoCampoMateria').style.display = 'none';
+            document.getElementById('devoCampoArchivo').style.display = 'none';
+            openModal('modal-nuevo-devocional');
+        }
+
         async function cargarDevocionales() {
             const cont = document.getElementById('devocionalesLista');
             cont.innerHTML = '<p style="font-size:.85rem;color:var(--muted);font-style:italic;">Cargando…</p>';
@@ -2198,7 +2310,8 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
             const r = await fetch('api/devocionales.php', { method: 'POST', body: fd });
             const d = await r.json();
-            if (!d.ok || !d.data.length) { cont.innerHTML = '<p style="font-size:.85rem;color:var(--muted);font-style:italic;">Todavía no hay devocionales publicados.</p>'; return; }
+            if (!d.ok || !d.data.length) { cont.innerHTML = '<p style="font-size:.85rem;color:var(--muted);font-style:italic;">Todavía no hay devocionales publicados.</p>'; _devocionalesCache = []; return; }
+            _devocionalesCache = d.data;
             const esAdmin = <?= in_array($_SESSION['rol'], ['superadmin','admin']) ? 'true' : 'false' ?>;
             cont.innerHTML = d.data.map(dv => {
                 const puedeBorrar = esAdmin || dv.publicado_por == MI_USUARIO_ID;
@@ -2208,7 +2321,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                             <h3 style="font-size:1rem;font-weight:700;color:var(--ink);margin:0;">${hDevo(dv.titulo)}</h3>
                             <p style="font-size:.76rem;color:var(--muted);margin:.2rem 0 0;">Por ${hDevo(dv.publicado_por_nombre)}${dv.materia_nombre ? ' · ' + hDevo(dv.materia_nombre) : ' · Para toda la institución'} · ${dv.creado_en ? dv.creado_en.substring(0,10) : ''}</p>
                         </div>
-                        ${puedeBorrar ? `<button onclick="eliminarDevocional(${dv.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;" title="Eliminar"><i class="fas fa-trash"></i></button>` : ''}
+                        ${puedeBorrar ? `<span style="display:flex;gap:.6rem;flex-shrink:0;">
+                            <button onclick="editarDevocional(${dv.id})" style="background:none;border:none;color:var(--ink);cursor:pointer;font-size:.8rem;" title="Editar"><i class="fas fa-pen"></i></button>
+                            <button onclick="eliminarDevocional(${dv.id})" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;" title="Eliminar"><i class="fas fa-trash"></i></button>
+                        </span>` : ''}
                     </div>
                     ${dv.contenido ? `<p style="font-size:.88rem;color:var(--ink);white-space:pre-line;margin-bottom:.6rem;">${hDevo(dv.contenido)}</p>` : ''}
                     ${dv.archivo ? `<a href="${dv.archivo}" target="_blank" style="display:inline-flex;align-items:center;gap:.5rem;font-size:.78rem;font-weight:700;background:var(--cream);border:1px solid var(--border);padding:.5rem .8rem;border-radius:8px;text-decoration:none;color:var(--ink);"><i class="fas ${_devoIconoArchivo(dv.archivo_nombre)}"></i> ${hDevo(dv.archivo_nombre || 'Ver archivo')}</a>` : ''}
@@ -2219,10 +2335,12 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         async function submitNuevoDevocional(e) {
             e.preventDefault();
             const form = e.target;
+            const editId = document.getElementById('devoEditId').value;
+            const esEdicion = !!editId;
             const btn = document.getElementById('btnPublicarDevocional');
-            btn.disabled = true; btn.textContent = 'Publicando…';
+            btn.disabled = true; btn.textContent = esEdicion ? 'Guardando…' : 'Publicando…';
             const fd = new FormData(form);
-            fd.append('action', 'crear');
+            fd.append('action', esEdicion ? 'editar' : 'crear');
             const m = document.querySelector('meta[name="csrf-token"]'); fd.append('csrf_token', m ? m.content : '');
             try {
                 const r = await fetch('api/devocionales.php', { method: 'POST', body: fd });
@@ -2232,9 +2350,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                     form.reset();
                     await Ibbs.success(d.msg);
                     cargarDevocionales();
-                } else Ibbs.error(d.msg || 'No se pudo publicar.');
+                } else Ibbs.error(d.msg || (esEdicion ? 'No se pudo guardar.' : 'No se pudo publicar.'));
             } catch (err) { console.error(err); Ibbs.error('Error de conexión.'); }
-            btn.disabled = false; btn.textContent = 'Publicar';
+            btn.disabled = false; btn.textContent = esEdicion ? 'Guardar cambios' : 'Publicar';
         }
 
         async function eliminarDevocional(id) {
@@ -2460,6 +2578,33 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             return apellidoOk || nombreOk;
         }
 
+        // Respaldo cuando no hay foto a mano, o la lectura automática no
+        // funciona (p. ej. sin internet para cargar el lector, que se
+        // trae de un CDN externo — relevante en sedes con conexión
+        // limitada): arma la misma tabla de revisión/guardado que usa
+        // la Asistencia por Foto, pero partiendo de la lista de
+        // alumnos directamente, todos en "Presente" por defecto para
+        // que el docente solo tenga que tocar a quien faltó.
+        async function ocrRegistrarManual() {
+            const mid = document.getElementById('ocrMateria').value;
+            if (!mid) { Ibbs.warn('Elige una materia primero.'); return; }
+
+            const fdRoster = new FormData();
+            fdRoster.append('action', 'materia_get'); fdRoster.append('id', mid);
+            const mRoster = document.querySelector('meta[name="csrf-token"]'); fdRoster.append('csrf_token', mRoster ? mRoster.content : '');
+            const rRoster = await fetch('api/ajax.php', {method:'POST', body:fdRoster});
+            const md = await rRoster.json();
+            _ocrRoster = md?.data?.alumnos || [];
+            if (!_ocrRoster.length) { Ibbs.warn('Esta materia no tiene alumnos inscritos.'); return; }
+
+            _ocrTextoCrudo = '';
+            const filas = _ocrRoster.map(a => ({ ...a, detectado: null, estado: 'presente', obs: '' }));
+            ocrRenderReview(filas);
+            document.getElementById('ocrReviewSummary').innerHTML = `${filas.length} alumnos inscritos · registro manual, sin foto — todos quedaron en "Presente", ajusta a quien faltó`;
+            document.getElementById('ocrReview').style.display = 'block';
+            document.getElementById('ocrReview').scrollIntoView({behavior:'smooth', block:'start'});
+        }
+
         async function ocrProcesarFoto() {
             const mid = document.getElementById('ocrMateria').value;
             const file = _ocrFotoFinal;
@@ -2531,7 +2676,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                         <div style="font-size:.72rem;color:var(--muted);">ID: ${a.cedula||'—'}</div>
                     </td>
                     <td style="text-align:center;padding:.55rem .5rem;">
-                        <span class="${a.detectado?'ocr-detect-yes':'ocr-detect-no'}">${a.detectado?'✓ Sí':'— No'}</span>
+                        ${a.detectado === null ? '<span style="color:var(--muted);">—</span>' : `<span class="${a.detectado?'ocr-detect-yes':'ocr-detect-no'}">${a.detectado?'✓ Sí':'— No'}</span>`}
                     </td>
                     <td style="text-align:center;padding:.55rem .5rem;">
                         <div style="display:flex;gap:.2rem;justify-content:center;">
@@ -2569,7 +2714,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const fecha = document.getElementById('ocrFecha').value;
             const modo = document.querySelector('input[name="ocrModo"]:checked').value;
             const file = _ocrFotoFinal;
-            if (!mid || !fecha || !file || !_ocrFilas.length) { Ibbs.warn('Procesa una foto primero.'); return; }
+            if (!mid || !fecha || !_ocrFilas.length) { Ibbs.warn('Primero procesa una foto o usa "Registrar sin foto".'); return; }
 
             const btn = document.getElementById('btnOcrGuardar');
             btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Guardando…';
@@ -2579,7 +2724,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
                 fd.append('materia_id', mid);
                 fd.append('fecha', fecha);
                 fd.append('modo', modo);
-                fd.append('foto', file);
+                if (file) fd.append('foto', file);
                 fd.append('texto_ocr', _ocrTextoCrudo);
                 fd.append('registros', JSON.stringify(_ocrFilas.map(a => ({persona_id:a.id, estado:a.estado, observacion:a.obs||'', detectado:a.detectado}))));
                 const m = document.querySelector('meta[name="csrf-token"]');
@@ -2618,10 +2763,10 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             if (!d.ok || !d.data.length) { el.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:.82rem;padding:.5rem;">Todavía no se cargó ninguna hoja.</div>'; return; }
             el.innerHTML = d.data.map(h => `
                 <div class="ocr-hoja-card">
-                    <img class="ocr-hoja-thumb" src="${h.foto}" onclick="window.open('${h.foto}','_blank')">
+                    ${h.foto ? `<img class="ocr-hoja-thumb" src="${h.foto}" onclick="window.open('${h.foto}','_blank')">` : `<div class="ocr-hoja-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--cream);color:var(--muted);"><i class="fas fa-pen"></i></div>`}
                     <div style="flex:1;min-width:0;">
                         <div style="font-weight:700;font-size:.83rem;">${h.materia_nombre} · ${h.fecha}</div>
-                        <div style="font-size:.74rem;color:var(--muted);">${h.total_detectados}/${h.total_alumnos} detectados · subida por ${h.cargado_por_nombre||'—'} · ${(h.creado_en||'').substring(0,16)}</div>
+                        <div style="font-size:.74rem;color:var(--muted);">${h.foto ? `${h.total_detectados}/${h.total_alumnos} detectados` : `${h.total_alumnos} alumnos · registro manual, sin foto`} · subida por ${h.cargado_por_nombre||'—'} · ${(h.creado_en||'').substring(0,16)}</div>
                     </div>
                 </div>`).join('');
         }
@@ -2680,7 +2825,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             let html = resumen + '<div class="tbl-wrap"><table><thead><tr><th style="text-align:left;">Alumno</th>';
             tareas.forEach(t => {
                 const pct = t.porcentaje !== null ? `${parseFloat(t.porcentaje)}%` : 'sin %';
-                html += `<th style="text-align:center;min-width:110px;" title="${hPN(t.titulo)}">${hPN(t.titulo.length > 16 ? t.titulo.substring(0,16)+'…' : t.titulo)}<br><span style="font-weight:400;color:var(--muted);font-size:.68rem;">${pct}</span></th>`;
+                html += `<th style="text-align:center;width:120px;max-width:120px;white-space:normal;line-height:1.25;" title="${hPN(t.titulo)}">${hPN(t.titulo)}<br><span style="font-weight:400;color:var(--muted);font-size:.68rem;">${pct}</span></th>`;
             });
             html += '<th style="text-align:center;">Promedio ponderado</th><th style="text-align:center;min-width:120px;">Nota a registrar</th></tr></thead><tbody>';
 
@@ -2843,7 +2988,37 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
         // que ya tenía portal_alumno.php, con los nombres de pestaña de
         // este portal (acá es "grabadas", no "grabaciones"; y no hay
         // pestaña de foro propia, así que cae en "actividades").
+        // "Mis Cursos" no tenía ninguna forma de ver quién está
+        // inscrito en una materia sin salir a otro módulo (Asistencia,
+        // Cargar Notas). Modal simple, de solo lectura.
+        async function verAlumnosMateriaDocente(materiaId, materiaNombre) {
+            document.getElementById('verAlumnosTitulo').textContent = 'Alumnos de ' + materiaNombre;
+            const cont = document.getElementById('verAlumnosLista');
+            cont.innerHTML = '<p style="text-align:center;color:var(--muted);padding:1.5rem;">Cargando…</p>';
+            openModal('modal-ver-alumnos');
+            const d = await _aulaPost('api/ajax.php', 'materia_alumnos_list', { id: materiaId });
+            if (!d?.ok) { cont.innerHTML = `<p style="color:var(--red);">${d?.msg || 'No se pudo cargar la lista.'}</p>`; return; }
+            if (!d.data.length) { cont.innerHTML = '<p style="text-align:center;color:var(--muted);padding:1.5rem;">Todavía no hay alumnos inscritos en esta materia.</p>'; return; }
+            cont.innerHTML = '<table style="width:100%;"><thead><tr><th>Alumno</th><th>ID</th><th>Correo</th></tr></thead><tbody>' +
+                d.data.map(a => `<tr><td>${hAula(a.apellido)}, ${hAula(a.nombre)}</td><td>${hAula(a.cedula || '—')}</td><td style="font-size:.8rem;">${hAula(a.correo || '—')}</td></tr>`).join('') +
+                '</tbody></table>';
+        }
+
         async function toggleAulaPresencialDocente(materiaId, btn) {
+            // Antes cambiaba la configuración real al instante con un
+            // solo clic, sin ninguna confirmación — parecía una
+            // etiqueta de estado (como un badge), no un interruptor
+            // que afecta a quién puede entrar al Aula Virtual.
+            const activaAhora = btn.dataset.activa === '1';
+            const r = await Ibbs.confirm({
+                title: activaAhora ? '¿Desactivar el Aula Virtual para presenciales?' : '¿Activar el Aula Virtual para presenciales?',
+                text: activaAhora
+                    ? 'Tus alumnos presenciales de esta materia ya NO van a poder entrar al Aula Virtual (los del diplomado siguen entrando siempre).'
+                    : 'Tus alumnos presenciales de esta materia van a poder entrar al Aula Virtual, igual que los del diplomado.',
+                confirm: activaAhora ? 'Sí, desactivar' : 'Sí, activar',
+                danger: activaAhora,
+            });
+            if (!r.isConfirmed) return;
             const d = await _aulaPost('api/ajax.php', 'materia_toggle_aula_presencial', { id: materiaId });
             if (!d?.ok) { Ibbs.error(d?.msg || 'No se pudo cambiar.'); return; }
             Ibbs.success(d.msg);

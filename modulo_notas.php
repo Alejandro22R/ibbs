@@ -50,7 +50,7 @@ mysqli_close($con);
     <div class="form-grid">
       <div class="field">
         <label>Seleccionar Materia</label>
-        <select id="selMateria" onchange="loadTabla()">
+        <select id="selMateria" onchange="loadTabla()" data-filtrable="Buscar materia…">
           <option value="">— Elige una materia —</option>
           <?php foreach($materias as $m): ?>
           <option value="<?=$m['id']?>"><?=htmlspecialchars($m['codigo'].' · '.$m['nombre'])?><?=$m['estado']==='culminada'?' ✓':''?></option>

@@ -15,6 +15,8 @@
 <script src="assets/ibbs-shortcuts.js"></script>
 <!-- Tutorial guiado (mismo motor que usan los portales de alumno/docente) -->
 <script src="assets/ibbs-tour.js"></script>
+<script src="assets/ibbs-select-filter.js"></script>
+<script src="assets/ibbs-scroll-hint.js"></script>
 <!-- Microinteracciones: ripple en botones y conteo animado de números -->
 <script src="assets/ibbs-polish.js"></script>
 
@@ -318,9 +320,39 @@ function toggleTheme() {
 (function(){ applyTheme(localStorage.getItem('ibbs_theme') === 'dark'); })();
 
 // ── IBBS CONFIRM (¿Estás seguro?) ───────────────────────────
-function ibbsConfirm(msg, onConfirm) {
+// opts opcional: { tone:'danger'|'warning'|'success', title, confirmText }
+// Por defecto se comporta igual que antes (tono "danger", ícono de
+// papelera, botón "Sí, eliminar") para no romper ningún llamado
+// existente que no pase opts. Las acciones que NO son un borrado
+// (aprobar, rechazar, importar, etc.) deben pasar su propio tono y
+// texto de botón para no asustar al usuario con un ícono/texto de
+// "eliminar" en una acción distinta.
+const IBBS_CONFIRM_TONES = {
+  danger:  { stripe:'linear-gradient(90deg,#dc2626,#f97316)', iconBg:'#fee2e2', iconColor:'#dc2626', btnBg:'#dc2626', btnShadow:'rgba(220,38,38,.3)',
+             icon:'<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>' },
+  warning: { stripe:'linear-gradient(90deg,#d97706,#f59e0b)', iconBg:'#fef3c7', iconColor:'#b45309', btnBg:'#d97706', btnShadow:'rgba(217,119,6,.3)',
+             icon:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+  success: { stripe:'linear-gradient(90deg,#16a34a,#39ff14)', iconBg:'#dcfce7', iconColor:'#16a34a', btnBg:'#16a34a', btnShadow:'rgba(22,163,74,.3)',
+             icon:'<polyline points="20 6 9 17 4 12"/>' },
+};
+function ibbsConfirm(msg, onConfirm, opts) {
+  opts = opts || {};
+  const tone = IBBS_CONFIRM_TONES[opts.tone] || IBBS_CONFIRM_TONES.danger;
   const modal = document.getElementById('ibbsConfirmModal');
   document.getElementById('ibbsConfirmMsg').textContent = msg;
+  document.getElementById('ibbsConfirmTitulo').textContent = opts.title || '¿Estás seguro?';
+  document.getElementById('ibbsConfirmStripe').style.background = tone.stripe;
+  document.getElementById('ibbsConfirmIconWrap').style.background = tone.iconBg;
+  const iconSvg = document.getElementById('ibbsConfirmIconSvg');
+  iconSvg.setAttribute('stroke', tone.iconColor);
+  iconSvg.innerHTML = tone.icon;
+  const warnPill = document.getElementById('ibbsConfirmWarnPill');
+  if (opts.tone === 'danger' || !opts.tone) { warnPill.style.display = ''; }
+  else { warnPill.style.display = 'none'; }
+  const btnSi = document.getElementById('ibbsConfirmSi');
+  btnSi.textContent = opts.confirmText || 'Sí, eliminar';
+  btnSi.style.background = tone.btnBg;
+  btnSi.style.boxShadow = `0 4px 14px ${tone.btnShadow}`;
   modal.style.display = 'flex';
   window._ibbsConfirmCb = onConfirm;
 }
@@ -650,20 +682,20 @@ document.addEventListener('ibbs:ready', () => { if (typeof IbbsTour !== 'undefin
   <!-- Card -->
   <div style="position:relative;background:var(--paper);border:1.5px solid var(--border);border-radius:20px;padding:0;width:380px;max-width:94vw;box-shadow:0 32px 80px rgba(0,0,0,.3);overflow:hidden;animation:confirmIn .3s cubic-bezier(.34,1.56,.64,1);">
     <!-- Top stripe -->
-    <div style="height:4px;background:linear-gradient(90deg,#dc2626,#f97316);"></div>
+    <div id="ibbsConfirmStripe" style="height:4px;background:linear-gradient(90deg,#dc2626,#f97316);"></div>
     <div style="padding:1.8rem 1.8rem 1.4rem;">
       <!-- Icon + title -->
       <div style="display:flex;align-items:flex-start;gap:1rem;margin-bottom:1.2rem;">
-        <div style="width:44px;height:44px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.1rem;">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        <div id="ibbsConfirmIconWrap" style="width:44px;height:44px;border-radius:12px;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:.1rem;">
+          <svg id="ibbsConfirmIconSvg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </div>
         <div>
-          <div style="font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--ink);margin-bottom:.3rem;">¿Estás seguro?</div>
+          <div id="ibbsConfirmTitulo" style="font-family:'DM Serif Display',serif;font-size:1.15rem;color:var(--ink);margin-bottom:.3rem;">¿Estás seguro?</div>
           <div id="ibbsConfirmMsg" style="font-size:.84rem;color:var(--muted);line-height:1.55;"></div>
         </div>
       </div>
       <!-- Warning pill -->
-      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:.55rem .9rem;display:flex;align-items:center;gap:.5rem;margin-bottom:1.4rem;">
+      <div id="ibbsConfirmWarnPill" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:.55rem .9rem;display:flex;align-items:center;gap:.5rem;margin-bottom:1.4rem;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span style="font-size:.76rem;color:#c2410c;font-weight:600;">Esta acción no se puede deshacer</span>
       </div>

@@ -37,11 +37,49 @@
 require_once __DIR__.'/../config/bootstrap.php';
 if (empty($_SESSION['loggedin'])) { header('Location: ../login.php'); exit; }
 
-$con = db();
-if (!$con) die('Error de conexión a la base de datos.');
-
 $rol  = $_SESSION['rol'] ?? 'alumno';
 $uid  = (int)($_SESSION['user_id'] ?? 0);
+
+// Página de aviso con el mismo diseño institucional que el resto de la
+// app (en vez de un die() crudo con texto plano sin formato, que se ve
+// como una página rota) — para cualquier caso en que no se pueda
+// generar el documento (sin permiso, no encontrado, sin notas
+// aprobadas todavía, etc.). Siempre con botón para volver.
+function constancia_aviso_page($mensaje, $rol = 'alumno') {
+    $volver = $rol === 'profesor' ? 'portal_docente.php' : ($rol === 'alumno' ? 'portal_alumno.php' : 'modulo_herramientas.php');
+    ?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IBBS — Constancia</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f0e8;font-family:Arial,sans-serif;padding:1.2rem;box-sizing:border-box;}
+  .aviso-card{background:#fff;max-width:440px;width:100%;border-radius:16px;border-top:5px solid #39ff14;box-shadow:0 20px 50px rgba(0,0,0,.12);padding:2rem 1.8rem;text-align:center;}
+  .aviso-logo{width:58px;height:58px;border-radius:50%;object-fit:cover;margin-bottom:1rem;}
+  .aviso-icono{font-size:2.2rem;margin-bottom:.8rem;}
+  .aviso-msg{color:#333;font-size:.92rem;line-height:1.6;margin:0 0 1.5rem;}
+  .aviso-btn{display:inline-block;padding:.7rem 1.6rem;background:#1a4d2e;color:#fff;border-radius:8px;text-decoration:none;font-size:.85rem;font-weight:bold;}
+  .aviso-btn:hover{background:#1e5c36;}
+</style>
+</head>
+<body>
+  <div class="aviso-card">
+    <img src="../assets/logo.jpg" alt="IBBS" class="aviso-logo">
+    <div class="aviso-icono">📄</div>
+    <p class="aviso-msg"><?= htmlspecialchars($mensaje) ?></p>
+    <a class="aviso-btn" href="../<?= $volver ?>">&#8592; Volver</a>
+  </div>
+</body>
+</html>
+<?php
+    exit;
+}
+
+$con = db();
+if (!$con) constancia_aviso_page('No se pudo conectar con la base de datos en este momento. Intenta de nuevo en unos minutos.', $rol);
+
 $tiposValidos = ['estudio', 'notas', 'trabajo'];
 $tipo = in_array($_GET['tipo'] ?? '', $tiposValidos) ? $_GET['tipo'] : 'estudio';
 
@@ -53,11 +91,11 @@ if ($tipo === 'trabajo') {
     } elseif (in_array($rol, ['superadmin', 'admin'])) {
         $did = (int)($_GET['docente_id'] ?? 0);
     } else {
-        die('No tienes permiso para generar este documento.');
+        constancia_aviso_page('No tienes permiso para generar este documento.', $rol);
     }
-    if (!$did) die('Docente no encontrado.');
+    if (!$did) constancia_aviso_page('Docente no encontrado.', $rol);
     $docente = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM docentes WHERE id=$did LIMIT 1"));
-    if (!$docente) die('Docente no encontrado.');
+    if (!$docente) constancia_aviso_page('Docente no encontrado.', $rol);
     log_audit($con, $uid, 'CONSTANCIA_TRABAJO_GENERAR', "docente=$did");
 } else {
     // ── Constancia de Estudio / Notas (alumno) — autoservicio gratuito ──
@@ -67,11 +105,11 @@ if ($tipo === 'trabajo') {
     } elseif (in_array($rol, ['superadmin', 'admin'])) {
         $aid = (int)($_GET['alumno_id'] ?? 0);
     } else {
-        die('No tienes permiso para generar este documento.');
+        constancia_aviso_page('No tienes permiso para generar este documento.', $rol);
     }
-    if (!$aid) die('Alumno no encontrado.');
+    if (!$aid) constancia_aviso_page('Alumno no encontrado.', $rol);
     $alumno = mysqli_fetch_assoc(mysqli_query($con, "SELECT * FROM alumnos WHERE id=$aid LIMIT 1"));
-    if (!$alumno) die('Alumno no encontrado.');
+    if (!$alumno) constancia_aviso_page('Alumno no encontrado.', $rol);
     log_audit($con, $uid, 'CONSTANCIA_'.strtoupper($tipo).'_GENERAR', "alumno=$aid");
 
     // Solo materias culminadas, con un envío de notas aprobado, y
@@ -99,7 +137,7 @@ if ($tipo === 'trabajo') {
                                     )
                                   ORDER BY m.nombre");
         while ($f = mysqli_fetch_assoc($r)) $materias[] = $f;
-        if (!$materias) die('Todavía no tienes ninguna materia culminada con notas aprobadas por la administración para incluir en tu Constancia de Notas. Una vez que tu profesor cargue las notas y el administrador las apruebe, vas a poder generarla acá.');
+        if (!$materias) constancia_aviso_page('Todavía no tienes ninguna materia culminada con notas aprobadas por la administración para incluir en tu Constancia de Notas. Una vez que tu profesor cargue las notas y el administrador las apruebe, vas a poder generarla acá.', $rol);
     }
 }
 

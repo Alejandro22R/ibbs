@@ -48,6 +48,10 @@
             '<div class="ibbstour-step"></div>' +
             '<h3 class="ibbstour-title"></h3>' +
             '<p class="ibbstour-text"></p>' +
+            '<div class="ibbstour-nav">' +
+                '<button type="button" class="ibbstour-prev">&larr; Atrás</button>' +
+                '<button type="button" class="ibbstour-next">Siguiente &rarr;</button>' +
+            '</div>' +
             '<div class="ibbstour-foot">' +
                 '<a href="#" class="ibbstour-skip">Saltar tutorial</a>' +
                 '<span class="ibbstour-dots"></span>' +
@@ -78,6 +82,12 @@
             + '.ibbstour-step{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#2ecc10;margin-bottom:.3rem;}'
             + '.ibbstour-title{font-family:"Playfair Display",serif;font-size:1.15rem;margin:0 0 .35rem;padding-right:1.6rem;color:#1a4d2e;}'
             + '.ibbstour-text{font-size:.85rem;line-height:1.45;color:#3a4a3f;margin:0 0 .8rem;}'
+            + '.ibbstour-nav{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-bottom:.7rem;}'
+            + '.ibbstour-prev,.ibbstour-next{font-family:inherit;font-size:.8rem;font-weight:700;border-radius:8px;padding:.4rem .8rem;cursor:pointer;}'
+            + '.ibbstour-prev{background:none;border:1.5px solid #cbd5c2;color:#3a4a3f;}'
+            + '.ibbstour-prev:hover{background:rgba(26,77,46,.06);}'
+            + '.ibbstour-next{background:#1a4d2e;border:1.5px solid #1a4d2e;color:#fff;margin-left:auto;}'
+            + '.ibbstour-next:hover{background:#1e5c36;}'
             + '.ibbstour-foot{display:flex;align-items:center;justify-content:space-between;gap:.6rem;}'
             + '.ibbstour-skip{font-size:.74rem;color:#7a8c72;text-decoration:underline;cursor:pointer;}'
             + '.ibbstour-skip:hover{color:#dc2626;}'
@@ -146,6 +156,16 @@
             dots.appendChild(d);
         });
 
+        // Botones explícitos de Atrás/Siguiente — antes la ÚNICA forma
+        // de avanzar era tocar la "×" chiquita de la tarjeta, y eso
+        // solo se explicaba en el primer paso (no se repetía en los
+        // demás); tampoco había forma de retroceder un paso si alguien
+        // lo saltaba sin querer.
+        var btnPrev = s.dom.card.querySelector('.ibbstour-prev');
+        var btnNext = s.dom.card.querySelector('.ibbstour-next');
+        btnPrev.style.visibility = s.i === 0 ? 'hidden' : 'visible';
+        btnNext.textContent = (s.i === s.steps.length - 1 ? 'Finalizar' : 'Siguiente →');
+
         if (target && target.scrollIntoView) {
             target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
@@ -161,6 +181,12 @@
         render();
     }
 
+    function prev() {
+        if (!state || state.i === 0) return;
+        state.i--;
+        render();
+    }
+
     function finish() {
         if (!state) return;
         var s = state;
@@ -172,6 +198,9 @@
         }, 220);
         window.removeEventListener('resize', onResize);
         state = null;
+        // Avisa a quien esté esperando (p. ej. el modal "Acerca de") que el
+        // tour ya terminó, para que no se muestren dos ventanas a la vez.
+        window.dispatchEvent(new CustomEvent('ibbstour:finish'));
     }
 
     function onResize() {
@@ -180,7 +209,17 @@
 
     function start(opts) {
         if (state) return; // ya hay uno corriendo
-        var steps = (opts.steps || []).filter(function (st) { return st && st.title; });
+        // Antes solo se descartaban los pasos sin título — un paso
+        // cuyo selector apunta a un botón que ni siquiera existe para
+        // este usuario (p. ej. "Asignar Materias", solo visible para
+        // admin/superadmin) igual se mostraba, flotando sin resaltar
+        // nada, a un profesor normal. Se descarta también si el
+        // elemento que señala no está en la página.
+        var steps = (opts.steps || []).filter(function (st) {
+            if (!st || !st.title) return false;
+            if (st.selector && !document.querySelector(st.selector)) return false;
+            return true;
+        });
         if (!steps.length) return;
         if (opts.auto && seen(opts.storageKey)) return;
 
@@ -189,6 +228,8 @@
         state = { steps: steps, i: 0, dom: dom, storageKey: opts.storageKey };
 
         dom.card.querySelector('.ibbstour-close').addEventListener('click', next);
+        dom.card.querySelector('.ibbstour-next').addEventListener('click', next);
+        dom.card.querySelector('.ibbstour-prev').addEventListener('click', prev);
         dom.card.querySelector('.ibbstour-skip').addEventListener('click', function (e) {
             e.preventDefault();
             finish();

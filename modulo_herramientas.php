@@ -415,7 +415,7 @@ async function rechazarSolicitudNotif(notifId, usuarioId) {
   ibbsConfirm('¿Rechazar esta solicitud de ingreso? El alumno quedará con la cuenta inactiva.', async ()=>{
     const d = await ajax('alumno_rechazar', {usuario_id: usuarioId});
     if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
-  });
+  }, {tone:'warning', title:'¿Rechazar solicitud?', confirmText:'Sí, rechazar'});
 }
 async function verComprobanteNotif(solicitudId) {
   const d = await ajax('get', {id: solicitudId}, 'api/materia_solicitud.php');
@@ -430,7 +430,7 @@ async function rechazarMateriaNotif(notifId, solicitudId) {
   ibbsConfirm('¿Rechazar esta solicitud de inscripción? Revisa bien el comprobante antes de confirmar.', async ()=>{
     const d = await ajax('rechazar', {id: solicitudId}, 'api/materia_solicitud.php');
     if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
-  });
+  }, {tone:'warning', title:'¿Rechazar inscripción?', confirmText:'Sí, rechazar'});
 }
 async function verComprobanteLibroNotif(compraId) {
   const d = await ajax('compra_get', {id: compraId}, 'api/biblioteca.php');
@@ -446,7 +446,7 @@ async function rechazarLibroNotif(notifId, compraId) {
   ibbsConfirm('¿Rechazar esta compra? Revisa bien el comprobante antes de confirmar.', async ()=>{
     const d = await ajax('compra_rechazar', {id: compraId}, 'api/biblioteca.php');
     if(d?.ok){ toast(d.msg); document.getElementById('ni'+notifId)?.remove(); } else Ibbs.error(d?.msg||'Error');
-  });
+  }, {tone:'warning', title:'¿Rechazar compra?', confirmText:'Sí, rechazar'});
 }
 async function generarNotifs() {
   const d = await ajax('notif_generar');

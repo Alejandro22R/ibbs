@@ -45,7 +45,7 @@ mysqli_close($con);
       <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:.8rem;align-items:flex-end;">
         <div class="field" style="margin:0;">
           <label>Materia</label>
-          <select id="plMateria" onchange="loadPasoLista()">
+          <select id="plMateria" onchange="loadPasoLista()" data-filtrable="Buscar materia…">
             <option value="">— Seleccionar materia —</option>
             <?php foreach($materias as $m):
               $badge = $m['estado']==='culminada'?' [Culminada]':($m['estado']==='pendiente'?' [Pendiente]':'');
@@ -139,7 +139,7 @@ mysqli_close($con);
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:.8rem;margin-bottom:.8rem;">
         <div class="field" style="margin:0;">
           <label>Materia</label>
-          <select id="ocrMateria" onchange="ocrCambiarMateria()">
+          <select id="ocrMateria" onchange="ocrCambiarMateria()" data-filtrable="Buscar materia…">
             <option value="">— Seleccionar materia —</option>
             <?php foreach($materias as $m): ?>
             <option value="<?=$m['id']?>"><?=htmlspecialchars($m['codigo'].' · '.$m['nombre'])?></option>
@@ -226,7 +226,7 @@ mysqli_close($con);
       <div class="form-grid g2">
         <div class="field">
           <label>Materia *</label>
-          <select id="rMateria" onchange="loadPersonas()">
+          <select id="rMateria" onchange="loadPersonas()" data-filtrable="Buscar materia…">
             <option value="">— Seleccionar materia —</option>
             <?php foreach($materias as $m): ?>
             <option value="<?=$m['id']?>"><?=htmlspecialchars($m['codigo'].' · '.$m['nombre'])?></option>
@@ -285,7 +285,7 @@ mysqli_close($con);
       <div style="display:flex;gap:.8rem;flex-wrap:wrap;align-items:flex-end;">
         <div class="field" style="margin:0;flex:1;min-width:200px;">
           <label>Materia</label>
-          <select id="resMateria" onchange="loadResumen()">
+          <select id="resMateria" onchange="loadResumen()" data-filtrable="Buscar materia…">
             <option value="">— Todas las materias —</option>
             <?php foreach($materias as $m): ?>
             <option value="<?=$m['id']?>"><?=htmlspecialchars($m['nombre'])?></option>
@@ -337,7 +337,7 @@ mysqli_close($con);
     <div class="card-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.6rem;">
       <h3>Historial de asistencias</h3>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;">
-        <select id="filtHMateria" onchange="loadHistorial()" class="ibbs-filter-sel">
+        <select id="filtHMateria" onchange="loadHistorial()" class="ibbs-filter-sel" data-filtrable="Buscar materia…">
           <option value="0">Todas las materias</option>
           <?php foreach($materias as $m): ?>
           <option value="<?=$m['id']?>"><?=htmlspecialchars($m['nombre'])?></option>

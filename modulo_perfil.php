@@ -17,7 +17,16 @@ if($u['rol']==='profesor'||$u['rol']==='admin'||$u['rol']==='superadmin'){
 mysqli_close($con);
 ?>
 
-<div style="display:grid;grid-template-columns:300px 1fr;gap:1.4rem;align-items:start;">
+<style>
+.perfil-layout{display:grid;grid-template-columns:300px 1fr;gap:1.4rem;align-items:start;}
+.perfil-pin-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem;}
+@media(max-width:768px){
+  .perfil-layout{grid-template-columns:1fr;}
+  .perfil-pin-grid{grid-template-columns:1fr;}
+}
+</style>
+
+<div class="perfil-layout">
 
   <!-- Tarjeta foto -->
   <div class="card" style="text-align:center;">
@@ -197,11 +206,12 @@ async function guardarPregs() {
   const r1 = document.getElementById('pR1').value;
   const r2 = document.getElementById('pR2').value;
   if (!r1||!r2) { toast('Escribe ambas respuestas.','err'); return; }
+  const preg1 = document.getElementById('pPrg1').value;
+  const preg2 = document.getElementById('pPrg2').value;
+  if (preg1 === preg2) { toast('Las dos preguntas deben ser diferentes.','err'); return; }
   const d = await ajax('perfil_pregs',{
-    preg1: document.getElementById('pPrg1').value,
-    resp1: r1,
-    preg2: document.getElementById('pPrg2').value,
-    resp2: r2,
+    preg1, resp1: r1,
+    preg2, resp2: r2,
   });
   if (d?.ok) { toast(d.msg); document.getElementById('pR1').value=''; document.getElementById('pR2').value=''; }
   else toast(d?.msg||'Error','err');
@@ -223,7 +233,7 @@ async function guardarPregs() {
   </div>
   <div class="card-body">
     <div id="alertPinSync" class="warn-pill" style="justify-content:space-between;margin-bottom:1rem;">
-      <span>⚠ Si el modal de confirmación no acepta tu contraseña, haz clic en <strong>Sincronizar</strong> para vincular tu contraseña actual como PIN.</span>
+      <span>⚠ Si la ventana que te pide la contraseña para borrar algo no la acepta, haz clic en <strong>Sincronizar</strong> para vincular tu contraseña actual como PIN.</span>
       <button class="btn btn-sm btn-secondary" onclick="mostrarSync()" style="flex-shrink:0;">Sincronizar</button>
     </div>
     <div id="syncForm" style="display:none;background:var(--cream);border:1px solid var(--border);border-radius:9px;padding:1rem;margin-bottom:1rem;">
@@ -242,7 +252,7 @@ async function guardarPregs() {
     </p>
     <div id="errPin" style="background:#fee2e2;border:1px solid #fecaca;color:#dc2626;border-radius:8px;padding:.6rem .9rem;font-size:.82rem;margin-bottom:.8rem;display:none;"></div>
     <div id="okPin"  style="background:#dcfce7;border:1px solid #bbf7d0;color:#16a34a;border-radius:8px;padding:.6rem .9rem;font-size:.82rem;margin-bottom:.8rem;display:none;"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem;">
+    <div class="perfil-pin-grid">
       <div class="field">
         <label>Nuevo PIN <span style="font-weight:400;color:var(--muted);">(mín. 4 caracteres)</span></label>
         <input type="password" id="pinNuevo" placeholder="••••••" autocomplete="new-password">

@@ -66,6 +66,17 @@
     if (startVal === target || prefersReducedMotion) { el.textContent = String(target); return; }
     var gen = (parseInt(el.dataset.cuGen || '0', 10) + 1);
     el.dataset.cuGen = String(gen);
+    // Mientras la animación está en marcha, cada frame reescribe
+    // el.textContent — y eso dispara de nuevo el MutationObserver que
+    // llama a maybeAnimate() sobre ESTE MISMO elemento, con un valor
+    // intermedio (p. ej. "37" a mitad de camino hacia 73) como si fuera
+    // un valor real nuevo. Sin esta bandera, eso arrancaba una segunda
+    // animación hacia ese valor intermedio, que a su vez disparaba una
+    // tercera, etc. — una retroalimentación que podía terminar
+    // "ganando" en 0 (el contador quedaba trabado ahí). Mientras
+    // cuAnimating esté activo, maybeAnimate() ignora esas mutaciones
+    // propias por completo.
+    el.dataset.cuAnimating = '1';
     var startTime = null;
     var dur = 500;
     var steps = 12;
@@ -80,14 +91,16 @@
         var eased = 1 - Math.pow(1 - p, 3);
         el.textContent = String(Math.round(startVal + (target - startVal) * eased));
       }
-      if (p < 1) requestAnimationFrame(step);
-      else el.textContent = String(target);
+      if (p < 1) { requestAnimationFrame(step); return; }
+      el.textContent = String(target);
+      delete el.dataset.cuAnimating;
     }
     requestAnimationFrame(step);
   }
 
   function maybeAnimate(el) {
     if (!el || !el.matches || !el.matches('[data-countup]')) return;
+    if (el.dataset.cuAnimating === '1') return; // mutación generada por la propia animación — ignorar
     var txt = (el.textContent || '').trim();
     if (!/^\d{1,7}$/.test(txt)) return; // solo enteros simples — nunca toca "15 / 20", "—", texto, etc.
     var target = parseInt(txt, 10);

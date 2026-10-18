@@ -42,21 +42,30 @@ if ($action === 'hoja_guardar') {
     if (!is_array($registros) || !$registros) json_fail_ocr('No hay ningún alumno para registrar — procesa la foto primero.');
     if (!materia_puede_gestionar($con, $uid, $rol, $mid)) json_fail_ocr('No tienes permiso sobre esta materia.');
 
-    if (!isset($_FILES['foto']) || $_FILES['foto']['error'] !== UPLOAD_ERR_OK) json_fail_ocr('Adjunta la foto de la hoja de asistencia.');
-    $file = $_FILES['foto'];
-    $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    $allowedExt = ['jpg','jpeg','png','webp'];
-    if (!in_array($ext, $allowedExt)) json_fail_ocr('La foto debe ser una imagen (jpg, png o webp).');
-    if ($file['size'] > 8*1024*1024) json_fail_ocr('La imagen es muy grande (máx. 8MB).');
-    $imgInfo = @getimagesize($file['tmp_name']);
-    $allowedMime = ['image/jpeg','image/png','image/webp'];
-    if ($imgInfo === false || !in_array($imgInfo['mime'] ?? '', $allowedMime)) json_fail_ocr('El archivo no es una imagen válida.');
+    // La foto es opcional — respaldo para cuando no hay cámara a mano,
+    // o el lector automático (que depende de un CDN externo) no carga,
+    // algo relevante en sedes con conexión limitada. Sin foto, igual
+    // queda el registro de asistencia en sí; solo no hay imagen de
+    // respaldo de la hoja en papel.
+    $ruta = '';
+    if (isset($_FILES['foto']) && $_FILES['foto']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['foto'];
+        $ext  = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowedExt = ['jpg','jpeg','png','webp'];
+        if (!in_array($ext, $allowedExt)) json_fail_ocr('La foto debe ser una imagen (jpg, png o webp).');
+        if ($file['size'] > 8*1024*1024) json_fail_ocr('La imagen es muy grande (máx. 8MB).');
+        $imgInfo = @getimagesize($file['tmp_name']);
+        $allowedMime = ['image/jpeg','image/png','image/webp'];
+        if ($imgInfo === false || !in_array($imgInfo['mime'] ?? '', $allowedMime)) json_fail_ocr('El archivo no es una imagen válida.');
 
-    $dir = __DIR__.'/../uploads/asistencias/';
-    if (!is_dir($dir)) mkdir($dir, 0755, true);
-    $fname = 'hoja_'.$mid.'_'.str_replace('-','',$fecha).'_'.time().'_'.bin2hex(random_bytes(5)).'.'.$ext;
-    if (!move_uploaded_file($file['tmp_name'], $dir.$fname)) json_fail_ocr('No se pudo guardar la foto.');
-    $ruta = 'uploads/asistencias/'.$fname;
+        $dir = __DIR__.'/../uploads/asistencias/';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        $fname = 'hoja_'.$mid.'_'.str_replace('-','',$fecha).'_'.time().'_'.bin2hex(random_bytes(5)).'.'.$ext;
+        if (!move_uploaded_file($file['tmp_name'], $dir.$fname)) json_fail_ocr('No se pudo guardar la foto.');
+        $ruta = 'uploads/asistencias/'.$fname;
+    } elseif (isset($_FILES['foto']) && $_FILES['foto']['error'] !== UPLOAD_ERR_NO_FILE) {
+        json_fail_ocr('No se pudo recibir la foto.');
+    }
 
     $totalAlumnos = count($registros);
     $totalDetectados = count(array_filter($registros, fn($r) => !empty($r['detectado'])));

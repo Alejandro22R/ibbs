@@ -65,7 +65,7 @@ mysqli_close($_con_ob);
   <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
     <div>
       <h3 style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:#fff;margin-bottom:.3rem;">Bienvenido, <em style="color:var(--lime);font-style:italic;"><?=htmlspecialchars($_SESSION['usuario']??'')?></em></h3>
-      <p style="font-size:.82rem;color:rgba(255,255,255,.4);">IBBS — Gestión académica completa · <?=date('l, d \d\e F \d\e Y')?></p>
+      <p style="font-size:.82rem;color:rgba(255,255,255,.4);">IBBS — Gestión académica completa · <?=fecha_es('l, d \d\e F \d\e Y')?></p>
     </div>
     <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
       <a href="modulo_asistencias.php" class="btn btn-primary">Asistencia</a>

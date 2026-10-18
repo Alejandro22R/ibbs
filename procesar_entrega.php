@@ -88,7 +88,16 @@ if ($existing && !$archivo_nombre) {
     $archivo_nombre = $existing['archivo'];
 }
 
-$query = "INSERT INTO entregas (tarea_id, alumno_id, texto_respuesta, archivo, fecha_entrega) 
+// Una entrega sin mensaje NI archivo queda marcada "Entregada" para
+// siempre sin nada que el docente pueda corregir — y como pasada la
+// fecha límite ya no se puede volver a intentar, el alumno pierde esa
+// actividad sin darse cuenta. Se exige al menos uno de los dos.
+if ($respuesta_texto === '' && !$archivo_nombre) {
+    echo json_encode(['ok' => false, 'msg' => 'Escribe un mensaje o adjunta un archivo antes de confirmar la entrega — no se puede enviar vacía.']);
+    exit;
+}
+
+$query = "INSERT INTO entregas (tarea_id, alumno_id, texto_respuesta, archivo, fecha_entrega)
           VALUES (?, ?, ?, ?, NOW()) 
           ON DUPLICATE KEY UPDATE 
           texto_respuesta = VALUES(texto_respuesta), archivo = VALUES(archivo), fecha_entrega = NOW()";

@@ -144,9 +144,32 @@
   }
   window.abrirAcercaDe = abrirAcercaDe;
   window.cerrarAcercaDe = cerrarAcercaDe;
-  // Se muestra sola cada vez que el alumno/docente entra al portal —
-  // la puede cerrar con la X, y reabrirla cuando quiera desde "Acerca
-  // de" en el menú lateral.
-  document.addEventListener('DOMContentLoaded', abrirAcercaDe);
+  // Se muestra sola una vez por sesión del navegador (no en cada carga de
+  // página dentro del portal, p. ej. al guardar el perfil) — la puede
+  // reabrir cuando quiera desde "Acerca de" en el menú lateral.
+  var YA_LA_VIO = 'ibbs_acerca_sesion_v1';
+  function yaVistaEstaSesion(){
+    try { return sessionStorage.getItem(YA_LA_VIO) === '1'; } catch (e) { return false; }
+  }
+  function marcarVistaEstaSesion(){
+    try { sessionStorage.setItem(YA_LA_VIO, '1'); } catch (e) { /* no crítico */ }
+  }
+  var cerrarOriginal = cerrarAcercaDe;
+  cerrarAcercaDe = function(){ marcarVistaEstaSesion(); cerrarOriginal(); };
+  window.cerrarAcercaDe = cerrarAcercaDe;
+  document.addEventListener('DOMContentLoaded', function () {
+    if (yaVistaEstaSesion()) return;
+    // Si el portal también va a mostrar el tour guiado (primer ingreso),
+    // esperamos a que termine para no superponer dos ventanas a la vez —
+    // el tour ya está en el DOM en este punto si va a arrancar (se
+    // registra antes que este include en portal_alumno.php/portal_docente.php).
+    if (document.querySelector('.ibbstour-overlay')) {
+      window.addEventListener('ibbstour:finish', function () {
+        if (!yaVistaEstaSesion()) abrirAcercaDe();
+      }, { once: true });
+    } else {
+      abrirAcercaDe();
+    }
+  });
 })();
 </script>

@@ -70,6 +70,7 @@ if($_rol !== 'superadmin'){
       <form id="fCU" onsubmit="crearUsuario(event)">
         <div class="form-grid" style="margin-bottom:1rem;">
           <div class="field"><label>Nombre de usuario *</label><input name="usuario" data-only="username" placeholder="ej. prof_martinez" autocomplete="off"></div>
+          <div class="field"><label>ID <span class="field-ast-help"><button type="button" onclick="toggleIdHint(this)" aria-label="¿Qué es el ID?">*</button><span class="field-ast-bubble">Identificación personal: cédula, DNI, pasaporte u otro documento oficial válido en su país.</span></span></label><input name="cedula" data-only="cedula" placeholder="V-12345678"></div>
           <div class="field"><label>Correo *</label><input type="email" name="correo" placeholder="correo@gmail.com"></div>
           <div class="field"><label>Contraseña * <span style="font-weight:400;color:var(--muted);">(mín. 8 car., mayús., minús. y número o símbolo)</span></label><input type="password" name="password" autocomplete="new-password" oninput="pwdChecklist('nUPwdChecklist', this.value)">
             <div style="margin-top:.4rem;" id="nUPwdChecklist"></div>
@@ -256,6 +257,7 @@ async function crearUsuario(e) {
   e.preventDefault();
   if (!validarForm([
     {name:'usuario',  label:'Usuario',    tipo:'texto',   min:3},
+    {name:'cedula',   label:'ID',         tipo:'texto',   min:5},
     {name:'correo',   label:'Correo',     tipo:'email'},
     {name:'password', label:'Contraseña', tipo:'password',min:6},
   ])) return;
