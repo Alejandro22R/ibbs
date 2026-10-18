@@ -25,7 +25,19 @@ if (!$con) { echo json_encode(['error' => 'Error de conexión a la base de datos
 
 $uid  = (int)($_SESSION['user_id'] ?? 0);
 $_rol = $_SESSION['rol'] ?? 'profesor';
+// Nombre real para mostrar (y para el título de la notificación) — en
+// vez del usuario técnico de login (ej. "testqa_docente"), que no
+// dice nada a alguien sin experiencia y además puede hacer parecer
+// que un mismo profesor es dos personas distintas si en otra pantalla
+// sí se usa su nombre completo.
 $usuarioNombre = $_SESSION['usuario'] ?? 'Usuario';
+if ($_rol === 'profesor' || $_rol === 'admin' || $_rol === 'superadmin') {
+    $d = mysqli_fetch_assoc(mysqli_query($con, "SELECT nombre,apellido FROM docentes WHERE usuario_id=$uid LIMIT 1"));
+    if ($d) $usuarioNombre = trim($d['nombre'].' '.$d['apellido']);
+} else {
+    $al = mysqli_fetch_assoc(mysqli_query($con, "SELECT nombre,apellido FROM alumnos WHERE usuario_id=$uid LIMIT 1"));
+    if ($al) $usuarioNombre = trim($al['nombre'].' '.$al['apellido']);
+}
 
 $materia_id = (int)($_GET['materia_id'] ?? 0);
 if (!$materia_id) { echo json_encode(['error' => 'Materia no válida']); exit; }

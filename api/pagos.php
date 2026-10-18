@@ -94,8 +94,13 @@ if ($action === 'pago_list') {
     if (in_array($tipo, ['mensualidad','inscripcion'])) $where[] = "p.tipo='".mysqli_real_escape_string($con,$tipo)."'";
     if (in_array($estado, ['pendiente','en_revision','pagado','rechazado'])) $where[] = "p.estado='".mysqli_real_escape_string($con,$estado)."'";
     if ($aid) $where[] = "p.alumno_id=$aid";
+    // LEFT JOIN a propósito: si el alumno fue eliminado después de
+    // generarse el cobro, el pago no debe desaparecer de esta lista —
+    // si no, las tarjetas de totales (que cuentan TODOS los pagos, sin
+    // importar si el alumno sigue existiendo) nunca cuadran con lo que
+    // se ve en la tabla, y no hay forma de explicar la diferencia.
     $r = mysqli_query($con, "SELECT p.*, a.nombre alumno_nombre, a.apellido alumno_apellido, a.cedula alumno_cedula
-        FROM pagos p JOIN alumnos a ON a.id=p.alumno_id
+        FROM pagos p LEFT JOIN alumnos a ON a.id=p.alumno_id
         WHERE ".implode(' AND ',$where)."
         ORDER BY FIELD(p.estado,'en_revision','pendiente','rechazado','pagado'), p.creado_en DESC
         LIMIT 500");

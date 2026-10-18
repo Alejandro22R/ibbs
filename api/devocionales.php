@@ -135,6 +135,29 @@ if ($action === 'listar') {
 }
 
 /* ════ ELIMINAR (autor o admin/superadmin) ══════════════════════════ */
+if ($action === 'editar') {
+    // Antes, si el docente se equivocaba al escribir un devocional, su
+    // única opción era borrarlo y publicarlo de nuevo desde cero
+    // (perdiendo la fecha original y cualquier respuesta/vista previa
+    // que ya tuviera). Solo título y contenido — el archivo adjunto,
+    // si tiene, se conserva igual; para cambiarlo hay que volver a
+    // publicar.
+    $id = (int)($_POST['id'] ?? 0);
+    $titulo    = trim($_POST['titulo'] ?? '');
+    $contenido = trim($_POST['contenido'] ?? '');
+    if ($titulo === '') json_fail_dv('Ponle un título al devocional.');
+    $d = mysqli_fetch_assoc(mysqli_query($con, "SELECT publicado_por,archivo FROM devocionales WHERE id=$id LIMIT 1"));
+    if (!$d) json_fail_dv('No encontrado.');
+    if ($contenido === '' && empty($d['archivo'])) json_fail_dv('Escribe algo o adjunta un archivo.');
+    $esAutor = (int)$d['publicado_por'] === $uid;
+    $esAdmin = in_array($rol, ['superadmin','admin']);
+    if (!$esAutor && !$esAdmin) json_fail_dv('No tienes permiso para editar esto.');
+    $st = mysqli_prepare($con, "UPDATE devocionales SET titulo=?, contenido=? WHERE id=?");
+    mysqli_stmt_bind_param($st, 'ssi', $titulo, $contenido, $id);
+    mysqli_stmt_execute($st);
+    log_audit($con, $uid, 'DEVOCIONAL_EDITAR', "id=$id");
+    echo json_encode(['ok'=>true,'msg'=>'Devocional actualizado.']); exit;
+}
 if ($action === 'eliminar') {
     $id = (int)($_POST['id'] ?? 0);
     $d = mysqli_fetch_assoc(mysqli_query($con, "SELECT publicado_por,archivo FROM devocionales WHERE id=$id LIMIT 1"));

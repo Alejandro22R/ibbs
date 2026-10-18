@@ -192,7 +192,7 @@ async function importarBD() {
   const file = document.getElementById('sqlFile').files[0];
   if (!file) { toast('Selecciona un archivo .sql primero.','err'); return; }
   const ok = await new Promise(res => {
-    ibbsConfirm('¿Importar base de datos? Esto reemplazará TODOS los datos actuales.', () => res(true));
+    ibbsConfirm('¿Importar base de datos? Esto reemplazará TODOS los datos actuales.', () => res(true), {tone:'danger', title:'¿Importar base de datos?', confirmText:'Sí, importar'});
     setTimeout(()=>res(false), 60000);
   });
   if (!ok) return;

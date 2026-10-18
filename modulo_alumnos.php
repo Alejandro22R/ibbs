@@ -239,13 +239,13 @@ async function aprobarAlumno(id,n){
   ibbsConfirm(`¿Aceptar la solicitud de ingreso de "${n}"?`, async ()=>{
     const d=await ajax('alumno_aprobar',{id});
     if(d?.ok){toast(d.msg);loadAlumnos();}else Ibbs.error(d?.msg||'Error');
-  });
+  }, {tone:'success', title:'¿Aceptar solicitud?', confirmText:'Sí, aceptar'});
 }
 async function rechazarAlumno(id,n){
   ibbsConfirm(`¿Rechazar la solicitud de ingreso de "${n}"? Su cuenta quedará inactiva.`, async ()=>{
     const d=await ajax('alumno_rechazar',{id});
     if(d?.ok){toast(d.msg);loadAlumnos();}else Ibbs.error(d?.msg||'Error');
-  });
+  }, {tone:'warning', title:'¿Rechazar solicitud?', confirmText:'Sí, rechazar'});
 }
 async function createAlumno(e){
   e.preventDefault(); const fd=new FormData(e.target); fd.append('action','alumno_create');

@@ -724,7 +724,7 @@ async function post(action,data){
   }
 }
 
-function setErr(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display=msg?'block':'none';}
+function setErr(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display=msg?'block':'none';if(msg)el.scrollIntoView({behavior:'smooth',block:'nearest'});}
 function setOk(id,msg){const el=document.getElementById(id);el.textContent=msg;el.style.display=msg?'block':'none';}
 
 function applyLoginValidation(el) {
@@ -803,6 +803,18 @@ async function doReg1(){
   const btn=document.getElementById('btnReg1');
   btn.disabled=true;
   btn.textContent='Verificando…';
+  // Validar primero que no haya campos vacíos — si no, alguien que
+  // deja TODO el formulario vacío solo veía el error de la contraseña,
+  // como si los demás campos (nombre, apellido, usuario, ID, correo)
+  // no hicieran falta.
+  const camposVacios = [
+    ['rNom','Nombre'], ['rApe','Apellido'], ['rU','Usuario'],
+    ['rCed','ID'], ['rM','Correo'],
+  ].filter(([id]) => !document.getElementById(id).value.trim());
+  if (camposVacios.length) {
+    setErr('errReg1', 'Completa todos los campos: ' + camposVacios.map(c => c[1]).join(', ') + '.');
+    btn.disabled=false; btn.textContent='Continuar →'; return;
+  }
   const pwdErr = validarPassword(document.getElementById('rP').value);
   if (pwdErr) { setErr('errReg1', pwdErr); btn.disabled=false; btn.textContent='Continuar →'; return; }
   const d=await post('reg_check',{nombre:document.getElementById('rNom').value,apellido:document.getElementById('rApe').value,usuario:document.getElementById('rU').value,cedula:document.getElementById('rCed').value,correo:document.getElementById('rM').value,password:document.getElementById('rP').value,repetir:document.getElementById('rP2').value});

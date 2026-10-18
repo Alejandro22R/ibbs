@@ -100,7 +100,8 @@ if ($action === 'crear') {
     $envioId = mysqli_insert_id($con);
 
     $mat = mysqli_fetch_assoc(mysqli_query($con, "SELECT nombre FROM materias WHERE id=$mid"));
-    $docNombre = $_SESSION['usuario'] ?? 'Un profesor';
+    $docRow = mysqli_fetch_assoc(mysqli_query($con, "SELECT nombre,apellido FROM docentes WHERE usuario_id=$uid LIMIT 1"));
+    $docNombre = $docRow ? trim($docRow['nombre'].' '.$docRow['apellido']) : ($_SESSION['usuario'] ?? 'Un profesor');
     log_audit($con, $uid, 'NOTAS_ENVIO_CREAR', "materia=$mid envio=$envioId alumnos=".count($limpio));
 
     $titulo = "Notas enviadas para aprobación";

@@ -483,6 +483,29 @@ tr:hover td { background:rgba(46,204,16,.045); }
 .td-actions { display:flex; gap:.4rem; }
 .empty-row td { text-align:center; padding:2.5rem; color:var(--muted); font-style:italic; font-size:.84rem; }
 
+/* Columna de Acciones siempre visible en tablas anchas (Alumnos,
+   Docentes, Materias, Usuarios...) — antes, en pantallas de escritorio
+   con muchas columnas, quedaba fuera de la vista dentro de .tbl-wrap
+   (que hace scroll horizontal) sin ningún indicio de que había que
+   arrastrar la tabla hacia la derecha para encontrarla. Queda "pegada"
+   al borde derecho en vez de desaparecer. En móvil no aplica — ahí las
+   tablas .table-stack se convierten en tarjetas, sin scroll horizontal. */
+.tbl-wrap table th:last-child,
+.tbl-wrap table td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--paper);
+  box-shadow: -8px 0 10px -8px rgba(0,0,0,.14);
+}
+.tbl-wrap table thead th:last-child {
+  background: linear-gradient(180deg, var(--cream) 0%, var(--border) 220%);
+  z-index: 2;
+}
+.tbl-wrap table tr:hover td:last-child { background: #eef7ea; }
+html[data-theme="dark"] .tbl-wrap table td:last-child { background: #16301f; }
+html[data-theme="dark"] .tbl-wrap table tr:hover td:last-child { background: #1c2b1e; }
+
 /* ── Botón de acción solo-ícono — para columnas de Acciones con muchos
    botones (ej. Materias: Aula/Grabadas/En Vivo/Culminar/Editar/Eliminar)
    que antes obligaban a hacer scroll horizontal. El texto queda en el
@@ -722,6 +745,11 @@ tr:hover td { background:rgba(46,204,16,.045); }
   table.table-stack tr:not(.empty-row) td[data-label]::before { content: attr(data-label); font-weight: 700; font-size: .66rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); text-align: left; flex-shrink: 0; }
   table.table-stack tr:not(.empty-row) td:not([data-label]) { display: none; }
   table.table-stack .td-actions { justify-content: flex-end; flex-wrap: wrap; gap: .35rem; }
+  /* La columna Acciones "pegada" a la derecha es cosa de escritorio
+     (tabla ancha con scroll horizontal) — en .table-stack cada fila ya
+     es una tarjeta vertical sin ese problema, así que se anula acá. */
+  table.table-stack td:last-child { position: static; box-shadow: none; background: transparent; }
+  table.table-stack thead th:last-child { position: static; }
 
   /* Modales full width */
   .modal         { max-width: 96vw; border-radius: 14px; margin: 0; }

@@ -175,7 +175,7 @@ let _pagosAll = [];
 function filaPago(p){
   return `<tr>
     <td style="text-align:center;"><input type="checkbox" class="chkPago" value="${p.id}" onchange="actualizarBarraLotePagos()"></td>
-    <td data-label="Alumno" style="text-align:left;">${h(p.alumno_apellido)}, ${h(p.alumno_nombre)}<br><span style="font-size:.72rem;color:var(--muted);">ID: ${h(p.alumno_cedula)}</span></td>
+    <td data-label="Alumno" style="text-align:left;">${p.alumno_nombre?`${h(p.alumno_apellido)}, ${h(p.alumno_nombre)}<br><span style="font-size:.72rem;color:var(--muted);">ID: ${h(p.alumno_cedula)}</span>`:`<span style="color:var(--muted);font-style:italic;">Alumno eliminado</span><br><span style="font-size:.72rem;color:var(--muted);">Se conserva el cobro para que los totales cuadren</span>`}</td>
     <td data-label="Tipo" style="text-align:center;">${p.tipo==='mensualidad'?'Mensualidad':'Inscripción'}</td>
     <td data-label="Concepto" style="text-align:left;">${h(p.concepto)}</td>
     <td data-label="Monto" style="text-align:center;">$${parseFloat(p.monto).toFixed(2)}</td>

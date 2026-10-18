@@ -30,7 +30,7 @@ mysqli_close($con);
         <option value="<?=$a['id']?>"><?=htmlspecialchars($a['apellido'].', '.$a['nombre'])?> (<?=htmlspecialchars($a['cedula'])?>)</option>
         <?php endforeach; ?>
       </select>
-      <p style="font-size:.78rem;color:var(--muted);margin-top:.6rem;">Los alumnos se inscriben solos desde su portal — acá solo ves en qué materias está cada uno. Para cargar una nota, ir a "Cargar Notas"; para exportar una constancia o planilla, ir a "Record Académico".</p>
+      <p style="font-size:.78rem;color:var(--muted);margin-top:.6rem;">Los alumnos se inscriben solos desde su portal — acá solo ves en qué materias está cada uno. Para cargar una nota, ir a "Cargar Notas"; para exportar una constancia o planilla, ir a "Herramientas → Certificados".</p>
     </div>
   </div>
 </div>
@@ -148,7 +148,7 @@ function hAttr(s) { return h(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replac
 window.IBBS_TOUR_INSCRIPCIONES = {
   storageKey: 'ibbs_tour_inscripciones_v1',
   steps: [
-    { selector: '[data-tour="insc-selector"]', title: 'Inscripciones', text: 'Elige un alumno para ver en qué materias está inscrito. Los alumnos se inscriben solos desde su portal — esta página es solo de consulta. Para cargar una nota, ir a "Cargar Notas"; para exportar una constancia o planilla, ir a "Record Académico".' },
+    { selector: '[data-tour="insc-selector"]', title: 'Inscripciones', text: 'Elige un alumno para ver en qué materias está inscrito. Los alumnos se inscriben solos desde su portal — esta página es solo de consulta. Para cargar una nota, ir a "Cargar Notas"; para exportar una constancia o planilla, ir a "Herramientas → Certificados".' },
   ],
   auto: true,
 };

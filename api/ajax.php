@@ -201,6 +201,19 @@ if($action==='materia_toggle_aula_presencial'){
     log_audit($con,$uid,'MATERIA_AULA_PRESENCIAL_TOGGLE',"ID=$id activa=".($f['aula_virtual_presencial']??'?'));
     echo json_encode(['ok'=>true,'msg'=>$f && (int)$f['aula_virtual_presencial']===1 ? 'Aula Virtual habilitada para los alumnos presenciales de esta materia.' : 'Aula Virtual cerrada para los alumnos presenciales de esta materia.','activa'=>$f?(int)$f['aula_virtual_presencial']:0]); exit;
 }
+if($action==='materia_alumnos_list'){
+    // "Mis Cursos" (portal del docente) no tenía ninguna forma de ver
+    // quién está inscrito en una materia desde esa misma pantalla —
+    // había que ir a otro módulo (Asistencia, Cargar Notas) para
+    // encontrar la lista. Mismo chequeo de permiso que el resto de
+    // las acciones sobre una materia puntual.
+    $id=(int)($_POST['id']??0);
+    if(!materia_puede_ver($con,$uid,$_rol,$id)){echo json_encode(['ok'=>false,'msg'=>'Sin permiso sobre esta materia.']);exit;}
+    if(!$id){echo json_encode(['ok'=>false,'msg'=>'Materia requerida.']);exit;}
+    $r=mysqli_query($con,"SELECT a.nombre,a.apellido,a.cedula,a.correo FROM materia_alumno ma JOIN alumnos a ON a.id=ma.alumno_id WHERE ma.materia_id=$id ORDER BY a.apellido,a.nombre");
+    $lista=[]; while($f=mysqli_fetch_assoc($r)) $lista[]=$f;
+    echo json_encode(['ok'=>true,'data'=>$lista]); exit;
+}
 if($action==='materia_toggle_prerequisito_libre'){
     // "Prerequisito libre" es la vía por la que administración abre una
     // materia puntual para TODO el mundo, saltándose el orden del
@@ -1064,7 +1077,12 @@ if($action==='notif_list'){
     // queda guardada pero sale de esta lista a propósito (ver
     // notif_archivar), tanto si estaba leída como si no.
     $roles=notif_roles_aceptados($_rol);
-    $st=mysqli_prepare($con,"SELECT * FROM notificaciones WHERE (usuario_id=? OR (usuario_id IS NULL AND para_rol IN (?,?,?))) AND leida=0 AND archivada=0 ORDER BY creado_en DESC LIMIT 30");
+    // "Marcar todas leídas" antes las hacía desaparecer para siempre de
+    // la única lista que existía — se sentía como si se hubieran
+    // borrado. Con leidas=1 se pide esa misma lista pero del lado de
+    // las ya leídas, para una pestaña aparte en el panel completo.
+    $condLeida = !empty($_POST['leidas']) ? 'leida=1' : 'leida=0';
+    $st=mysqli_prepare($con,"SELECT * FROM notificaciones WHERE (usuario_id=? OR (usuario_id IS NULL AND para_rol IN (?,?,?))) AND $condLeida AND archivada=0 ORDER BY creado_en DESC LIMIT 30");
     mysqli_stmt_bind_param($st,'isss',$uid,$roles[0],$roles[1],$roles[2]);
     mysqli_stmt_execute($st);
     $r=mysqli_stmt_get_result($st);
@@ -1428,6 +1446,7 @@ if($action==='perfil_pregs'){
     $p1=trim($_POST['preg1']??''); $r1=strtolower(trim($_POST['resp1']??''));
     $p2=trim($_POST['preg2']??''); $r2=strtolower(trim($_POST['resp2']??''));
     if(!$p1||!$r1||!$p2||!$r2){echo json_encode(['ok'=>false,'msg'=>'Completa todo.']);exit;}
+    if($p1===$p2){echo json_encode(['ok'=>false,'msg'=>'Las dos preguntas deben ser diferentes.']);exit;}
     $h1=password_hash($r1,PASSWORD_BCRYPT); $h2=password_hash($r2,PASSWORD_BCRYPT);
     $st=mysqli_prepare($con,"UPDATE usuarios SET preg1=?,resp1_hash=?,preg2=?,resp2_hash=? WHERE id=?");
     mysqli_stmt_bind_param($st,'ssssi',$p1,$h1,$p2,$h2,$uid); mysqli_stmt_execute($st);
@@ -1523,8 +1542,9 @@ if($action==='historial_actividad'){
             LEFT JOIN usuarios u ON u.id=al2.usuario_id
             WHERE 1 $wh ORDER BY al2.creado_en DESC LIMIT 100");
         while($f=mysqli_fetch_assoc($r)){
+            $detalleLegible = ibbs_detalle_legible($con, $f['detalle']);
             $data[]=['id'=>'usuario_'.($f['audit_id']??0),'tipo'=>'usuario','tipo_label'=>'Sistema','persona'=>$f['persona']??'Sistema',
-                'detalle'=>$f['accion'].($f['detalle']?' — '.mb_substr($f['detalle'],0,60):''),
+                'detalle'=>ibbs_accion_label($f['accion']).($detalleLegible?' — '.mb_substr($detalleLegible,0,80):''),
                 'valor'=>null,'valor_color'=>'','fecha'=>date('d/m/Y H:i',strtotime($f['creado_en']))];
             $resumen['usuarios']++;
         }

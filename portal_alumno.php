@@ -222,6 +222,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
     <script src="assets/ibbs-password-toggle.js"></script>
     <script src="assets/ibbs-shortcuts.js"></script>
     <script src="assets/ibbs-notif-bell.js"></script>
+    <script src="assets/ibbs-scroll-hint.js"></script>
 
     <!-- Tailwind CSS con el tema IBBS, compilado localmente (antes se
          cargaba en vivo desde cdn.tailwindcss.com: si esa conexión fallaba
@@ -385,7 +386,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         </button>
 
         <!-- Navegación -->
-        <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto relative z-10">
+        <nav class="flex-1 p-4 space-y-1.5 overflow-y-auto relative z-10" data-scroll-hint data-scroll-hint-color="#1a4d2e">
             <p class="text-[10px] uppercase tracking-widest text-white/30 font-bold mb-3 px-3">Menú Principal</p>
             
             <button id="navBtnDashboard" data-tour="nav-dashboard" onclick="switchView('dashboard', this)" class="nav-btn active w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white">
@@ -561,6 +562,10 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <div class="flex items-center justify-between pb-3 border-b border-ibbs-border flex-wrap gap-3">
                     <h2 class="text-2xl font-serif text-ibbs-ink">Notificaciones</h2>
                     <button onclick="marcarTodasLeidasFull('notifListFull')" class="btn-ibbs px-4 py-2 rounded-lg text-sm font-bold">Marcar todas leídas</button>
+                </div>
+                <div style="display:flex;gap:.5rem;">
+                    <button id="notifTabPend" onclick="_ibbsNotifCambiarTab('notifListFull', false, document.getElementById('notifTabPend'), document.getElementById('notifTabLeid'))" style="background:#1a4d2e;color:#fff;border:1px solid #1a4d2e;border-radius:20px;padding:.4rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;">Pendientes</button>
+                    <button id="notifTabLeid" onclick="_ibbsNotifCambiarTab('notifListFull', true, document.getElementById('notifTabPend'), document.getElementById('notifTabLeid'))" style="background:none;color:#7a8c72;border:1px solid #e0d8c8;border-radius:20px;padding:.4rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;">Leídas</button>
                 </div>
                 <div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border overflow-hidden">
                     <div id="notifListFull"></div>
@@ -1419,8 +1424,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 btnElement.classList.remove('text-white/60');
             }
             if(window.innerWidth < 768) {
-                document.getElementById('sidebar').classList.remove('sidebar-open');
-                document.getElementById('mobile-overlay').classList.add('hidden');
+                closeSidebarMobile();
             }
         }
 
@@ -1441,12 +1445,30 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             }
         }
 
+        // Antes esta función alternaba ('.toggle()') dos clases por
+        // separado ('sidebar-open' y '-translate-x-full'), y switchView()
+        // (al navegar a una sección) solo quitaba una de las dos al
+        // cerrar el menú — con el uso normal (abrir con la hamburguesa,
+        // cerrar navegando) las dos clases terminaban desincronizadas:
+        // dependiendo de cuántas veces se había tocado cada una, el menú
+        // podía quedar "atascado" abierto tapando la pantalla, sin que
+        // la hamburguesa pareciera haber hecho nada raro. Ahora hay un
+        // único estado explícito (abierto/cerrado) en vez de alternar
+        // cada clase por su cuenta.
+        function openSidebarMobile() {
+            document.getElementById('sidebar').classList.add('sidebar-open');
+            document.getElementById('sidebar').classList.remove('-translate-x-full');
+            document.getElementById('mobile-overlay').classList.remove('hidden');
+        }
+        function closeSidebarMobile() {
+            document.getElementById('sidebar').classList.remove('sidebar-open');
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+            document.getElementById('mobile-overlay').classList.add('hidden');
+        }
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('mobile-overlay');
-            sidebar.classList.toggle('sidebar-open');
-            sidebar.classList.toggle('-translate-x-full');
-            overlay.classList.toggle('hidden');
+            if (sidebar.classList.contains('sidebar-open')) closeSidebarMobile();
+            else openSidebarMobile();
         }
 
         function openModalEntrega(id, titulo) {
@@ -1485,8 +1507,14 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
         }
 
         function submitFormulario(e) {
-            e.preventDefault(); 
+            e.preventDefault();
             const form = e.target;
+            const _texto = (form.querySelector('[name="respuesta_texto"]')?.value || '').trim();
+            const _archivo = form.querySelector('[name="archivo_adjunto"]');
+            if (!_texto && !(_archivo && _archivo.files && _archivo.files.length)) {
+                Ibbs.error('Escribe un mensaje o adjunta un archivo antes de confirmar la entrega.');
+                return;
+            }
             const formData = new FormData(form);
             const _csrfEnt = document.querySelector('meta[name="csrf-token"]');
             formData.append('csrf_token', _csrfEnt ? _csrfEnt.content : '');
@@ -1823,14 +1851,23 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
             else badge.classList.add('hidden');
 
             if (!_misPagos.length) { cont.innerHTML = '<p class="text-sm text-ibbs-muted italic">No tienes cobros registrados todavía.</p>'; return; }
+            // OJO: antes esto usaba clases genéricas de Tailwind
+            // (bg-amber-100, text-amber-700, etc.) que NUNCA estuvieron
+            // en assets/libs/tailwind/ibbs-alumno.css (el CSS de este
+            // portal es un build fijo con solo las clases ibbs-* que
+            // usa el resto de la página) — por eso "Pendiente" y
+            // "Pagado" se veían con el mismo estilo de texto plano, sin
+            // ningún color que resaltara. Se usan las clases ibbs-*
+            // reales (las mismas que ya pintan de color los badges de
+            // Tareas y Plan de Notas).
             const estadoInfo = {
-                pendiente:  { label: 'Pendiente de pago', cls: 'bg-amber-100 text-amber-700' },
-                en_revision:{ label: 'Comprobante en revisión', cls: 'bg-blue-100 text-blue-700' },
-                pagado:     { label: 'Pagado', cls: 'bg-green-100 text-green-700' },
-                rechazado:  { label: 'Comprobante rechazado — subí uno nuevo', cls: 'bg-red-100 text-red-700' },
+                pendiente:  { label: 'Pendiente de pago', cls: 'bg-ibbs-amber/10 text-ibbs-amber' },
+                en_revision:{ label: 'Comprobante en revisión', cls: 'bg-ibbs-blue/10 text-ibbs-blue' },
+                pagado:     { label: 'Pagado', cls: 'bg-ibbs-green/10 text-ibbs-green' },
+                rechazado:  { label: 'Comprobante rechazado — subí uno nuevo', cls: 'bg-ibbs-red/10 text-ibbs-red' },
             };
             cont.innerHTML = _misPagos.map(p => {
-                const ei = estadoInfo[p.estado] || { label: p.estado, cls: 'bg-gray-100 text-gray-700' };
+                const ei = estadoInfo[p.estado] || { label: p.estado, cls: 'bg-ibbs-cream text-ibbs-muted' };
                 const puedeSubir = p.estado === 'pendiente' || p.estado === 'rechazado';
                 return `<div class="bg-ibbs-paper rounded-[14px] border border-ibbs-border p-4 flex items-center justify-between gap-3 flex-wrap">
                     <div>
