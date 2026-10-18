@@ -30,7 +30,7 @@ if(!in_array($_rol,['superadmin','admin'])){
           style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:180px;">
         <input type="text" id="fAlumCedula" data-only="cedula" placeholder="ID…" oninput="filtrarAlumnos()"
           style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:140px;">
-        <input type="text" id="filtCiudad" data-only="letters" placeholder="Ciudad…" oninput="loadAlumnos()"
+        <input type="text" id="filtCiudad" data-only="letters" placeholder="Ciudad…" oninput="loadAlumnosDebounced()"
           style="padding:.55rem .9rem;border:1.5px solid var(--border);border-radius:8px;font-size:.84rem;outline:none;background:var(--paper);width:130px;">
       </div>
     </div>
@@ -216,6 +216,14 @@ function filaAlumno(r){
     </td></tr>`;
 }
 
+let _loadAlumnosTimer = null;
+function loadAlumnosDebounced(){
+  // El filtro de Ciudad sí consulta al servidor (a diferencia de Nombre
+  // y Cédula, que filtran la tabla ya cargada) — sin esta pausa, escribir
+  // "Bolívar" dispara una consulta por cada letra tecleada.
+  clearTimeout(_loadAlumnosTimer);
+  _loadAlumnosTimer = setTimeout(loadAlumnos, 450);
+}
 async function loadAlumnos(){
   const ciudad=document.getElementById('filtCiudad').value.trim();
   const d=await ajax('alumno_list',{ciudad});

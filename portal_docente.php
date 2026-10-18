@@ -2388,7 +2388,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             grid.innerHTML = d.data.map(r => `
                 <div class="card" style="display:flex;flex-direction:column;">
                     <div style="height:100px;background:var(--ink);display:flex;align-items:center;justify-content:center;overflow:hidden;">
-                        ${r.portada ? `<img src="${r.portada}" style="width:100%;height:100%;object-fit:cover;">` : `<i class="fas fa-book" style="font-size:2.2rem;color:rgba(255,255,255,.2);"></i>`}
+                        ${r.portada ? `<img src="${r.portada}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">` : `<i class="fas fa-book" style="font-size:2.2rem;color:rgba(255,255,255,.2);"></i>`}
                     </div>
                     <div class="card-body" style="flex:1;display:flex;flex-direction:column;">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem;">
