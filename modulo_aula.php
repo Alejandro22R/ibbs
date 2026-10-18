@@ -894,7 +894,7 @@ async function loadTareas() {
           <div style="display:flex;justify-content:space-between;align-items:flex-start;">
             <div>
               <h3 style="font-size:1.1rem;margin-bottom:.2rem;">${h(t.titulo)}</h3>
-              <p style="font-size:.85rem;color:var(--muted);margin-bottom:.5rem;">Vence: ${new Date(t.fecha_limite).toLocaleString()}</p>
+              <p style="font-size:.85rem;color:var(--muted);margin-bottom:.5rem;">Vence: ${new Date(t.fecha_limite).toLocaleString('es-VE', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}</p>
               <p style="font-size:.9rem;color:var(--ink);white-space:pre-wrap;margin-bottom:.5rem;">${h(t.descripcion)}</p>
               ${archivoHtml}
             </div>

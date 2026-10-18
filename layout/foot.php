@@ -153,8 +153,8 @@ function validarForm(campos) {
       errores.push(`<b>${f.label}</b>: correo inválido.`);
       el.style.borderColor = '#dc2626';
     }
-    if (f.tipo === 'cedula' && !/^\d{5,12}$/.test(v.replace(/[VvEe\-]/g,''))) {
-      errores.push(`<b>${f.label}</b>: solo números, entre 5 y 12 dígitos.`);
+    if (f.tipo === 'cedula' && !/^[a-zA-Z0-9\-]{5,15}$/.test(v)) {
+      errores.push(`<b>${f.label}</b>: debe tener entre 5 y 15 caracteres (letras, números o guión).`);
       el.style.borderColor = '#dc2626';
     }
     if (f.tipo === 'password' && v.length < (f.min||6)) {
@@ -387,7 +387,11 @@ function applyValidation(el) {
       decimal:     /^[0-9.]$/,
       alphanumeric:/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s\-_]+$/,
       phone:       /^[0-9\-\+\s\(\)]+$/,
-      cedula:      /^[0-9VvEe\-]+$/,
+      // El campo "ID" dice explícitamente que acepta "cédula, DNI,
+      // pasaporte u otro documento oficial" — un pasaporte puede traer
+      // letras (ej. un número de pasaporte alfanumérico), así que no
+      // puede quedar restringido a solo dígitos y V/E.
+      cedula:      /^[a-zA-Z0-9\-]+$/,
       code:        /^[a-zA-Z0-9\-\.]+$/,
       username:    /^[a-zA-Z0-9_\.\-]+$/,
     };
@@ -404,7 +408,7 @@ function applyValidation(el) {
       decimal:     /^[0-9.]+$/,
       alphanumeric:/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑüÜ\s\-_]+$/,
       phone:       /^[0-9\-\+\s\(\)]+$/,
-      cedula:      /^[0-9VvEe\-]+$/,
+      cedula:      /^[a-zA-Z0-9\-]+$/,
       code:        /^[a-zA-Z0-9\-\.]+$/,
       username:    /^[a-zA-Z0-9_\.\-]+$/,
     };
