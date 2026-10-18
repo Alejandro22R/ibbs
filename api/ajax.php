@@ -588,7 +588,15 @@ if($action==='docente_update'){
 }
 if($action==='docente_delete'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
-    $id=(int)($_POST['id']??0); mysqli_query($con,"DELETE FROM docentes WHERE id=$id");
+    $id=(int)($_POST['id']??0);
+    // Desactivar la cuenta de acceso ANTES de borrar la ficha — si no,
+    // queda un usuario "huérfano" que puede seguir iniciando sesión (el
+    // login no exige ficha de docente) y cuyo portal se cae al no
+    // encontrar sus datos. docentes.usuario_id es ON DELETE SET NULL,
+    // así que hay que leerlo primero.
+    $docUid=mysqli_fetch_assoc(mysqli_query($con,"SELECT usuario_id FROM docentes WHERE id=$id LIMIT 1"))['usuario_id'] ?? null;
+    if($docUid) mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=".(int)$docUid);
+    mysqli_query($con,"DELETE FROM docentes WHERE id=$id");
     log_audit($con,$uid,'DOCENTE_DELETE',"ID=$id");
     echo json_encode(['ok'=>true,'msg'=>'Eliminado.']); exit;
 }
@@ -597,6 +605,9 @@ if($action==='docente_eliminar_lote'){
     $ids=array_values(array_unique(array_filter(array_map('intval',explode(',',trim($_POST['ids']??''))))));
     if(!$ids){echo json_encode(['ok'=>false,'msg'=>'No hay docentes seleccionados.']);exit;}
     $idsq=implode(',',$ids);
+    $uidsR=mysqli_query($con,"SELECT usuario_id FROM docentes WHERE id IN ($idsq) AND usuario_id IS NOT NULL");
+    $docUids=[]; while($f=mysqli_fetch_assoc($uidsR)) $docUids[]=(int)$f['usuario_id'];
+    if($docUids) mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id IN (".implode(',',$docUids).")");
     mysqli_query($con,"DELETE FROM docentes WHERE id IN ($idsq)");
     $n=mysqli_affected_rows($con);
     log_audit($con,$uid,'DOCENTE_ELIMINAR_LOTE',"ids=$idsq n=$n");
@@ -678,7 +689,13 @@ if($action==='alumno_update'){
 }
 if($action==='alumno_delete'){
     if(!in_array($_rol,['superadmin','admin'])){echo json_encode(['ok'=>false,'msg'=>'Sin permiso.']);exit;}
-    $id=(int)($_POST['id']??0); mysqli_query($con,"DELETE FROM alumnos WHERE id=$id");
+    $id=(int)($_POST['id']??0);
+    // Mismo motivo que en docente_delete: desactivar la cuenta de acceso
+    // antes de borrar la ficha, para no dejar un usuario huérfano que
+    // puede seguir logueándose y cuyo portal se cae sin su ficha de alumno.
+    $alUid=mysqli_fetch_assoc(mysqli_query($con,"SELECT usuario_id FROM alumnos WHERE id=$id LIMIT 1"))['usuario_id'] ?? null;
+    if($alUid) mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=".(int)$alUid);
+    mysqli_query($con,"DELETE FROM alumnos WHERE id=$id");
     log_audit($con,$uid,'ALUMNO_DELETE',"ID=$id");
     echo json_encode(['ok'=>true,'msg'=>'Eliminado.']); exit;
 }
@@ -697,6 +714,10 @@ if($action==='alumno_lote'){
         $al=mysqli_fetch_assoc(mysqli_query($con,"SELECT id,usuario_id,nombre,apellido FROM alumnos WHERE id=$id LIMIT 1"));
         if(!$al){ $omitidos++; continue; }
         if($sub==='eliminar'){
+            // Desactivar la cuenta de acceso antes de borrar la ficha —
+            // mismo motivo que en alumno_delete (un usuario huérfano
+            // podría seguir logueándose y su portal se cae sin ficha).
+            if($al['usuario_id']) mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=".(int)$al['usuario_id']);
             mysqli_query($con,"DELETE FROM alumnos WHERE id=$id");
             log_audit($con,$uid,'ALUMNO_DELETE',"ID=$id (lote)");
             $ok++; continue;
@@ -710,7 +731,10 @@ if($action==='alumno_lote'){
             notificar_usuario($con,$uidAlumno,'solicitud_aprobada','¡Tu ingreso fue aprobado!','Ya puedes iniciar sesión e inscribirte en tus materias.');
             mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
         } else {
-            mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=$uidAlumno");
+            // aprobado=1 además de activo=0: si no, la fila sigue
+            // leyéndose como "Pendiente" en vez de "Rechazado" (mismo
+            // bug que en alumno_rechazar de a uno).
+            mysqli_query($con,"UPDATE usuarios SET activo=0, aprobado=1 WHERE id=$uidAlumno");
             log_audit($con,$uid,'ALUMNO_RECHAZAR',"alumno=$id usuario=$uidAlumno (lote)");
             notificar_usuario($con,$uidAlumno,'solicitud_rechazada','Tu solicitud de ingreso fue rechazada','Contacta a la administración si crees que es un error.');
             mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");
@@ -765,8 +789,12 @@ if($action==='alumno_rechazar'){
     $uidAlumno=(int)$al['usuario_id'];
     // No se borra la cuenta — queda desactivada, por si hay que revisar
     // el caso después. activo=0 ya bloquea el login con el mensaje
-    // "Cuenta desactivada."
-    mysqli_query($con,"UPDATE usuarios SET activo=0 WHERE id=$uidAlumno");
+    // "Cuenta desactivada" (ese chequeo corre antes que el de aprobado).
+    // aprobado=1 es necesario para que la fila deje de leerse como
+    // "Pendiente" en la tabla — si no, un rechazo se ve idéntico a una
+    // solicitud nunca revisada y el staff no tiene forma de saber que
+    // ya se decidió, ni de distinguir "para reintentar" de "ya resuelto".
+    mysqli_query($con,"UPDATE usuarios SET activo=0, aprobado=1 WHERE id=$uidAlumno");
     log_audit($con,$uid,'ALUMNO_RECHAZAR',"alumno=$id usuario=$uidAlumno");
     notificar_usuario($con,$uidAlumno,'solicitud_rechazada','Tu solicitud de ingreso fue rechazada','Contacta a la administración si crees que es un error.');
     mysqli_query($con,"UPDATE notificaciones SET leida=1 WHERE tipo='solicitud_alumno' AND referencia_id=$uidAlumno");

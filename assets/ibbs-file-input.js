@@ -53,7 +53,15 @@
 
     function scan(root) {
         if (!root || !root.querySelectorAll) return;
-        root.querySelectorAll('input[type="file"]:not([data-no-enhance])').forEach(enhance);
+        // .swal2-file es el input oculto que SweetAlert2 trae embebido en
+        // CADA popup (confirm/warn/success/error), aunque el popup no pida
+        // ningún archivo — si lo "mejoramos" como a cualquier otro input,
+        // aparece un botón "Elegir archivo" suelto en diálogos que no
+        // tienen nada que ver con subir archivos.
+        root.querySelectorAll('input[type="file"]:not([data-no-enhance])').forEach(function (input) {
+            if (input.closest('.swal2-container')) return;
+            enhance(input);
+        });
     }
 
     document.addEventListener('DOMContentLoaded', function () { scan(document); });

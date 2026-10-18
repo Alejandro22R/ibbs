@@ -110,7 +110,15 @@ mysqli_close($con);
           <div class="field"><label>Pregunta 1</label>
             <select id="pPrg1">
               <?php $pregs=['¿Cuál es el nombre de tu primera mascota?','¿En qué ciudad naciste?','¿Cuál es el apellido de tu madre?','¿Cuál fue el nombre de tu primera escuela?','¿Cuál es tu comida favorita?','¿Cuál es el nombre de tu mejor amigo de infancia?'];
-              foreach($pregs as $p): ?>
+              // Sin este placeholder, un <select> sin ninguna opción con
+              // "selected" cae solo en la primera de la lista — una
+              // cuenta creada por el staff (nunca pasó por el registro
+              // público) tiene preg1/preg2 en NULL, y antes se veía como
+              // si YA tuviera las dos preguntas configuradas (y encima
+              // idénticas entre sí), cuando en realidad no hay ninguna.
+              ?>
+              <option value="" <?=!$u['preg1']?'selected':''?>>— Sin configurar —</option>
+              <?php foreach($pregs as $p): ?>
               <option <?=$u['preg1']===$p?'selected':''?>><?=htmlspecialchars($p)?></option>
               <?php endforeach; ?>
             </select>
@@ -118,6 +126,7 @@ mysqli_close($con);
           <div class="field"><label>Respuesta 1 (nueva)</label><input id="pR1" placeholder="Escribe para cambiar"></div>
           <div class="field"><label>Pregunta 2</label>
             <select id="pPrg2">
+              <option value="" <?=!$u['preg2']?'selected':''?>>— Sin configurar —</option>
               <?php foreach($pregs as $p): ?>
               <option <?=$u['preg2']===$p?'selected':''?>><?=htmlspecialchars($p)?></option>
               <?php endforeach; ?>

@@ -531,7 +531,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             <!-- Pestañas de Filtro para las tareas -->
             <div class="tabs-nav" style="margin-bottom: 1.5rem;">
                 <button class="tab-btn active" onclick="filtrarEntregas('todas', this)">Todas</button>
-                <button class="tab-btn" onclick="filtrarEntregas('pendientes', this)">Pendientes (<span id="pendientesCountBadge" style="color:var(--amber); font-weight:bold;"><?= $por_calificar_count ?></span>)</button>
+                <button class="tab-btn" onclick="filtrarEntregas('pendiente', this)">Pendientes (<span id="pendientesCountBadge" style="color:var(--amber); font-weight:bold;"><?= $por_calificar_count ?></span>)</button>
                 <button class="tab-btn" onclick="filtrarEntregas('calificadas', this)">Calificadas</button>
             </div>
 
@@ -1924,7 +1924,7 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             // desaparezca sin tener que recargar nada.
             const tabActivo = document.querySelector('#view-entregas .tab-btn.active');
             if (tabActivo) {
-                const tipo = tabActivo.textContent.toLowerCase().includes('pendientes') ? 'pendientes'
+                const tipo = tabActivo.textContent.toLowerCase().includes('pendientes') ? 'pendiente'
                            : tabActivo.textContent.toLowerCase().includes('calificadas') ? 'calificadas' : 'todas';
                 filtrarEntregas(tipo, tabActivo);
             }
@@ -2999,9 +2999,9 @@ if (in_array($_SESSION['rol'], ['superadmin', 'admin'])) {
             const d = await _aulaPost('api/ajax.php', 'materia_alumnos_list', { id: materiaId });
             if (!d?.ok) { cont.innerHTML = `<p style="color:var(--red);">${d?.msg || 'No se pudo cargar la lista.'}</p>`; return; }
             if (!d.data.length) { cont.innerHTML = '<p style="text-align:center;color:var(--muted);padding:1.5rem;">Todavía no hay alumnos inscritos en esta materia.</p>'; return; }
-            cont.innerHTML = '<table style="width:100%;"><thead><tr><th>Alumno</th><th>ID</th><th>Correo</th></tr></thead><tbody>' +
-                d.data.map(a => `<tr><td>${hAula(a.apellido)}, ${hAula(a.nombre)}</td><td>${hAula(a.cedula || '—')}</td><td style="font-size:.8rem;">${hAula(a.correo || '—')}</td></tr>`).join('') +
-                '</tbody></table>';
+            cont.innerHTML = '<div style="width:100%;overflow-x:auto;"><table style="width:100%;table-layout:fixed;"><thead><tr><th>Alumno</th><th>ID</th><th>Correo</th></tr></thead><tbody>' +
+                d.data.map(a => `<tr><td>${hAula(a.apellido)}, ${hAula(a.nombre)}</td><td>${hAula(a.cedula || '—')}</td><td style="font-size:.8rem;word-break:break-all;">${hAula(a.correo || '—')}</td></tr>`).join('') +
+                '</tbody></table></div>';
         }
 
         async function toggleAulaPresencialDocente(materiaId, btn) {
