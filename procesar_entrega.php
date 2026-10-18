@@ -107,6 +107,26 @@ mysqli_stmt_bind_param($stmt, "iiss", $tarea_id, $alumno_id, $respuesta_texto, $
 
 if (mysqli_stmt_execute($stmt)) {
     log_audit($con, (int)$user_id, 'ENTREGA_SUBIR', "tarea=$tarea_id alumno=$alumno_id");
+
+    // Avisarle al/a los docente(s) de la materia que hay una entrega
+    // nueva para revisar — si no, la pestaña "Pendientes" de Cargar
+    // Notas solo se descubre entrando a mirar manualmente.
+    $tar = mysqli_fetch_assoc(mysqli_query($con, "SELECT titulo FROM tareas WHERE id=".(int)$tarea_id." LIMIT 1"));
+    $alu = mysqli_fetch_assoc(mysqli_query($con, "SELECT nombre, apellido FROM alumnos WHERE id=".(int)$alumno_id." LIMIT 1"));
+    if ($tar && $alu) {
+        $alumnoNombre = trim($alu['nombre'].' '.$alu['apellido']);
+        $docStmt = mysqli_prepare($con, "SELECT d.usuario_id FROM materia_docente md JOIN docentes d ON d.id=md.docente_id WHERE md.materia_id=? AND d.usuario_id IS NOT NULL");
+        mysqli_stmt_bind_param($docStmt, 'i', $tInfo['materia_id']);
+        mysqli_stmt_execute($docStmt);
+        $docRes = mysqli_stmt_get_result($docStmt);
+        while ($doc = mysqli_fetch_assoc($docRes)) {
+            notificar_usuario($con, (int)$doc['usuario_id'], 'entrega',
+                'Nueva entrega para calificar',
+                $alumnoNombre.' entregó "'.$tar['titulo'].'".',
+                (int)$tInfo['materia_id']);
+        }
+    }
+
     echo json_encode(['ok' => true, 'msg' => 'Entrega subida y registrada con éxito.']);
 } else {
     echo json_encode(['ok' => false, 'msg' => 'Error al guardar en la base de datos.']);

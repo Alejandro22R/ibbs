@@ -39,13 +39,22 @@ if ($nombre === '' || $apellido === '') {
     exit;
 }
 
-// El correo no puede quedar duplicado con otro alumno.
+// El correo no puede quedar duplicado con otro alumno, ni con la cuenta de
+// acceso (usuarios.correo) de otra persona del staff.
 if ($correo !== '') {
     $ck = mysqli_prepare($con, "SELECT id FROM alumnos WHERE correo=? AND id!=?");
     mysqli_stmt_bind_param($ck, 'si', $correo, $alumno_id);
     mysqli_stmt_execute($ck);
     mysqli_stmt_store_result($ck);
-    if (mysqli_stmt_num_rows($ck) > 0) {
+    $dup = mysqli_stmt_num_rows($ck) > 0;
+    if (!$dup) {
+        $ck2 = mysqli_prepare($con, "SELECT id FROM usuarios WHERE correo=? AND id!=?");
+        mysqli_stmt_bind_param($ck2, 'si', $correo, $user_id);
+        mysqli_stmt_execute($ck2);
+        mysqli_stmt_store_result($ck2);
+        $dup = mysqli_stmt_num_rows($ck2) > 0;
+    }
+    if ($dup) {
         header('Location: portal_alumno.php?msg=correo_duplicado');
         exit;
     }
@@ -81,6 +90,16 @@ if ($foto_ruta) {
     mysqli_stmt_bind_param($st, 'ssssi', $nombre, $apellido, $correo, $telefono, $alumno_id);
 }
 mysqli_stmt_execute($st);
+
+// El correo de acceso (usuarios.correo) es el que usan login-por-correo y
+// la recuperación de contraseña — tiene que quedar sincronizado con el de
+// la ficha de alumno, si no el alumno pierde el acceso por correo y los
+// enlaces de recuperación le llegan a una dirección que ya no usa.
+if ($correo !== '') {
+    $stu = mysqli_prepare($con, "UPDATE usuarios SET correo=? WHERE id=?");
+    mysqli_stmt_bind_param($stu, 'si', $correo, $user_id);
+    mysqli_stmt_execute($stu);
+}
 
 // El nombre mostrado en la sesión (header, sidebar) se actualiza al toque.
 if ($nombre !== '') {

@@ -170,8 +170,9 @@ $res_tareas = mysqli_stmt_get_result($stmt_t);
 $tareas = [];
 $pendientes_count = 0;
 while($row = mysqli_fetch_assoc($res_tareas)) {
+    $row['vencida'] = !$row['entrega_id'] && strtotime($row['fecha_limite']) < time();
     $tareas[] = $row;
-    if (!$row['entrega_id']) $pendientes_count++;
+    if (!$row['entrega_id'] && !$row['vencida']) $pendientes_count++;
 }
 
 // Obtener Notas Finales
@@ -521,7 +522,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 <!-- Stats Cards -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <!-- Tarjeta Tareas -->
-                    <div class="bg-ibbs-paper p-5 rounded-[14px] border border-ibbs-border flex items-center gap-4 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group" onclick="document.querySelector('#sidebar nav button:nth-child(4)').click()">
+                    <div class="bg-ibbs-paper p-5 rounded-[14px] border border-ibbs-border flex items-center gap-4 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group" onclick="switchView('tareas', document.querySelector('[data-tour=&quot;nav-tareas&quot;]'))">
                         <div class="w-12 h-12 rounded-xl bg-ibbs-amber/10 text-ibbs-amber flex items-center justify-center text-xl group-hover:bg-ibbs-amber group-hover:text-white transition-colors">
                             <i class="fas fa-exclamation-circle"></i>
                         </div>
@@ -531,7 +532,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         </div>
                     </div>
                     <!-- Tarjeta Materias -->
-                    <div class="bg-ibbs-paper p-5 rounded-[14px] border border-ibbs-border flex items-center gap-4 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group" onclick="document.querySelector('#sidebar nav button:nth-child(3)').click()">
+                    <div class="bg-ibbs-paper p-5 rounded-[14px] border border-ibbs-border flex items-center gap-4 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group" onclick="switchView('materias', document.querySelector('[data-tour=&quot;nav-materias&quot;]'))">
                         <div class="w-12 h-12 rounded-xl bg-ibbs-blue/10 text-ibbs-blue flex items-center justify-center text-xl group-hover:bg-ibbs-blue group-hover:text-white transition-colors">
                             <i class="fas fa-book-open"></i>
                         </div>
@@ -541,7 +542,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                         </div>
                     </div>
                     <!-- Tarjeta Promedio -->
-                    <div class="bg-ibbs-paper p-5 rounded-[14px] border border-ibbs-border flex items-center gap-4 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group" onclick="document.querySelector('#sidebar nav button:nth-child(6)').click()">
+                    <div class="bg-ibbs-paper p-5 rounded-[14px] border border-ibbs-border flex items-center gap-4 cursor-pointer hover:-translate-y-1 hover:shadow-lg transition-all group" onclick="switchView('notas', document.querySelector('[data-tour=&quot;nav-notas&quot;]'))">
                         <div class="w-12 h-12 rounded-xl bg-ibbs-green/10 text-ibbs-green flex items-center justify-center text-xl group-hover:bg-ibbs-green group-hover:text-white transition-colors">
                             <i class="fas fa-chart-line"></i>
                         </div>
@@ -727,7 +728,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                 <span class="text-xs font-bold px-2.5 py-1 rounded-lg bg-ibbs-cream text-ibbs-muted flex items-center gap-1.5 w-fit">📎 <?= $m['materiales_count'] ?> material<?= $m['materiales_count']==1?'':'es' ?> disponible<?= $m['materiales_count']==1?'':'s' ?></span>
                             </div>
                             <div class="flex gap-2 mt-auto mb-2">
-                                <button onclick="document.querySelector('#sidebar nav button:nth-child(4)').click()" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors">Ver Tareas</button>
+                                <button onclick="switchView('tareas', document.querySelector('[data-tour=&quot;nav-tareas&quot;]'))" class="flex-1 bg-ibbs-cream text-ibbs-ink border border-ibbs-border py-2 rounded-lg text-xs font-bold hover:bg-ibbs-border transition-colors">Ver Tareas</button>
                                 <button onclick="irAlChatMateria(<?= $m['id'] ?>)" class="flex-1 btn-ibbs py-2 rounded-lg text-xs font-bold text-center">Foro de Clase</button>
                             </div>
                             <?php if ($m['aula_acceso']): ?>
@@ -758,7 +759,25 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 
                 <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
                     <?php foreach($tareas as $t): ?>
-                        <?php if(!$t['entrega_id']): ?>
+                        <?php if($t['vencida']): ?>
+                        <!-- Tarea Vencida (sin entregar, fecha límite ya pasó) -->
+                        <div class="bg-ibbs-paper p-5 rounded-[14px] border border-ibbs-border border-l-4 border-l-ibbs-red flex flex-col justify-between opacity-80 hover:opacity-100 transition-opacity">
+                            <div>
+                                <div class="flex justify-between items-start mb-3">
+                                    <span class="text-[10px] font-bold px-2 py-1 rounded border border-ibbs-border bg-ibbs-cream text-ibbs-muted tracking-wider uppercase"><?= htmlspecialchars($t['materia_nombre']) ?></span>
+                                    <span class="text-[10px] font-bold px-2 py-1 rounded bg-ibbs-red/10 text-ibbs-red tracking-wider uppercase flex items-center gap-1"><i class="fas fa-ban"></i> Vencida</span>
+                                </div>
+                                <h3 class="text-lg font-serif font-bold text-ibbs-ink mb-2"><?= htmlspecialchars($t['titulo']) ?></h3>
+                                <p class="text-sm text-ibbs-muted mb-5 line-clamp-3 leading-relaxed"><?= nl2br(htmlspecialchars($t['descripcion'])) ?></p>
+                                <p class="text-xs font-bold text-ibbs-red flex items-center gap-2 mb-5">
+                                    <i class="far fa-calendar-alt"></i> Venció: <?= fecha_es('d M Y, h:i A', strtotime($t['fecha_limite'])) ?>
+                                </p>
+                            </div>
+                            <div class="w-full bg-ibbs-cream text-ibbs-muted font-bold py-2.5 rounded-lg border border-ibbs-border text-center text-xs">
+                                Ya no se puede entregar — el profesor decide la nota al cerrar la materia.
+                            </div>
+                        </div>
+                        <?php elseif(!$t['entrega_id']): ?>
                         <!-- Tarea Pendiente -->
                         <div class="bg-ibbs-paper p-5 rounded-[14px] border border-ibbs-border border-l-4 border-l-ibbs-amber flex flex-col justify-between hover:shadow-md transition-shadow">
                             <div>
@@ -768,7 +787,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                                 </div>
                                 <h3 class="text-lg font-serif font-bold text-ibbs-ink mb-2"><?= htmlspecialchars($t['titulo']) ?></h3>
                                 <p class="text-sm text-ibbs-muted mb-5 line-clamp-3 leading-relaxed"><?= nl2br(htmlspecialchars($t['descripcion'])) ?></p>
-                                
+
                                 <div class="flex flex-col gap-2 mb-5">
                                     <p class="text-xs font-bold text-ibbs-amber flex items-center gap-2">
                                         <i class="far fa-calendar-alt"></i> Límite: <?= fecha_es('d M Y, h:i A', strtotime($t['fecha_limite'])) ?>
@@ -2124,7 +2143,7 @@ $promedio = count($notas) > 0 ? round($suma_notas / count($notas), 2) : 'N/A';
                 { selector: '[data-tour="nav-tareas"]', title: 'Tareas', text: 'Sube tus trabajos y tareas antes de la fecha límite adjuntando el archivo pedido. El número en rojo te avisa cuántas tienes pendientes por entregar; una vez el profesor la revise, la nota aparece junto a la tarea.' },
                 { selector: '[data-tour="nav-chat"]', title: 'Foros de Clase', text: 'Espacio de preguntas y respuestas por cada materia: escríbele a tu profesor o a tus compañeros si tienes dudas sobre un tema de clase.' },
                 { selector: '[data-tour="nav-notas"]', title: 'Calificaciones', text: 'Consulta tus notas por materia y por corte apenas el profesor las publique, sin tener que esperar el boletín oficial.' },
-                { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'Mira todas las actividades de cada materia, su fecha límite y cuánto vale, para no perderte de nada — las notas en sí las ves en "Calificaciones".' },
+                { selector: '[data-tour="nav-plan-notas"]', title: 'Plan de Notas', text: 'Mira todas las actividades de cada materia, su fecha límite, cuánto vale y la nota que vas sacando en cada una, con tu promedio acumulado — la nota final oficial de la materia la ves en "Calificaciones".' },
                 { selector: '[data-tour="nav-constancias"]', title: 'Constancias', text: 'Descarga tu Constancia de Estudio o de Notas cuando quieras, gratis y al instante — la de Notas solo incluye las materias ya culminadas y 100% calificadas.' },
                 { selector: '[data-tour="nav-biblioteca"]', title: 'Biblioteca', text: 'Explora los libros que tus profesores fueron subiendo: los gratuitos se descargan directo, y en los de pago te vamos a pedir tu comprobante antes de darte acceso.' },
                 { selector: '[data-tour="nav-pagos"]', title: 'Mis Pagos', text: 'Acá vas a ver tus cobros de mensualidad e inscripción. Cuando tengas uno pendiente, sube la captura de tu pago móvil o transferencia y quedará en revisión hasta que administración lo confirme.' },

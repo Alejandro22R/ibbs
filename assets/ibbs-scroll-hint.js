@@ -26,7 +26,13 @@
         if (!wrap) return;
         if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
 
-        var color = container.dataset.scrollHintColor || '#123a22';
+        // Un degradado a un color sólido solo se ve si ese color coincide
+        // con el fondo real donde cae — en el sidebar oscuro del portal
+        // del docente el verde por defecto quedaba casi idéntico al fondo
+        // y el aviso no se notaba. Un degradado a negro semitransparente
+        // sí oscurece visiblemente sobre cualquier fondo, claro u oscuro,
+        // sin tener que adivinar el color exacto de cada contenedor.
+        var color = container.dataset.scrollHintColor || 'rgba(0,0,0,.55)';
         var fade = document.createElement('div');
         fade.setAttribute('aria-hidden', 'true');
         fade.style.cssText =

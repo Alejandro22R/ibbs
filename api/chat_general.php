@@ -20,6 +20,9 @@ if (empty($_SESSION['loggedin'])) {
     echo json_encode(['error' => 'Sesión expirada.']); exit;
 }
 
+$con = db();
+if (!$con) { echo json_encode(['error' => 'Error de conexión a la base de datos.']); exit; }
+
 $uid  = (int)($_SESSION['user_id'] ?? 0);
 $_rol = $_SESSION['rol'] ?? 'profesor';
 $usuarioNombre = $_SESSION['usuario'] ?? 'Usuario';
@@ -31,9 +34,6 @@ if ($_rol === 'profesor') {
 if (!in_array($_rol, ['superadmin', 'admin', 'profesor'])) {
     echo json_encode(['error' => 'Este chat es solo para administración y docentes.']); exit;
 }
-
-$con = db();
-if (!$con) { echo json_encode(['error' => 'Error de conexión a la base de datos.']); exit; }
 
 $action = $_GET['action'] ?? '';
 
